@@ -1,0 +1,13 @@
+{
+  "mysql": {
+    "host": "localhost",
+    "user": "root",
+    "password": "",
+    "database": "test"
+  },
+
+  "xendit": {
+    "api_key": "xendit_api_key",
+    "secret_key": "xendit_secret_key"
+  }
+}
