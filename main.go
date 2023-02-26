@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/malwarebo/app/config"
-	"github.com/malwarebo/app/payments"
+	"gopay/config"
+	"gopay/payments"
 )
 
 func main() {
