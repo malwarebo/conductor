@@ -6,7 +6,7 @@ updates:
       interval: "daily"
     open-pull-requests-limit: 20
     commit-message:
-      prefix: (build)-deps
+      prefix: (build)-
       include: scope
     pull-request-branch-name:
       separator: "-"
