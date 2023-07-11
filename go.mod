@@ -2,7 +2,7 @@ module gopay
 
 go 1.20
 
-require github.com/xendit/xendit-go v1.0.19
+require github.com/xendit/xendit-go v1.0.25
 
 require (
 	github.com/go-playground/locales v0.13.0 // indirect
