@@ -1,0 +1,11 @@
+{
+  "xendit" : {
+    "secret": "xnd_development_...",
+    "public": "xnd_public_development_..."
+  },
+
+"stripe" : {
+    "secret": "sk_test_...",
+    "public": "pk_test_..."
+  }
+}
