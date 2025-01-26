@@ -1,49 +1,46 @@
 package db
 
 import (
-	"context"
-	"database/sql"
-	_ "github.com/lib/pq"
+	"fmt"
+	"log"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type DB struct {
-	*sql.DB
+	*gorm.DB
 }
 
-func NewDB(dataSourceName string) (*DB, error) {
-	db, err := sql.Open("postgres", dataSourceName)
+func NewDB(dsn string) (*DB, error) {
+	config := &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	}
+
+	db, err := gorm.Open(postgres.Open(dsn), config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	// Test the connection
-	if err := db.Ping(); err != nil {
-		return nil, err
+	// Get underlying *sql.DB
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database instance: %v", err)
 	}
 
+	// Set connection pool settings
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+
+	log.Println("Connected to database successfully")
 	return &DB{db}, nil
 }
 
-// Transaction represents a database transaction
-type Transaction struct {
-	*sql.Tx
-}
-
-// BeginTx starts a new transaction
-func (db *DB) BeginTx(ctx context.Context) (*Transaction, error) {
-	tx, err := db.DB.BeginTx(ctx, nil)
+func (db *DB) Close() error {
+	sqlDB, err := db.DB.DB()
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to get database instance: %v", err)
 	}
-	return &Transaction{tx}, nil
-}
-
-// Commit commits the transaction
-func (tx *Transaction) Commit() error {
-	return tx.Tx.Commit()
-}
-
-// Rollback rolls back the transaction
-func (tx *Transaction) Rollback() error {
-	return tx.Tx.Rollback()
+	return sqlDB.Close()
 }

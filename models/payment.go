@@ -1,45 +1,68 @@
 package models
 
-import "time"
+import (
+	"time"
+	"gorm.io/gorm"
+)
 
-// ChargeRequest represents a payment charge request
+type PaymentStatus string
+
+const (
+	PaymentStatusPending   PaymentStatus = "pending"
+	PaymentStatusSucceeded PaymentStatus = "succeeded"
+	PaymentStatusFailed    PaymentStatus = "failed"
+	PaymentStatusRefunded  PaymentStatus = "refunded"
+)
+
+type Payment struct {
+	ID              string        `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	CustomerID      string        `json:"customer_id" gorm:"not null;index"`
+	Amount          int64         `json:"amount" gorm:"not null"`
+	Currency        string        `json:"currency" gorm:"not null"`
+	Status          PaymentStatus `json:"status" gorm:"not null;default:'pending'"`
+	PaymentMethodID string        `json:"payment_method_id" gorm:"not null"`
+	Description     string        `json:"description"`
+	ProviderName    string        `json:"provider_name" gorm:"not null"`
+	ProviderChargeID string       `json:"provider_charge_id" gorm:"index"`
+	Refunds         []Refund      `json:"refunds,omitempty" gorm:"foreignKey:PaymentID"`
+	Metadata        gorm.JSON     `json:"metadata" gorm:"type:jsonb"`
+	CreatedAt       time.Time     `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt       time.Time     `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+type Refund struct {
+	ID              string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	PaymentID       string    `json:"payment_id" gorm:"not null;index"`
+	Amount          int64     `json:"amount" gorm:"not null"`
+	Reason          string    `json:"reason"`
+	Status          string    `json:"status" gorm:"not null;default:'pending'"`
+	ProviderName    string    `json:"provider_name" gorm:"not null"`
+	ProviderRefundID string   `json:"provider_refund_id" gorm:"index"`
+	Metadata        gorm.JSON `json:"metadata" gorm:"type:jsonb"`
+	CreatedAt       time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt       time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
 type ChargeRequest struct {
-	Amount        float64            `json:"amount"`
-	Currency      string             `json:"currency"`
-	PaymentMethod string             `json:"payment_method"`
-	Description   string             `json:"description"`
-	CustomerID    string             `json:"customer_id"`
-	Metadata      map[string]string  `json:"metadata,omitempty"`
+	CustomerID      string                 `json:"customer_id" binding:"required"`
+	Amount          int64                  `json:"amount" binding:"required"`
+	Currency        string                 `json:"currency" binding:"required"`
+	PaymentMethodID string                 `json:"payment_method_id" binding:"required"`
+	Description     string                 `json:"description,omitempty"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// ChargeResponse represents a payment charge response
 type ChargeResponse struct {
-	TransactionID string             `json:"transaction_id"`
-	Status        string             `json:"status"`
-	Amount        float64            `json:"amount"`
-	Currency      string             `json:"currency"`
-	PaymentMethod string             `json:"payment_method"`
-	ProviderName  string             `json:"provider_name"`
-	CreatedAt     time.Time          `json:"created_at"`
-	Metadata      map[string]string  `json:"metadata,omitempty"`
+	Payment *Payment `json:"payment"`
 }
 
-// RefundRequest represents a refund request
 type RefundRequest struct {
-	TransactionID string             `json:"transaction_id"`
-	Amount        float64            `json:"amount"`
-	Reason        string             `json:"reason"`
-	Metadata      map[string]string  `json:"metadata,omitempty"`
+	PaymentID string                 `json:"payment_id" binding:"required"`
+	Amount    int64                  `json:"amount" binding:"required"`
+	Reason    string                 `json:"reason,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// RefundResponse represents a refund response
 type RefundResponse struct {
-	RefundID      string             `json:"refund_id"`
-	TransactionID string             `json:"transaction_id"`
-	Status        string             `json:"status"`
-	Amount        float64            `json:"amount"`
-	Currency      string             `json:"currency"`
-	ProviderName  string             `json:"provider_name"`
-	CreatedAt     time.Time          `json:"created_at"`
-	Metadata      map[string]string  `json:"metadata,omitempty"`
+	Refund *Refund `json:"refund"`
 }

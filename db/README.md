@@ -1,6 +1,6 @@
 # Database Setup Instructions
 
-This document explains how to set up the PostgreSQL database for the Gopay payment orchestration system.
+This document explains how to set up the PostgreSQL database for the Gopay payment orchestration system. We use GORM as our ORM for database operations.
 
 ## Prerequisites
 
@@ -67,6 +67,85 @@ Or update `config/config.json`:
 }
 ```
 
+## Using GORM
+
+We use GORM for all database operations. Here are some key features and patterns:
+
+### Models
+
+Our models are defined with GORM tags for better control over database schema:
+
+```go
+type Plan struct {
+    ID          string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+    Name        string    `gorm:"not null"`
+    Amount      int64     `gorm:"not null"`
+    Currency    string    `gorm:"not null"`
+    Metadata    JSON      `gorm:"type:jsonb"`
+    CreatedAt   time.Time `gorm:"autoCreateTime"`
+    UpdatedAt   time.Time `gorm:"autoUpdateTime"`
+}
+```
+
+### Common Operations
+
+1. Create a record:
+```go
+db.Create(&plan)
+```
+
+2. Find a record:
+```go
+var plan Plan
+db.First(&plan, "id = ?", id)
+```
+
+3. Update a record:
+```go
+db.Save(&plan)
+```
+
+4. Delete a record:
+```go
+db.Delete(&plan)
+```
+
+5. Query with conditions:
+```go
+var plans []Plan
+db.Where("active = ?", true).Find(&plans)
+```
+
+### Working with Relationships
+
+GORM automatically handles relationships using the `Preload` function:
+
+```go
+// Load subscription with its plan
+var subscription Subscription
+db.Preload("Plan").First(&subscription, "id = ?", id)
+```
+
+### Transactions
+
+Use transactions for operations that need to be atomic:
+
+```go
+err := db.Transaction(func(tx *gorm.DB) error {
+    // Create subscription
+    if err := tx.Create(&subscription).Error; err != nil {
+        return err
+    }
+    
+    // Update plan usage
+    if err := tx.Model(&plan).Update("usage_count", gorm.Expr("usage_count + ?", 1)).Error; err != nil {
+        return err
+    }
+    
+    return nil
+})
+```
+
 ## Verify Setup
 
 To verify the setup:
@@ -91,25 +170,25 @@ You should see the following tables:
 
 ## Common Issues
 
-1. **Permission Denied**:
-   - Ensure the user has proper permissions:
-   ```sql
-   GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO gopay_user;
-   GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO gopay_user;
-   ```
-
-2. **Database Connection Failed**:
-   - Check if PostgreSQL is running:
+1. **Connection Issues**:
+   - Check PostgreSQL is running:
    ```bash
    sudo service postgresql status
    ```
    - Verify connection settings in pg_hba.conf
-   - Ensure the correct password is being used
+   - Ensure correct password in environment variables
 
-3. **Schema Migration Failed**:
-   - Check if the database exists and is accessible
-   - Ensure you have the latest schema.sql file
-   - Look for error messages in the migration output
+2. **Migration Issues**:
+   - Ensure UUID extension is enabled
+   - Check database user has necessary permissions
+   - Look for constraint violations in existing data
+
+3. **Performance Issues**:
+   - Use appropriate indexes (already set up in schema)
+   - Enable GORM's debug mode to see generated SQL:
+   ```go
+   db.Debug().Where(...).Find(&result)
+   ```
 
 ## Database Maintenance
 
