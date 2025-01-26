@@ -5,6 +5,7 @@
 GoPay is a payment orchestration system that provides a unified interface for multiple payment providers while maintaining its own state and data consistency.
 
 ## Current Architecture
+<img width="1487" alt="Screenshot 2025-01-26 at 15 24 37" src="https://github.com/user-attachments/assets/bfe03b0b-af9c-4fc0-8720-c0373f5a913b" />
 
 
 ## Architecture Components
