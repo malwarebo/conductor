@@ -7,21 +7,25 @@ import (
 
 	"github.com/malwarebo/gopay/models"
 	"github.com/malwarebo/gopay/providers"
+	"github.com/malwarebo/gopay/repositories"
 )
 
 var (
 	ErrDisputeNotFound = errors.New("dispute not found")
 	ErrInvalidEvidence = errors.New("invalid evidence")
+	ErrNoAvailableProvider = errors.New("no available provider")
 )
 
 type DisputeService struct {
-	providers []providers.PaymentProvider
-	mu        sync.RWMutex
+	providers     []providers.PaymentProvider
+	disputeRepo   *repositories.DisputeRepository
+	mu           sync.RWMutex
 }
 
-func NewDisputeService(providers ...providers.PaymentProvider) *DisputeService {
+func NewDisputeService(disputeRepo *repositories.DisputeRepository, providers ...providers.PaymentProvider) *DisputeService {
 	return &DisputeService{
-		providers: providers,
+		providers:   providers,
+		disputeRepo: disputeRepo,
 	}
 }
 
@@ -58,7 +62,18 @@ func (s *DisputeService) CreateDispute(ctx context.Context, req *models.CreateDi
 		return nil, errors.New("dispute reason is required")
 	}
 
-	return provider.CreateDispute(ctx, req)
+	// Create dispute in payment provider
+	dispute, err := provider.CreateDispute(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store dispute in database
+	if err := s.disputeRepo.Create(ctx, dispute); err != nil {
+		return nil, err
+	}
+
+	return dispute, nil
 }
 
 func (s *DisputeService) UpdateDispute(ctx context.Context, disputeID string, req *models.UpdateDisputeRequest) (*models.Dispute, error) {
@@ -68,7 +83,7 @@ func (s *DisputeService) UpdateDispute(ctx context.Context, disputeID string, re
 	}
 
 	// Validate dispute exists
-	dispute, err := provider.GetDispute(ctx, disputeID)
+	dispute, err := s.disputeRepo.GetByID(ctx, disputeID)
 	if err != nil {
 		return nil, ErrDisputeNotFound
 	}
@@ -78,7 +93,18 @@ func (s *DisputeService) UpdateDispute(ctx context.Context, disputeID string, re
 		return nil, errors.New("invalid status transition")
 	}
 
-	return provider.UpdateDispute(ctx, disputeID, req)
+	// Update dispute in payment provider
+	updatedDispute, err := provider.UpdateDispute(ctx, disputeID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update dispute in database
+	if err := s.disputeRepo.Update(ctx, updatedDispute); err != nil {
+		return nil, err
+	}
+
+	return updatedDispute, nil
 }
 
 func (s *DisputeService) SubmitEvidence(ctx context.Context, disputeID string, req *models.SubmitEvidenceRequest) (*models.Evidence, error) {
@@ -88,7 +114,7 @@ func (s *DisputeService) SubmitEvidence(ctx context.Context, disputeID string, r
 	}
 
 	// Validate dispute exists and is in a valid state for evidence submission
-	dispute, err := provider.GetDispute(ctx, disputeID)
+	dispute, err := s.disputeRepo.GetByID(ctx, disputeID)
 	if err != nil {
 		return nil, ErrDisputeNotFound
 	}
@@ -102,31 +128,58 @@ func (s *DisputeService) SubmitEvidence(ctx context.Context, disputeID string, r
 		return nil, err
 	}
 
-	return provider.SubmitDisputeEvidence(ctx, disputeID, req)
+	// Submit evidence to payment provider
+	evidence, err := provider.SubmitDisputeEvidence(ctx, disputeID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store evidence in database
+	if err := s.disputeRepo.AddEvidence(ctx, evidence); err != nil {
+		return nil, err
+	}
+
+	return evidence, nil
 }
 
 func (s *DisputeService) GetDispute(ctx context.Context, disputeID string) (*models.Dispute, error) {
-	provider := s.getAvailableProvider(ctx)
-	if provider == nil {
-		return nil, ErrNoAvailableProvider
+	// Get dispute from database
+	dispute, err := s.disputeRepo.GetByID(ctx, disputeID)
+	if err != nil {
+		return nil, err
 	}
-	return provider.GetDispute(ctx, disputeID)
+
+	// Get evidence for the dispute
+	evidence, err := s.disputeRepo.GetEvidence(ctx, disputeID)
+	if err != nil {
+		return nil, err
+	}
+	dispute.Evidence = evidence
+
+	return dispute, nil
 }
 
 func (s *DisputeService) ListDisputes(ctx context.Context, customerID string) ([]*models.Dispute, error) {
-	provider := s.getAvailableProvider(ctx)
-	if provider == nil {
-		return nil, ErrNoAvailableProvider
+	// Get disputes from database
+	disputes, err := s.disputeRepo.ListByCustomer(ctx, customerID)
+	if err != nil {
+		return nil, err
 	}
-	return provider.ListDisputes(ctx, customerID)
+
+	// Get evidence for each dispute
+	for _, dispute := range disputes {
+		evidence, err := s.disputeRepo.GetEvidence(ctx, dispute.ID)
+		if err != nil {
+			return nil, err
+		}
+		dispute.Evidence = evidence
+	}
+
+	return disputes, nil
 }
 
 func (s *DisputeService) GetStats(ctx context.Context) (*models.DisputeStats, error) {
-	provider := s.getAvailableProvider(ctx)
-	if provider == nil {
-		return nil, ErrNoAvailableProvider
-	}
-	return provider.GetDisputeStats(ctx)
+	return s.disputeRepo.GetStats(ctx)
 }
 
 // Helper functions

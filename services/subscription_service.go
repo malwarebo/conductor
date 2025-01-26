@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/malwarebo/gopay/models"
 	"github.com/malwarebo/gopay/providers"
+	"github.com/malwarebo/gopay/repositories"
 )
 
 var (
@@ -14,13 +16,17 @@ var (
 )
 
 type SubscriptionService struct {
-	providers []providers.PaymentProvider
-	mu        sync.RWMutex
+	providers    []providers.PaymentProvider
+	planRepo     *repositories.PlanRepository
+	subRepo      *repositories.SubscriptionRepository
+	mu           sync.RWMutex
 }
 
-func NewSubscriptionService(providers ...providers.PaymentProvider) *SubscriptionService {
+func NewSubscriptionService(planRepo *repositories.PlanRepository, subRepo *repositories.SubscriptionRepository, providers ...providers.PaymentProvider) *SubscriptionService {
 	return &SubscriptionService{
 		providers: providers,
+		planRepo:  planRepo,
+		subRepo:   subRepo,
 	}
 }
 
@@ -48,7 +54,19 @@ func (s *SubscriptionService) CreatePlan(ctx context.Context, plan *models.Plan)
 	if provider == nil {
 		return nil, ErrNoAvailableProvider
 	}
-	return provider.CreatePlan(ctx, plan)
+
+	// Create plan in payment provider
+	providerPlan, err := provider.CreatePlan(ctx, plan)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store plan in database
+	if err := s.planRepo.Create(ctx, providerPlan); err != nil {
+		return nil, err
+	}
+
+	return providerPlan, nil
 }
 
 func (s *SubscriptionService) UpdatePlan(ctx context.Context, planID string, plan *models.Plan) (*models.Plan, error) {
@@ -56,7 +74,19 @@ func (s *SubscriptionService) UpdatePlan(ctx context.Context, planID string, pla
 	if provider == nil {
 		return nil, ErrNoAvailableProvider
 	}
-	return provider.UpdatePlan(ctx, planID, plan)
+
+	// Update plan in payment provider
+	updatedPlan, err := provider.UpdatePlan(ctx, planID, plan)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update plan in database
+	if err := s.planRepo.Update(ctx, updatedPlan); err != nil {
+		return nil, err
+	}
+
+	return updatedPlan, nil
 }
 
 func (s *SubscriptionService) DeletePlan(ctx context.Context, planID string) error {
@@ -64,23 +94,24 @@ func (s *SubscriptionService) DeletePlan(ctx context.Context, planID string) err
 	if provider == nil {
 		return ErrNoAvailableProvider
 	}
-	return provider.DeletePlan(ctx, planID)
+
+	// Delete plan from payment provider
+	if err := provider.DeletePlan(ctx, planID); err != nil {
+		return err
+	}
+
+	// Delete plan from database
+	return s.planRepo.Delete(ctx, planID)
 }
 
 func (s *SubscriptionService) GetPlan(ctx context.Context, planID string) (*models.Plan, error) {
-	provider := s.getAvailableProvider(ctx)
-	if provider == nil {
-		return nil, ErrNoAvailableProvider
-	}
-	return provider.GetPlan(ctx, planID)
+	// Get plan from database
+	return s.planRepo.GetByID(ctx, planID)
 }
 
 func (s *SubscriptionService) ListPlans(ctx context.Context) ([]*models.Plan, error) {
-	provider := s.getAvailableProvider(ctx)
-	if provider == nil {
-		return nil, ErrNoAvailableProvider
-	}
-	return provider.ListPlans(ctx)
+	// Get plans from database
+	return s.planRepo.List(ctx)
 }
 
 // Subscription Management
@@ -91,7 +122,7 @@ func (s *SubscriptionService) CreateSubscription(ctx context.Context, req *model
 	}
 
 	// Validate plan exists
-	plan, err := provider.GetPlan(ctx, req.PlanID)
+	plan, err := s.planRepo.GetByID(ctx, req.PlanID)
 	if err != nil {
 		return nil, ErrPlanNotFound
 	}
@@ -102,7 +133,18 @@ func (s *SubscriptionService) CreateSubscription(ctx context.Context, req *model
 		req.TrialDays = &trialDays
 	}
 
-	return provider.CreateSubscription(ctx, req)
+	// Create subscription in payment provider
+	subscription, err := provider.CreateSubscription(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store subscription in database
+	if err := s.subRepo.Create(ctx, subscription); err != nil {
+		return nil, err
+	}
+
+	return subscription, nil
 }
 
 func (s *SubscriptionService) UpdateSubscription(ctx context.Context, subscriptionID string, req *models.UpdateSubscriptionRequest) (*models.Subscription, error) {
@@ -113,12 +155,23 @@ func (s *SubscriptionService) UpdateSubscription(ctx context.Context, subscripti
 
 	// If changing plans, validate new plan exists
 	if req.PlanID != nil {
-		if _, err := provider.GetPlan(ctx, *req.PlanID); err != nil {
+		if _, err := s.planRepo.GetByID(ctx, *req.PlanID); err != nil {
 			return nil, ErrPlanNotFound
 		}
 	}
 
-	return provider.UpdateSubscription(ctx, subscriptionID, req)
+	// Update subscription in payment provider
+	subscription, err := provider.UpdateSubscription(ctx, subscriptionID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update subscription in database
+	if err := s.subRepo.Update(ctx, subscription); err != nil {
+		return nil, err
+	}
+
+	return subscription, nil
 }
 
 func (s *SubscriptionService) CancelSubscription(ctx context.Context, subscriptionID string, req *models.CancelSubscriptionRequest) (*models.Subscription, error) {
@@ -126,21 +179,28 @@ func (s *SubscriptionService) CancelSubscription(ctx context.Context, subscripti
 	if provider == nil {
 		return nil, ErrNoAvailableProvider
 	}
-	return provider.CancelSubscription(ctx, subscriptionID, req)
+
+	// Cancel subscription in payment provider
+	subscription, err := provider.CancelSubscription(ctx, subscriptionID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update subscription in database
+	subscription.CanceledAt = time.Now()
+	if err := s.subRepo.Update(ctx, subscription); err != nil {
+		return nil, err
+	}
+
+	return subscription, nil
 }
 
 func (s *SubscriptionService) GetSubscription(ctx context.Context, subscriptionID string) (*models.Subscription, error) {
-	provider := s.getAvailableProvider(ctx)
-	if provider == nil {
-		return nil, ErrNoAvailableProvider
-	}
-	return provider.GetSubscription(ctx, subscriptionID)
+	// Get subscription from database
+	return s.subRepo.GetByID(ctx, subscriptionID)
 }
 
 func (s *SubscriptionService) ListSubscriptions(ctx context.Context, customerID string) ([]*models.Subscription, error) {
-	provider := s.getAvailableProvider(ctx)
-	if provider == nil {
-		return nil, ErrNoAvailableProvider
-	}
-	return provider.ListSubscriptions(ctx, customerID)
+	// Get subscriptions from database
+	return s.subRepo.ListByCustomer(ctx, customerID)
 }

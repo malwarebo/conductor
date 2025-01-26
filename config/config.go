@@ -2,22 +2,33 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 )
 
 type Config struct {
-	Xendit XenditConfig `json:"xendit"`
-	Stripe StripeConfig `json:"stripe"`
-	Server ServerConfig `json:"server"`
+	Database DatabaseConfig `json:"database"`
+	Stripe   StripeConfig  `json:"stripe"`
+	Xendit   XenditConfig  `json:"xendit"`
+	Server   ServerConfig  `json:"server"`
 }
 
-type XenditConfig struct {
+type DatabaseConfig struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	DBName   string `json:"dbname"`
+	SSLMode  string `json:"sslmode"`
+}
+
+type StripeConfig struct {
 	Secret string `json:"secret"`
 	Public string `json:"public"`
 }
 
-type StripeConfig struct {
+type XenditConfig struct {
 	Secret string `json:"secret"`
 	Public string `json:"public"`
 }
@@ -28,7 +39,6 @@ type ServerConfig struct {
 
 // LoadConfig loads configuration from a JSON file and environment variables
 func LoadConfig() (*Config, error) {
-	// First load from config file
 	config := &Config{}
 	
 	// Get the absolute path to the config directory
@@ -48,18 +58,56 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	// Override with environment variables if they exist
-	if envSecret := os.Getenv("XENDIT_API_KEY"); envSecret != "" {
-		config.Xendit.Secret = envSecret
+	// Override with environment variables if present
+	if dbHost := os.Getenv("DB_HOST"); dbHost != "" {
+		config.Database.Host = dbHost
 	}
-	if envSecret := os.Getenv("STRIPE_API_KEY"); envSecret != "" {
-		config.Stripe.Secret = envSecret
+	if dbPort := os.Getenv("DB_PORT"); dbPort != "" {
+		fmt.Sscanf(dbPort, "%d", &config.Database.Port)
 	}
-	if envPort := os.Getenv("PORT"); envPort != "" {
-		config.Server.Port = envPort
-	} else if config.Server.Port == "" {
-		config.Server.Port = "8080" // Default port
+	if dbUser := os.Getenv("DB_USER"); dbUser != "" {
+		config.Database.User = dbUser
+	}
+	if dbPass := os.Getenv("DB_PASSWORD"); dbPass != "" {
+		config.Database.Password = dbPass
+	}
+	if dbName := os.Getenv("DB_NAME"); dbName != "" {
+		config.Database.DBName = dbName
+	}
+	if dbSSLMode := os.Getenv("DB_SSLMODE"); dbSSLMode != "" {
+		config.Database.SSLMode = dbSSLMode
+	}
+	if stripeKey := os.Getenv("STRIPE_API_KEY"); stripeKey != "" {
+		config.Stripe.Secret = stripeKey
+	}
+	if xenditKey := os.Getenv("XENDIT_API_KEY"); xenditKey != "" {
+		config.Xendit.Secret = xenditKey
+	}
+	if port := os.Getenv("PORT"); port != "" {
+		config.Server.Port = port
+	}
+
+	// Set defaults if not configured
+	if config.Server.Port == "" {
+		config.Server.Port = "8080"
+	}
+	if config.Database.Port == 0 {
+		config.Database.Port = 5432
+	}
+	if config.Database.SSLMode == "" {
+		config.Database.SSLMode = "disable"
 	}
 
 	return config, nil
+}
+
+func (c *Config) GetDatabaseURL() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		c.Database.User,
+		c.Database.Password,
+		c.Database.Host,
+		c.Database.Port,
+		c.Database.DBName,
+		c.Database.SSLMode,
+	)
 }
