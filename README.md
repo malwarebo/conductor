@@ -1,119 +1,230 @@
-# Gopay - Modern Payment Orchestration System
+# Gopay - Payment Orchestration System
 
-A flexible payment orchestration system that supports multiple payment gateways (Stripe and Xendit) with automatic failover.
+Gopay is an open-source payment orchestration system that supports multiple payment providers (Stripe and Xendit) with features for payment processing, subscriptions, and dispute management.
 
 ## Features
 
-- Single unified API for multiple payment gateways
-- Automatic failover between payment providers
-- Support for charges and refunds
-- Easy to extend with new payment providers
-- Built with Go for high performance and reliability
-- Configuration via JSON and environment variables
+- **Multi-provider Support**
+  - Stripe and Xendit integration
+  - Automatic provider failover
+  - Easy addition of new providers
 
-## Configuration
+- **Payment Processing**
+  - Charge processing
+  - Refund handling
+  - Transaction management
 
-The system can be configured using either a JSON configuration file (`config/config.json`) or environment variables. Environment variables take precedence over the config file.
+- **Subscription Management**
+  - Plan creation and management
+  - Subscription lifecycle handling
+  - Trial period support
+  - Automatic billing
 
-### Configuration File
-```json
-{
-  "xendit": {
-    "secret": "xnd_development_...",
-    "public": "xnd_public_development_..."
-  },
-  "stripe": {
-    "secret": "sk_test_...",
-    "public": "pk_test_..."
-  },
-  "server": {
-    "port": "8080"
-  }
-}
-```
+- **Dispute Handling**
+  - Dispute creation and management
+  - Evidence submission
+  - Status tracking
+  - Dispute statistics
 
-### Environment Variables
-```bash
-export STRIPE_API_KEY=your_stripe_secret_key
-export XENDIT_API_KEY=your_xendit_secret_key
-export PORT=8080  # Optional, defaults to 8080
-```
+## Prerequisites
 
-## Setup
+- Go 1.19 or higher
+- PostgreSQL (for data storage)
+- Stripe account and API key
+- Xendit account and API key
+
+## Installation
 
 1. Clone the repository:
 ```bash
 git clone https://github.com/malwarebo/gopay.git
+cd gopay
 ```
 
-2. Configure the application using either:
-   - Update `config/config.json` with your API keys
-   - Set environment variables (these will override config.json values)
+2. Install dependencies:
+```bash
+go mod download
+```
 
-3. Run the server:
+3. Set up environment variables:
+```bash
+export STRIPE_API_KEY="your_stripe_api_key"
+export XENDIT_API_KEY="your_xendit_api_key"
+export PORT="8080"  # Optional, defaults to 8080
+```
+
+## Running the Service
+
+1. Start the server:
 ```bash
 go run main.go
 ```
 
-## API Endpoints
+The service will start on the configured port (default: 8080).
 
-### Charge Payment
+## API Documentation
+
+### Payment Endpoints
+
+#### Charge Payment
 ```http
 POST /charge
 Content-Type: application/json
 
 {
-    "amount": 1000.00,
-    "currency": "USD",
-    "payment_method": "pm_card_visa",
-    "description": "Test charge",
-    "customer_id": "cust_123",
-    "metadata": {
-        "order_id": "ord_123"
-    }
+  "amount": 1000,
+  "currency": "USD",
+  "payment_method": "card",
+  "description": "Test charge",
+  "customer_id": "cust_123",
+  "metadata": {
+    "order_id": "ord_123"
+  }
 }
 ```
 
-### Process Refund
+#### Refund Payment
 ```http
 POST /refund
 Content-Type: application/json
 
 {
-    "transaction_id": "ch_123",
-    "amount": 1000.00,
-    "reason": "customer_requested",
-    "metadata": {
-        "refund_reason": "product_defect"
-    }
+  "charge_id": "ch_123",
+  "amount": 1000,
+  "reason": "customer_request"
 }
 ```
 
-## Architecture
+### Subscription Endpoints
 
-The system is designed with the following components:
+#### Create Plan
+```http
+POST /plans
+Content-Type: application/json
 
-1. **Provider Interface**: Common interface for all payment providers
-2. **Payment Service**: Orchestrates payments across providers
-3. **API Handlers**: RESTful endpoints for payment operations
-4. **Configuration**: Flexible configuration via JSON and environment variables
+{
+  "name": "Premium Plan",
+  "amount": 2999,
+  "currency": "USD",
+  "interval": "month",
+  "trial_days": 14,
+  "metadata": {
+    "features": "all"
+  }
+}
+```
 
-## Adding New Providers
+#### Create Subscription
+```http
+POST /subscriptions
+Content-Type: application/json
 
-To add a new payment provider:
+{
+  "customer_id": "cust_123",
+  "plan_id": "plan_123",
+  "trial_days": 14,
+  "metadata": {
+    "source": "web"
+  }
+}
+```
 
-1. Implement the `PaymentProvider` interface in `providers/`
-2. Add the provider configuration in `config/config.json`
-3. Add the provider to `PaymentService` in `main.go`
+#### Update Subscription
+```http
+PUT /subscriptions/{subscription_id}
+Content-Type: application/json
+
+{
+  "plan_id": "new_plan_123",
+  "prorate": true
+}
+```
+
+#### Cancel Subscription
+```http
+DELETE /subscriptions/{subscription_id}
+Content-Type: application/json
+
+{
+  "at_period_end": true
+}
+```
+
+### Dispute Endpoints
+
+#### Create Dispute
+```http
+POST /disputes
+Content-Type: application/json
+
+{
+  "transaction_id": "ch_123",
+  "amount": 1000,
+  "currency": "USD",
+  "reason": "fraudulent",
+  "evidence": {
+    "product_description": "Digital product",
+    "customer_email_address": "customer@example.com"
+  }
+}
+```
+
+#### Submit Evidence
+```http
+POST /disputes/{dispute_id}/evidence
+Content-Type: application/json
+
+{
+  "type": "shipping_documentation",
+  "description": "Proof of delivery",
+  "files": ["file_123"]
+}
+```
+
+#### Get Dispute Statistics
+```http
+GET /disputes/stats
+```
 
 ## Error Handling
 
-The system handles various error scenarios:
-- Provider unavailability
-- Invalid requests
-- Payment failures
-- Configuration errors
+The API returns standard HTTP status codes:
+
+- 200: Success
+- 201: Created
+- 400: Bad Request
+- 401: Unauthorized
+- 404: Not Found
+- 500: Internal Server Error
+
+Error responses include a message:
+```json
+{
+  "error": "Detailed error message"
+}
+```
+
+## Development
+
+### Adding a New Provider
+
+1. Implement the `PaymentProvider` interface in `providers/provider.go`
+2. Add provider configuration in `config/config.go`
+3. Initialize the provider in `main.go`
+
+### Running Tests
+```bash
+go test ./...
+```
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
