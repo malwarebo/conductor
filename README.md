@@ -2,6 +2,8 @@
 
 Gopay is an open-source payment orchestration system that supports multiple payment providers (Stripe and Xendit) with features for payment processing, subscriptions, and dispute management.
 
+Architecture diagram and documentation is here: https://github.com/malwarebo/gopay/blob/master/docs/ARCHITECTURE.md
+
 ## Features
 
 - **Multi-provider Support**
