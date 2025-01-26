@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"time"
 
+	"github.com/malwarebo/gopay/models"
 	"github.com/malwarebo/gopay/providers"
 )
 
@@ -42,7 +42,7 @@ func (s *PaymentService) getAvailableProvider(ctx context.Context) providers.Pay
 	return nil
 }
 
-func (s *PaymentService) Charge(ctx context.Context, req *providers.ChargeRequest) (*providers.ChargeResponse, error) {
+func (s *PaymentService) Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error) {
 	provider := s.getAvailableProvider(ctx)
 	if provider == nil {
 		return nil, ErrNoAvailableProvider
@@ -51,7 +51,7 @@ func (s *PaymentService) Charge(ctx context.Context, req *providers.ChargeReques
 	return provider.Charge(ctx, req)
 }
 
-func (s *PaymentService) Refund(ctx context.Context, req *providers.RefundRequest) (*providers.RefundResponse, error) {
+func (s *PaymentService) Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
 	provider := s.getAvailableProvider(ctx)
 	if provider == nil {
 		return nil, ErrNoAvailableProvider

@@ -3,10 +3,12 @@ package providers
 import (
 	"context"
 	"fmt"
+	"time"
+	
+	"github.com/malwarebo/gopay/models"
 	"github.com/stripe/stripe-go/v76"
 	"github.com/stripe/stripe-go/v76/charge"
 	"github.com/stripe/stripe-go/v76/refund"
-	"time"
 )
 
 type StripeProvider struct {
@@ -20,7 +22,7 @@ func NewStripeProvider(apiKey string) *StripeProvider {
 	}
 }
 
-func (s *StripeProvider) Charge(ctx context.Context, req *ChargeRequest) (*ChargeResponse, error) {
+func (s *StripeProvider) Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error) {
 	params := &stripe.ChargeParams{
 		Amount:      stripe.Int64(int64(req.Amount * 100)), // Convert to cents
 		Currency:    stripe.String(req.Currency),
@@ -48,19 +50,19 @@ func (s *StripeProvider) Charge(ctx context.Context, req *ChargeRequest) (*Charg
 		return nil, fmt.Errorf("stripe charge failed: %w", err)
 	}
 
-	return &ChargeResponse{
+	return &models.ChargeResponse{
 		TransactionID: ch.ID,
 		Status:        string(ch.Status),
 		Amount:        float64(ch.Amount) / 100,
 		Currency:      string(ch.Currency),
 		PaymentMethod: string(ch.PaymentMethod),
 		ProviderName:  "stripe",
-		CreatedAt:     ch.Created,
+		CreatedAt:     time.Unix(ch.Created, 0),
 		Metadata:      ch.Metadata,
 	}, nil
 }
 
-func (s *StripeProvider) Refund(ctx context.Context, req *RefundRequest) (*RefundResponse, error) {
+func (s *StripeProvider) Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
 	params := &stripe.RefundParams{
 		Charge:   stripe.String(req.TransactionID),
 		Amount:   stripe.Int64(int64(req.Amount * 100)), // Convert to cents
@@ -73,14 +75,14 @@ func (s *StripeProvider) Refund(ctx context.Context, req *RefundRequest) (*Refun
 		return nil, fmt.Errorf("stripe refund failed: %w", err)
 	}
 
-	return &RefundResponse{
+	return &models.RefundResponse{
 		RefundID:      ref.ID,
 		TransactionID: ref.Charge.ID,
 		Status:        string(ref.Status),
 		Amount:        float64(ref.Amount) / 100,
 		Currency:      string(ref.Currency),
 		ProviderName:  "stripe",
-		CreatedAt:     ref.Created,
+		CreatedAt:     time.Unix(ref.Created, 0),
 		Metadata:      ref.Metadata,
 	}, nil
 }

@@ -1,13 +1,16 @@
 package providers
 
-import "context"
+import (
+	"context"
+	"github.com/malwarebo/gopay/models"
+)
 
 // PaymentProvider defines the interface for payment gateway providers
 type PaymentProvider interface {
 	// Charge processes a payment charge
-	Charge(ctx context.Context, req *ChargeRequest) (*ChargeResponse, error)
+	Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error)
 	// Refund processes a refund
-	Refund(ctx context.Context, req *RefundRequest) (*RefundResponse, error)
+	Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error)
 	// IsAvailable checks if the provider is currently available
 	IsAvailable(ctx context.Context) bool
 }

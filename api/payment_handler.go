@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/malwarebo/gopay/providers"
+	"github.com/malwarebo/gopay/models"
 	"github.com/malwarebo/gopay/services"
 )
 
@@ -28,7 +28,7 @@ func (h *PaymentHandler) HandleCharge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req providers.ChargeRequest
+	var req models.ChargeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
@@ -53,7 +53,7 @@ func (h *PaymentHandler) HandleRefund(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req providers.RefundRequest
+	var req models.RefundRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return

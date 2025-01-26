@@ -3,9 +3,11 @@ package providers
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/malwarebo/gopay/models"
 	"github.com/xendit/xendit-go"
 	"github.com/xendit/xendit-go/charge"
-	"time"
 )
 
 type XenditProvider struct {
@@ -19,14 +21,14 @@ func NewXenditProvider(apiKey string) *XenditProvider {
 	}
 }
 
-func (x *XenditProvider) Charge(ctx context.Context, req *ChargeRequest) (*ChargeResponse, error) {
+func (x *XenditProvider) Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error) {
 	chargeParams := charge.CreateParams{
-		Amount:      req.Amount,
-		Currency:    req.Currency,
+		Amount:        req.Amount,
+		Currency:      req.Currency,
 		PaymentMethod: req.PaymentMethod,
-		Description: req.Description,
-		CustomerID:  req.CustomerID,
-		Metadata:    req.Metadata,
+		Description:   req.Description,
+		CustomerID:    req.CustomerID,
+		Metadata:      req.Metadata,
 	}
 
 	ch, err := charge.Create(&chargeParams)
@@ -34,19 +36,19 @@ func (x *XenditProvider) Charge(ctx context.Context, req *ChargeRequest) (*Charg
 		return nil, fmt.Errorf("xendit charge failed: %w", err)
 	}
 
-	return &ChargeResponse{
+	return &models.ChargeResponse{
 		TransactionID: ch.ID,
 		Status:        ch.Status,
 		Amount:        ch.Amount,
 		Currency:      ch.Currency,
 		PaymentMethod: ch.PaymentMethod,
 		ProviderName:  "xendit",
-		CreatedAt:     time.Now().Unix(),
+		CreatedAt:     time.Now(), // Xendit API might provide this, adjust accordingly
 		Metadata:      ch.Metadata,
 	}, nil
 }
 
-func (x *XenditProvider) Refund(ctx context.Context, req *RefundRequest) (*RefundResponse, error) {
+func (x *XenditProvider) Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
 	refundParams := charge.CreateRefundParams{
 		ChargeID: req.TransactionID,
 		Amount:   req.Amount,
@@ -58,14 +60,14 @@ func (x *XenditProvider) Refund(ctx context.Context, req *RefundRequest) (*Refun
 		return nil, fmt.Errorf("xendit refund failed: %w", err)
 	}
 
-	return &RefundResponse{
+	return &models.RefundResponse{
 		RefundID:      ref.ID,
 		TransactionID: ref.ChargeID,
 		Status:        ref.Status,
 		Amount:        ref.Amount,
 		Currency:      ref.Currency,
 		ProviderName:  "xendit",
-		CreatedAt:     time.Now().Unix(),
+		CreatedAt:     time.Now(), // Xendit API might provide this, adjust accordingly
 		Metadata:      ref.Metadata,
 	}, nil
 }
