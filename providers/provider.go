@@ -7,11 +7,33 @@ import (
 
 // PaymentProvider defines the interface for payment gateway providers
 type PaymentProvider interface {
-	// Charge processes a payment charge
+	// Payment methods
 	Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error)
-	// Refund processes a refund
 	Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error)
-	// IsAvailable checks if the provider is currently available
+
+	// Subscription methods
+	CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error)
+	UpdateSubscription(ctx context.Context, subscriptionID string, req *models.UpdateSubscriptionRequest) (*models.Subscription, error)
+	CancelSubscription(ctx context.Context, subscriptionID string, req *models.CancelSubscriptionRequest) (*models.Subscription, error)
+	GetSubscription(ctx context.Context, subscriptionID string) (*models.Subscription, error)
+	ListSubscriptions(ctx context.Context, customerID string) ([]*models.Subscription, error)
+
+	// Plan methods
+	CreatePlan(ctx context.Context, plan *models.Plan) (*models.Plan, error)
+	UpdatePlan(ctx context.Context, planID string, plan *models.Plan) (*models.Plan, error)
+	DeletePlan(ctx context.Context, planID string) error
+	GetPlan(ctx context.Context, planID string) (*models.Plan, error)
+	ListPlans(ctx context.Context) ([]*models.Plan, error)
+
+	// Dispute methods
+	CreateDispute(ctx context.Context, req *models.CreateDisputeRequest) (*models.Dispute, error)
+	UpdateDispute(ctx context.Context, disputeID string, req *models.UpdateDisputeRequest) (*models.Dispute, error)
+	SubmitDisputeEvidence(ctx context.Context, disputeID string, req *models.SubmitEvidenceRequest) (*models.Evidence, error)
+	GetDispute(ctx context.Context, disputeID string) (*models.Dispute, error)
+	ListDisputes(ctx context.Context, customerID string) ([]*models.Dispute, error)
+	GetDisputeStats(ctx context.Context) (*models.DisputeStats, error)
+
+	// Provider status
 	IsAvailable(ctx context.Context) bool
 }
 

@@ -21,15 +21,30 @@ func main() {
 	stripeProvider := providers.NewStripeProvider(cfg.Stripe.Secret)
 	xenditProvider := providers.NewXenditProvider(cfg.Xendit.Secret)
 
-	// Initialize payment service with both providers
+	// Initialize services
 	paymentService := services.NewPaymentService(stripeProvider, xenditProvider)
+	subscriptionService := services.NewSubscriptionService(stripeProvider, xenditProvider)
+	disputeService := services.NewDisputeService(stripeProvider, xenditProvider)
 
-	// Initialize payment handler
+	// Initialize handlers
 	paymentHandler := api.NewPaymentHandler(paymentService)
+	subscriptionHandler := api.NewSubscriptionHandler(subscriptionService)
+	disputeHandler := api.NewDisputeHandler(disputeService)
 
-	// Setup routes
+	// Setup payment routes
 	http.HandleFunc("/charge", paymentHandler.HandleCharge)
 	http.HandleFunc("/refund", paymentHandler.HandleRefund)
+
+	// Setup subscription routes
+	http.HandleFunc("/plans", subscriptionHandler.HandlePlans)
+	http.HandleFunc("/plans/", subscriptionHandler.HandlePlans)
+	http.HandleFunc("/subscriptions", subscriptionHandler.HandleSubscriptions)
+	http.HandleFunc("/subscriptions/", subscriptionHandler.HandleSubscriptions)
+
+	// Setup dispute routes
+	http.HandleFunc("/disputes", disputeHandler.HandleDisputes)
+	http.HandleFunc("/disputes/", disputeHandler.HandleDisputes)
+	http.HandleFunc("/disputes/stats", disputeHandler.HandleDisputes)
 
 	// Start server
 	log.Printf("Server starting on port %s", cfg.Server.Port)
