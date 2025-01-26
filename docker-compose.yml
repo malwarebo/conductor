@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  gopay:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      # Add environment variables for configuration
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=gopay
+      - DB_PASSWORD=gopay_password
+      - DB_NAME=gopay_db
+      - XENDIT_API_KEY=${XENDIT_API_KEY}
+      - STRIPE_API_KEY=${STRIPE_API_KEY}
+
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=gopay_db
+      - POSTGRES_USER=gopay
+      - POSTGRES_PASSWORD=gopay_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

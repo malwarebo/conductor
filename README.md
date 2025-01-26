@@ -86,6 +86,37 @@ go run main.go
 
 2. The API will be available at `http://localhost:8080`
 
+## Docker Deployment
+
+### Prerequisites
+- Docker
+- Docker Compose
+
+### Environment Variables
+Create a `.env` file in the project root with the following variables:
+```
+XENDIT_API_KEY=your_xendit_api_key
+STRIPE_API_KEY=your_stripe_api_key
+```
+
+### Running the Application
+1. Build and start the services:
+```bash
+docker-compose up --build
+```
+
+2. Stop the services:
+```bash
+docker-compose down
+```
+
+### Development with Docker
+- To rebuild the image: `docker-compose build`
+- To run tests in Docker: `docker-compose run --rm gopay go test ./...`
+
+### Accessing the Application
+The application will be available at `http://localhost:8080`
+
 ## API Endpoints
 
 ### Payments
