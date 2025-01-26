@@ -30,13 +30,13 @@ type Plan struct {
 	ID            string      `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	Name          string      `json:"name" gorm:"not null"`
 	Description   string      `json:"description"`
-	Amount        int64       `json:"amount" gorm:"not null"`
+	Amount        float64     `json:"amount" gorm:"not null"`
 	Currency      string      `json:"currency" gorm:"not null"`
 	BillingPeriod BillingPeriod `json:"billing_period" gorm:"not null"`
 	PricingType   PricingType `json:"pricing_type" gorm:"not null"`
 	TrialDays     int         `json:"trial_days"`
 	Features      []string    `json:"features"`
-	Metadata      JSON        `json:"metadata" gorm:"type:jsonb"`
+	Metadata      interface{} `json:"metadata" gorm:"type:jsonb"`
 	CreatedAt     time.Time   `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt     time.Time   `json:"updated_at" gorm:"autoUpdateTime"`
 }
@@ -55,7 +55,7 @@ type Subscription struct {
 	Quantity        int                `json:"quantity"`
 	PaymentMethodID string             `json:"payment_method_id"`
 	ProviderName    string             `json:"provider_name"`
-	Metadata        JSON               `json:"metadata" gorm:"type:jsonb"`
+	Metadata        interface{}        `json:"metadata" gorm:"type:jsonb"`
 	CreatedAt       time.Time          `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt       time.Time          `json:"updated_at" gorm:"autoUpdateTime"`
 }
@@ -65,14 +65,14 @@ type CreateSubscriptionRequest struct {
 	PlanID          string                 `json:"plan_id" binding:"required"`
 	Quantity        int                   `json:"quantity"`
 	TrialDays       *int                  `json:"trial_days,omitempty"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	Metadata        interface{}            `json:"metadata,omitempty"`
 }
 
 type UpdateSubscriptionRequest struct {
 	Quantity        *int                  `json:"quantity,omitempty"`
 	PlanID          *string               `json:"plan_id,omitempty"`
 	PaymentMethodID *string               `json:"payment_method_id,omitempty"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	Metadata        interface{}            `json:"metadata,omitempty"`
 }
 
 type CancelSubscriptionRequest struct {
@@ -88,15 +88,29 @@ type SubscriptionEvent struct {
 	CreatedAt       time.Time          `json:"created_at"`
 }
 
-// JSON is a wrapper for handling JSONB in GORM
-type JSON map[string]interface{}
-
-// Scan implements the sql.Scanner interface
-func (j *JSON) Scan(value interface{}) error {
-	return ScanJSON(value, j)
+type SubscriptionResponse struct {
+	Subscription *Subscription `json:"subscription"`
 }
 
-// Value implements the driver.Valuer interface
-func (j JSON) Value() (interface{}, error) {
-	return ValueJSON(j)
+type CreatePlanRequest struct {
+	Name      string  `json:"name"`
+	Amount    float64 `json:"amount"`
+	Currency  string  `json:"currency"`
+	Interval  string  `json:"interval"`
+	TrialDays int     `json:"trial_days,omitempty"`
+	Metadata  interface{} `json:"metadata,omitempty"`
+}
+
+type UpdatePlanRequest struct {
+	Name      string  `json:"name,omitempty"`
+	Amount    float64 `json:"amount,omitempty"`
+	Currency  string  `json:"currency,omitempty"`
+	Interval  string  `json:"interval,omitempty"`
+	TrialDays int     `json:"trial_days,omitempty"`
+	Active    *bool   `json:"active,omitempty"`
+	Metadata  interface{} `json:"metadata,omitempty"`
+}
+
+type PlanResponse struct {
+	Plan *Plan `json:"plan"`
 }
