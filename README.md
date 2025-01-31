@@ -1,6 +1,8 @@
 # Gopay - Payment Orchestration System
 
-Gopay is an open-source payment orchestration system that supports multiple payment providers (Stripe and Xendit) with features for payment processing, subscriptions, and dispute management.
+Gopay is an open-source payment orchestration system that supports multiple payment providers (currently Stripe and Xendit) with features for payment processing, subscriptions, and dispute management. The goal is to provide a unified interface for payments when you required more than one payment provider to fulfill your business needs. The system is built with simplicity in mind, focusing on ease of use and flexibility.
+
+## Architecture
 
 Architecture diagram and documentation is here: https://github.com/malwarebo/gopay/blob/master/docs/ARCHITECTURE.md
 
@@ -27,13 +29,6 @@ Architecture diagram and documentation is here: https://github.com/malwarebo/gop
   - Evidence submission
   - Status tracking
   - Dispute statistics
-
-## Prerequisites
-
-- Go 1.21 or higher
-- PostgreSQL 12 or higher
-- Stripe account and API key
-- Xendit account and API key
 
 ## Installation
 
@@ -92,7 +87,7 @@ go run main.go
 - Docker
 - Docker Compose
 
-### Environment Variables
+### Environment Variables (optional)
 Create a `.env` file in the project root with the following variables:
 ```
 XENDIT_API_KEY=your_xendit_api_key
@@ -165,26 +160,40 @@ curl -X POST http://localhost:8080/subscriptions \
   }'
 ```
 
-## Development
+## Project Status
 
-### Running Tests
-```bash
-go test ./...
-```
+1. **Phase 1 (Completed)**
+   - Basic payment processing
+   - Provider orchestration
+   - Configuration management
+   - Database integration with GORM
 
-### Code Style
-```bash
-# Install golangci-lint
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+2. **Phase 2 (Current)**
+   - Subscription management
+   - Dispute handling
+   - Advanced error handling
+   - Improved logging
 
-# Run linter
-golangci-lint run
-```
+3. **Phase 3 (Future)**
+   - Webhook handling
+   - Event system
+   - Analytics integration
+   - Advanced reporting
 
-## Contributing
+4. **Phase 4 (Future)**
+   - Additional payment providers
+   - Advanced fraud detection
+   - Performance optimization
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## Future Considerations
+
+1. **Integration**
+   - Additional payment providers
+   - Third-party services
+   - Notification systems (maybe)
+
+2. **Features**
+   - Advanced reporting
+   - Fraud detection
+   - Real-time analytics
+
