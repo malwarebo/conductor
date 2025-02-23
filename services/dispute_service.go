@@ -58,7 +58,7 @@ func (s *DisputeService) GetDispute(ctx context.Context, id string) (*models.Dis
 }
 
 func (s *DisputeService) ListDisputes(ctx context.Context, customerID string) ([]models.Dispute, error) {
-	disputes, err := s.disputeRepo.List(ctx, customerID)
+	disputes, err := s.disputeRepo.ListByCustomer(ctx, customerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list disputes: %w", err)
 	}

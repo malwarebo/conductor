@@ -13,6 +13,7 @@ import (
 
 var (
 	ErrPlanNotFound = errors.New("plan not found")
+	ErrNoAvailableProvider = errors.New("no available payment provider")
 )
 
 type SubscriptionService struct {
@@ -187,7 +188,8 @@ func (s *SubscriptionService) CancelSubscription(ctx context.Context, subscripti
 	}
 
 	// Update subscription in database
-	subscription.CanceledAt = time.Now()
+	now := time.Now()
+	subscription.CanceledAt = &now
 	if err := s.subRepo.Update(ctx, subscription); err != nil {
 		return nil, err
 	}

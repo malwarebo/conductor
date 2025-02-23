@@ -65,7 +65,19 @@ func (s *PaymentService) CreateCharge(ctx context.Context, req *models.ChargeReq
 		return nil, fmt.Errorf("failed to store payment: %w", err)
 	}
 
-	return &models.ChargeResponse{Payment: payment}, nil
+	return &models.ChargeResponse{
+		ID:              payment.ID,
+		CustomerID:      payment.CustomerID,
+		Amount:          payment.Amount,
+		Currency:        payment.Currency,
+		Status:          payment.Status,
+		PaymentMethod:   payment.PaymentMethod,
+		Description:     payment.Description,
+		ProviderName:    payment.ProviderName,
+		ProviderChargeID: payment.ProviderChargeID,
+		Metadata:        payment.Metadata,
+		CreatedAt:       payment.CreatedAt,
+	}, nil
 }
 
 func (s *PaymentService) CreateRefund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
@@ -98,15 +110,28 @@ func (s *PaymentService) CreateRefund(ctx context.Context, req *models.RefundReq
 		return nil, fmt.Errorf("failed to update payment: %w", err)
 	}
 
-	return &models.RefundResponse{Refund: &models.Refund{
-		PaymentID:    req.PaymentID,
-		Amount:       req.Amount,
-		Reason:       req.Reason,
-		Status:       "succeeded",
-		ProviderName: "stripe",
-		ProviderRefundID: refundResp.RefundID,
-		Metadata:     req.Metadata,
-	}}, nil
+	refund := &models.Refund{
+		PaymentID:       req.PaymentID,
+		Amount:          req.Amount,
+		Reason:          req.Reason,
+		Status:          "succeeded",
+		ProviderName:    "stripe",
+		ProviderRefundID: refundResp.ID,
+		Metadata:        req.Metadata,
+	}
+
+	return &models.RefundResponse{
+		ID:              refund.ID,
+		PaymentID:       refund.PaymentID,
+		Amount:          refund.Amount,
+		Currency:        req.Currency,
+		Status:          refund.Status,
+		Reason:          refund.Reason,
+		ProviderName:    refund.ProviderName,
+		ProviderRefundID: refund.ProviderRefundID,
+		Metadata:        refund.Metadata,
+		CreatedAt:       refund.CreatedAt,
+	}, nil
 }
 
 func (s *PaymentService) GetPayment(ctx context.Context, id string) (*models.Payment, error) {
@@ -117,7 +142,7 @@ func (s *PaymentService) GetPayment(ctx context.Context, id string) (*models.Pay
 	return payment, nil
 }
 
-func (s *PaymentService) ListPayments(ctx context.Context, customerID string) ([]models.Payment, error) {
+func (s *PaymentService) ListPayments(ctx context.Context, customerID string) ([]*models.Payment, error) {
 	payments, err := s.paymentRepo.ListByCustomer(ctx, customerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list payments: %w", err)

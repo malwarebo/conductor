@@ -34,7 +34,7 @@ func (h *PaymentHandler) HandleCharge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.paymentService.Charge(r.Context(), &req)
+	resp, err := h.paymentService.CreateCharge(r.Context(), &req)
 	if err != nil {
 		if err == services.ErrNoAvailableProvider {
 			writeJSON(w, http.StatusServiceUnavailable, ErrorResponse{Error: "No payment provider available"})
@@ -59,7 +59,7 @@ func (h *PaymentHandler) HandleRefund(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.paymentService.Refund(r.Context(), &req)
+	resp, err := h.paymentService.CreateRefund(r.Context(), &req)
 	if err != nil {
 		if err == services.ErrNoAvailableProvider {
 			writeJSON(w, http.StatusServiceUnavailable, ErrorResponse{Error: "No payment provider available"})

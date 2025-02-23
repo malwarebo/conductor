@@ -95,8 +95,16 @@ func (h *DisputeHandler) handleSubmitEvidence(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	req.DisputeID = disputeID
-	evidence, err := h.disputeService.SubmitEvidence(r.Context(), disputeID, &req)
+	metadata := map[string]interface{}{
+		"evidence_type":        req.Type,
+		"evidence_description": req.Description,
+		"evidence_files":       req.Files,
+	}
+
+	updateReq := &models.UpdateDisputeRequest{
+		Metadata: metadata,
+	}
+	dispute, err := h.disputeService.UpdateDispute(r.Context(), disputeID, updateReq)
 	if err != nil {
 		if err == services.ErrDisputeNotFound {
 			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Dispute not found"})
@@ -106,7 +114,7 @@ func (h *DisputeHandler) handleSubmitEvidence(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	writeJSON(w, http.StatusOK, evidence)
+	writeJSON(w, http.StatusOK, dispute)
 }
 
 func (h *DisputeHandler) handleGetDispute(w http.ResponseWriter, r *http.Request, disputeID string) {

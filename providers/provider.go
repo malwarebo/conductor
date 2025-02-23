@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+
 	"github.com/malwarebo/gopay/models"
 )
 
@@ -38,12 +39,12 @@ type PaymentProvider interface {
 }
 
 type ChargeRequest struct {
-	Amount      float64
-	Currency    string
+	Amount        float64
+	Currency      string
 	PaymentMethod string
-	Description string
-	CustomerID  string
-	Metadata    map[string]string
+	Description   string
+	CustomerID    string
+	Metadata      map[string]string
 }
 
 type ChargeResponse struct {

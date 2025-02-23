@@ -13,6 +13,10 @@ type DB struct {
 	*gorm.DB
 }
 
+func (db *DB) GetDB() *DB {
+	panic("unimplemented")
+}
+
 func NewDB(dsn string) (*DB, error) {
 	config := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),

@@ -20,25 +20,31 @@ func main() {
 	}
 
 	// Initialize database
-	database, err := db.NewDB(cfg.GetDatabaseURL())
+	db, err := db.NewDB(cfg.GetDatabaseURL())
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer database.Close()
-
-	// Initialize repositories
-	planRepo := repositories.NewPlanRepository(database)
-	subscriptionRepo := repositories.NewSubscriptionRepository(database)
-	disputeRepo := repositories.NewDisputeRepository(database)
+	defer db.Close()
 
 	// Initialize payment providers
 	stripeProvider := providers.NewStripeProvider(cfg.Stripe.Secret)
 	xenditProvider := providers.NewXenditProvider(cfg.Xendit.Secret)
 
+	// Create a provider selector that can handle multiple providers
+	providerSelector := &providers.MultiProviderSelector{
+		Providers: []providers.PaymentProvider{stripeProvider, xenditProvider},
+	}
+
+	// Initialize repositories
+	paymentRepo := repositories.NewPaymentRepository(db)
+	planRepo := repositories.NewPlanRepository(db)
+	subscriptionRepo := repositories.NewSubscriptionRepository(db)
+	disputeRepo := repositories.NewDisputeRepository(db.DB)
+
 	// Initialize services
-	paymentService := services.NewPaymentService(stripeProvider, xenditProvider)
-	subscriptionService := services.NewSubscriptionService(planRepo, subscriptionRepo, stripeProvider, xenditProvider)
-	disputeService := services.NewDisputeService(disputeRepo, stripeProvider, xenditProvider)
+	paymentService := services.NewPaymentService(paymentRepo, providerSelector)
+	subscriptionService := services.NewSubscriptionService(planRepo, subscriptionRepo, providerSelector)
+	disputeService := services.NewDisputeService(disputeRepo, providerSelector)
 
 	// Initialize handlers
 	paymentHandler := api.NewPaymentHandler(paymentService)
