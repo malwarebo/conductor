@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/stripe/stripe-go/v72 v72.122.0
-	github.com/xendit/xendit-go/v6 v6.0.0-20240815053147-7132b34ff21b
+	github.com/xendit/xendit-go/v6 v6.3.0
 	gorm.io/driver/postgres v1.5.4
 	gorm.io/gorm v1.25.5
 )

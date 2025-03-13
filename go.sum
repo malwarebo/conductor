@@ -21,8 +21,8 @@ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stripe/stripe-go/v72 v72.122.0 h1:eRXWqnEwGny6dneQ5BsxGzUCED5n180u8n665JHlut8=
 github.com/stripe/stripe-go/v72 v72.122.0/go.mod h1:QwqJQtduHubZht9mek5sds9CtQcKFdsykV9ZepRWwo0=
-github.com/xendit/xendit-go/v6 v6.0.0-20240815053147-7132b34ff21b h1:BIUFf2OrsH75LovV7Q4vCTtmvwUHHLQuVlBVKbn3lQE=
-github.com/xendit/xendit-go/v6 v6.0.0-20240815053147-7132b34ff21b/go.mod h1:vEp4kP6H0EQETAY2DpurHFvWJntuAW6cVlmAqG96hUU=
+github.com/xendit/xendit-go/v6 v6.3.0 h1:sJG2JFL/cFNNvxU+14Sa3Df9zBidwTxH7J7UhRGaoFM=
+github.com/xendit/xendit-go/v6 v6.3.0/go.mod h1:vEp4kP6H0EQETAY2DpurHFvWJntuAW6cVlmAqG96hUU=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.17.0 h1:r8bRNjWL3GshPW3gkd+RpvzWrZAwPS49OmTGZ/uhM4k=
 golang.org/x/crypto v0.17.0/go.mod h1:gCAAfMLgwOJRpTjQ2zCCt2OcSfYMTeZVSRtQlPC7Nq4=
