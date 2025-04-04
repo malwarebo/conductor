@@ -141,6 +141,19 @@ func (p *XenditProvider) GetDisputeStats(ctx context.Context) (*models.DisputeSt
 	return nil, fmt.Errorf("xendit: get dispute stats not implemented")
 }
 
+// TODO: telemetry should give insights if we can rely on this
 func (p *XenditProvider) IsAvailable(ctx context.Context) bool {
-	return true // Assume Xendit is always available
+	if p.apiKey == "" {
+		return false
+	}
+
+	// Try to make a simple API call to check connectivity
+	_, resp, err := p.client.InvoiceApi.GetInvoices(ctx).Execute()
+	if err != nil && resp == nil {
+		return false
+	}
+
+	// Even if we get an authentication error (401), the API is still available
+	// Just check if we could connect to the API
+	return true
 }

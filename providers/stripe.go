@@ -178,6 +178,21 @@ func (p *StripeProvider) GetDisputeStats(ctx context.Context) (*models.DisputeSt
 	return nil, fmt.Errorf("stripe: get dispute stats not implemented")
 }
 
+// TODO: need to add a better way to check if the provider is available
 func (p *StripeProvider) IsAvailable(ctx context.Context) bool {
-	return true // Assume Stripe is always available
+	if p.apiKey == "" {
+		return false
+	}
+
+	// Try to make a simple API call to check connectivity
+	var account stripe.Account
+	err := stripe.GetBackend(stripe.APIBackend).Call(
+		"GET",
+		"/v1/account",
+		p.apiKey,
+		nil,
+		&account,
+	)
+
+	return err == nil
 }
