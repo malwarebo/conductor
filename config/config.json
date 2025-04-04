@@ -3,7 +3,7 @@
     "host": "localhost",
     "port": 5432,
     "user": "gopay_user",
-    "password": "your_password_here",
+    "password": "root@406",
     "dbname": "gopay",
     "sslmode": "disable"
   },
@@ -20,5 +20,10 @@
   "server": {
     "port": "8080",
     "env": "development"
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "password": ""
   }
 }
