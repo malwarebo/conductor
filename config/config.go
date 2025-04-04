@@ -9,9 +9,10 @@ import (
 
 type Config struct {
 	Database DatabaseConfig `json:"database"`
-	Stripe   StripeConfig  `json:"stripe"`
-	Xendit   XenditConfig  `json:"xendit"`
-	Server   ServerConfig  `json:"server"`
+	Stripe   StripeConfig   `json:"stripe"`
+	Xendit   XenditConfig   `json:"xendit"`
+	Server   ServerConfig   `json:"server"`
+	Redis    RedisConfig    `json:"redis"`
 }
 
 type DatabaseConfig struct {
@@ -37,16 +38,24 @@ type ServerConfig struct {
 	Port string `json:"port"`
 }
 
+type RedisConfig struct {
+	Host     string `env:"REDIS_HOST" default:"localhost"`
+	Port     string `env:"REDIS_PORT" default:"6379"`
+	Password string `env:"REDIS_PASSWORD" default:""`
+	DB       int    `env:"REDIS_DB" default:"0"`
+	TTL      int    `env:"REDIS_TTL" default:"86400"` // Default TTL in seconds (24 hours)
+}
+
 // LoadConfig loads configuration from a JSON file and environment variables
 func LoadConfig() (*Config, error) {
 	config := &Config{}
-	
+
 	// Get the absolute path to the config directory
 	configDir, err := filepath.Abs("config")
 	if err != nil {
 		return nil, err
 	}
-	
+
 	configFile := filepath.Join(configDir, "config.json")
 	file, err := os.Open(configFile)
 	if err != nil {
