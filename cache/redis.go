@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -9,7 +10,7 @@ import (
 
 type RedisConfig struct {
 	Host     string
-	Port     string
+	Port     int
 	Password string
 	DB       int
 	TTL      time.Duration // Default TTL for cache entries
@@ -21,10 +22,11 @@ type RedisCache struct {
 }
 
 func NewRedisCache(config RedisConfig) (*RedisCache, error) {
-	addr := config.Host
-	if config.Port != "" {
-		addr = config.Host + ":" + config.Port
-	} else {
+	// Convert port to string
+	portStr := strconv.Itoa(config.Port)
+
+	addr := config.Host + ":" + portStr
+	if config.Port == 0 {
 		addr = config.Host + ":6379" // Default Redis port
 	}
 
@@ -34,7 +36,6 @@ func NewRedisCache(config RedisConfig) (*RedisCache, error) {
 		DB:       config.DB,
 	})
 
-	// Test the connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -44,7 +45,7 @@ func NewRedisCache(config RedisConfig) (*RedisCache, error) {
 
 	ttl := config.TTL
 	if ttl == 0 {
-		ttl = 24 * time.Hour // Default to 24 hours if not specified
+		ttl = 24 * time.Hour
 	}
 
 	return &RedisCache{

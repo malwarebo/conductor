@@ -74,6 +74,7 @@ CREATE TABLE disputes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_id VARCHAR(255) NOT NULL,
     transaction_id VARCHAR(255) NOT NULL,
+    payment_id UUID REFERENCES payments(id),  -- Add this line to include payment_id
     amount BIGINT NOT NULL,
     currency VARCHAR(3) NOT NULL,
     reason TEXT NOT NULL,
@@ -119,7 +120,6 @@ CREATE INDEX idx_disputes_status ON disputes(status);
 CREATE INDEX idx_evidence_dispute_id ON evidence(dispute_id);
 CREATE INDEX idx_subscriptions_customer ON subscriptions(customer_id);
 CREATE INDEX idx_payments_customer ON payments(customer_id);
-CREATE INDEX idx_disputes_payment ON disputes(payment_id);
 CREATE INDEX idx_disputes_customer ON disputes(customer_id);
 CREATE INDEX idx_refunds_payment ON refunds(payment_id);
 

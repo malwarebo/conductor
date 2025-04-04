@@ -39,11 +39,11 @@ type ServerConfig struct {
 }
 
 type RedisConfig struct {
-	Host     string `env:"REDIS_HOST" default:"localhost"`
-	Port     string `env:"REDIS_PORT" default:"6379"`
-	Password string `env:"REDIS_PASSWORD" default:""`
-	DB       int    `env:"REDIS_DB" default:"0"`
-	TTL      int    `env:"REDIS_TTL" default:"86400"` // Default TTL in seconds (24 hours)
+	Host     string `json:"host" env:"REDIS_HOST" default:"localhost"`
+	Port     int    `json:"port" env:"REDIS_PORT" default:"6379"`
+	Password string `json:"password" env:"REDIS_PASSWORD" default:""`
+	DB       int    `json:"db" env:"REDIS_DB" default:"0"`
+	TTL      int    `json:"ttl" env:"REDIS_TTL" default:"86400"` // Default TTL in seconds (24 hours)
 }
 
 // LoadConfig loads configuration from a JSON file and environment variables
@@ -94,6 +94,23 @@ func LoadConfig() (*Config, error) {
 	}
 	if port := os.Getenv("PORT"); port != "" {
 		config.Server.Port = port
+	}
+
+	// Override Redis config with environment variables if present
+	if redisHost := os.Getenv("REDIS_HOST"); redisHost != "" {
+		config.Redis.Host = redisHost
+	}
+	if redisPort := os.Getenv("REDIS_PORT"); redisPort != "" {
+		fmt.Sscanf(redisPort, "%d", &config.Redis.Port)
+	}
+	if redisPass := os.Getenv("REDIS_PASSWORD"); redisPass != "" {
+		config.Redis.Password = redisPass
+	}
+	if redisDB := os.Getenv("REDIS_DB"); redisDB != "" {
+		fmt.Sscanf(redisDB, "%d", &config.Redis.DB)
+	}
+	if redisTTL := os.Getenv("REDIS_TTL"); redisTTL != "" {
+		fmt.Sscanf(redisTTL, "%d", &config.Redis.TTL)
 	}
 
 	// Set defaults if not configured
