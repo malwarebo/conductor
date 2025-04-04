@@ -213,6 +213,69 @@ curl -X GET http://localhost:8080/disputes/stats \
   -H "Content-Type: application/json"
 ```
 
+## Redis Cache Configuration
+
+GoPay uses Redis for caching to improve performance and reduce load on payment providers. The Redis configuration can be customized through environment variables.
+
+### Configuration Options
+
+| Environment Variable | Description | Default Value |
+|----------------------|-------------|---------------|
+| `REDIS_HOST` | Redis server hostname | `localhost` |
+| `REDIS_PORT` | Redis server port | `6379` |
+| `REDIS_PASSWORD` | Redis password (leave empty for no password) | `""` |
+| `REDIS_DB` | Redis database index | `0` |
+| `REDIS_TTL` | Default TTL for cache entries (in seconds) | `86400` (24 hours) |
+
+### Usage
+
+The Redis cache is initialized in the application and can be used to cache frequently accessed data such as payment methods, customer information, and subscription details. This reduces API calls to payment providers and improves response times.
+
+Currently, Redis is set up but not actively used in caching operations. It's available for future implementations where caching would improve performance.
+
+### Example Implementation
+
+To use the cache in a service:
+
+```go
+type ExampleService struct {
+    repository Repository
+    cache      *cache.RedisCache
+}
+
+func NewExampleService(repo Repository, cache *cache.RedisCache) *ExampleService {
+    return &ExampleService{
+        repository: repo,
+        cache:      cache,
+    }
+}
+
+func (s *ExampleService) GetItem(ctx context.Context, id string) (*Item, error) {
+    // Try to get from cache first
+    cacheKey := "item:" + id
+    if cachedData, err := s.cache.Get(ctx, cacheKey); err == nil {
+        // Item found in cache
+        var item Item
+        if err := json.Unmarshal([]byte(cachedData), &item); err == nil {
+            return &item, nil
+        }
+    }
+    
+    // Not in cache or error deserializing, get from repository
+    item, err := s.repository.GetItem(ctx, id)
+    if err != nil {
+        return nil, err
+    }
+    
+    // Store in cache for future requests
+    if itemJSON, err := json.Marshal(item); err == nil {
+        s.cache.Set(ctx, cacheKey, itemJSON)
+    }
+    
+    return item, nil
+}
+```
+
 ## Project Status
 
 1. **Phase 1 (Completed)**
