@@ -1,5 +1,5 @@
 # Start from the official Golang image
-FROM golang:1.20-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -17,7 +17,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o gopay .
 
 # Start a new stage from scratch
-FROM alpine:latest  
+FROM alpine:latest
 
 # Install CA certificates for HTTPS
 RUN apk --no-cache add ca-certificates
