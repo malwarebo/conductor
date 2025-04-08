@@ -181,7 +181,69 @@ func (p *StripeProvider) CreateSubscription(ctx context.Context, req *models.Cre
 }
 
 func (p *StripeProvider) UpdateSubscription(ctx context.Context, subscriptionID string, req *models.UpdateSubscriptionRequest) (*models.Subscription, error) {
-	return nil, fmt.Errorf("stripe: subscription update not implemented")
+	params := &stripe.SubscriptionParams{
+		// No need to set ID in params, it's used in the API call
+	}
+
+	if req.PlanID != nil && *req.PlanID != "" {
+		itemsParams := &stripe.SubscriptionItemsParams{
+			Plan: stripe.String(*req.PlanID),
+		}
+
+		if req.Quantity != nil && *req.Quantity > 0 {
+			itemsParams.Quantity = stripe.Int64(int64(*req.Quantity))
+		}
+
+		params.Items = []*stripe.SubscriptionItemsParams{itemsParams}
+	}
+
+	if req.PaymentMethodID != nil && *req.PaymentMethodID != "" {
+		params.DefaultPaymentMethod = stripe.String(*req.PaymentMethodID)
+	}
+
+	if req.Metadata != nil {
+		params.Metadata = make(map[string]string)
+		if metadataMap, ok := req.Metadata.(map[string]interface{}); ok {
+			for k, v := range metadataMap {
+				if str, ok := v.(string); ok {
+					params.Metadata[k] = str
+				} else {
+					params.Metadata[k] = fmt.Sprintf("%v", v)
+				}
+			}
+		}
+	}
+
+	sub, err := subscription.Update(subscriptionID, params)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.Subscription{
+		ID:                 sub.ID,
+		CustomerID:         sub.Customer.ID,
+		Status:             models.SubscriptionStatus(sub.Status),
+		CurrentPeriodStart: time.Unix(sub.Created, 0),
+		CurrentPeriodEnd:   time.Unix(sub.CanceledAt, 0),
+		ProviderName:       "stripe",
+		UpdatedAt:          time.Now(),
+	}
+
+	if req.Quantity != nil {
+		result.Quantity = *req.Quantity
+	}
+
+	if sub.TrialStart > 0 {
+		trialStart := time.Unix(sub.TrialStart, 0)
+		result.TrialStart = &trialStart
+	}
+
+	if sub.TrialEnd > 0 {
+		trialEnd := time.Unix(sub.TrialEnd, 0)
+		result.TrialEnd = &trialEnd
+	}
+
+	return result, nil
 }
 
 func (p *StripeProvider) CancelSubscription(ctx context.Context, subscriptionID string, req *models.CancelSubscriptionRequest) (*models.Subscription, error) {
