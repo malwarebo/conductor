@@ -70,11 +70,8 @@ func main() {
 	http.HandleFunc("/charge", paymentHandler.HandleCharge)
 	http.HandleFunc("/refund", paymentHandler.HandleRefund)
 	http.HandleFunc("/plans", subscriptionHandler.HandlePlans)
-	http.HandleFunc("/plans/", subscriptionHandler.HandlePlans)
 	http.HandleFunc("/subscriptions", subscriptionHandler.HandleSubscriptions)
-	http.HandleFunc("/subscriptions/", subscriptionHandler.HandleSubscriptions)
 	http.HandleFunc("/disputes", disputeHandler.HandleDisputes)
-	http.HandleFunc("/disputes/", disputeHandler.HandleDisputes)
 	http.HandleFunc("/disputes/stats", disputeHandler.HandleDisputes)
 
 	log.Printf("Server starting on port %s", cfg.Server.Port)
