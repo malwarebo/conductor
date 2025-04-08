@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/malwarebo/gopay/models"
-	"github.com/stripe/stripe-go/v72"
-	"github.com/stripe/stripe-go/v72/charge"
-	"github.com/stripe/stripe-go/v72/refund"
+	"github.com/stripe/stripe-go/v82"
+	"github.com/stripe/stripe-go/v82/charge"
+	"github.com/stripe/stripe-go/v82/refund"
 )
 
 type StripeProvider struct {
@@ -113,7 +113,6 @@ func (p *StripeProvider) ValidateWebhookSignature(payload []byte, signature stri
 	// Implement webhook signature validation
 	return nil
 }
-
 func (p *StripeProvider) CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
 	return nil, fmt.Errorf("stripe: subscription creation not implemented")
 }
