@@ -1,4 +1,4 @@
-# Gopay
+# gopay
 
 ## Problem Statement
 
@@ -12,7 +12,7 @@ Businesses, particularly those operating online, expanding internationally, or s
 
 ## Solution
 
-The **gopay** project ([Gopay](https://github.com/malwarebo/gopay)) addresses these challenges by providing an **open-source payment orchestration system**. It acts as a central layer that sits between the business application and various payment providers. Specifically, it offers:
+The **gopay** project ([gopay](https://github.com/malwarebo/gopay)) addresses these challenges by providing an **open-source payment orchestration system**. It acts as a central layer that sits between the business application and various payment providers. Specifically, it offers:
 
 * **Unified Integration:** Provides a single API and interface for interacting with multiple supported payment providers, drastically simplifying development and maintenance.
 * **Centralized Management:** Consolidates the management of different payment methods and providers, potentially offering unified reporting and simplifying reconciliation.

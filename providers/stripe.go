@@ -9,6 +9,7 @@ import (
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/charge"
 	"github.com/stripe/stripe-go/v82/refund"
+	"github.com/stripe/stripe-go/v82/subscription"
 )
 
 type StripeProvider struct {
@@ -114,7 +115,69 @@ func (p *StripeProvider) ValidateWebhookSignature(payload []byte, signature stri
 	return nil
 }
 func (p *StripeProvider) CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
-	return nil, fmt.Errorf("stripe: subscription creation not implemented")
+	params := &stripe.SubscriptionParams{
+		Customer: stripe.String(req.CustomerID),
+	}
+
+	if req.PlanID != "" {
+		itemsParams := &stripe.SubscriptionItemsParams{
+			Plan: stripe.String(req.PlanID),
+		}
+
+		if req.Quantity > 0 {
+			itemsParams.Quantity = stripe.Int64(int64(req.Quantity))
+		}
+
+		params.Items = []*stripe.SubscriptionItemsParams{itemsParams}
+	}
+
+	if req.TrialDays != nil && *req.TrialDays > 0 {
+		params.TrialPeriodDays = stripe.Int64(int64(*req.TrialDays))
+	}
+
+	if req.Metadata != nil {
+		params.Metadata = make(map[string]string)
+		if metadataMap, ok := req.Metadata.(map[string]interface{}); ok {
+			for k, v := range metadataMap {
+				if str, ok := v.(string); ok {
+					params.Metadata[k] = str
+				} else {
+					params.Metadata[k] = fmt.Sprintf("%v", v)
+				}
+			}
+		}
+	}
+
+	sub, err := subscription.New(params)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.Subscription{
+		ID:                 sub.ID,
+		CustomerID:         req.CustomerID,
+		PlanID:             req.PlanID,
+		Status:             models.SubscriptionStatus(sub.Status),
+		CurrentPeriodStart: time.Unix(sub.Created, 0),
+		CurrentPeriodEnd:   time.Unix(sub.CanceledAt, 0),
+		Quantity:           req.Quantity,
+		ProviderName:       "stripe",
+		CreatedAt:          time.Unix(sub.Created, 0),
+		UpdatedAt:          time.Unix(sub.Created, 0),
+	}
+
+	// Add trial dates if present
+	if sub.TrialStart > 0 {
+		trialStart := time.Unix(sub.TrialStart, 0)
+		result.TrialStart = &trialStart
+	}
+
+	if sub.TrialEnd > 0 {
+		trialEnd := time.Unix(sub.TrialEnd, 0)
+		result.TrialEnd = &trialEnd
+	}
+
+	return result, nil
 }
 
 func (p *StripeProvider) UpdateSubscription(ctx context.Context, subscriptionID string, req *models.UpdateSubscriptionRequest) (*models.Subscription, error) {
