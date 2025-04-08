@@ -1,6 +1,7 @@
 # gopay - Payment orchestration made better
 
-[![build](https://github.com/malwarebo/gopay/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/gopay/actions/workflows/go-build.yml)
+[![go build](https://github.com/malwarebo/gopay/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/gopay/actions/workflows/go-build.yml)
+[![docker build](https://github.com/malwarebo/gopay/actions/workflows/docker-image.yml/badge.svg)](https://github.com/malwarebo/gopay/actions/workflows/docker-image.yml)
 
 `gopay` is an open-source payment orchestration system with simplified payment flow routing that supports multiple payment providers (currently Stripe and Xendit) with features for payment processing, subscriptions, and dispute management. The goal is to provide a unified interface for payments when you require more than one payment provider to fulfill your operational needs. The system is built with simplicity in mind, rounting complications, focusing on ease of use and flexibility.
 
