@@ -4,42 +4,40 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/malwarebo/gopay/models"
 	"github.com/malwarebo/gopay/providers"
 	"github.com/malwarebo/gopay/repositories"
 )
 
 var (
-	// ErrDisputeNotFound is returned when dispute not found
 	ErrDisputeNotFound = errors.New("dispute not found")
-	// ErrInvalidStatus is returned when status is invalid
-	ErrInvalidStatus = errors.New("invalid status")
+	ErrInvalidStatus   = errors.New("invalid status")
 )
 
 type DisputeService struct {
 	disputeRepo *repositories.DisputeRepository
-	provider   providers.PaymentProvider
+	provider    providers.PaymentProvider
 }
 
 func NewDisputeService(disputeRepo *repositories.DisputeRepository, provider providers.PaymentProvider) *DisputeService {
 	return &DisputeService{
 		disputeRepo: disputeRepo,
-		provider:   provider,
+		provider:    provider,
 	}
 }
 
 func (s *DisputeService) CreateDispute(ctx context.Context, req *models.CreateDisputeRequest) (*models.DisputeResponse, error) {
-	// Create dispute record
 	dispute := &models.Dispute{
 		CustomerID:    req.CustomerID,
 		TransactionID: req.TransactionID,
-		Amount:       req.Amount,
-		Currency:     req.Currency,
-		Reason:       req.Reason,
-		Status:       models.DisputeStatusOpen,
-		Evidence:     req.Evidence,
-		DueBy:        req.DueBy,
-		Metadata:     req.Metadata,
+		Amount:        req.Amount,
+		Currency:      req.Currency,
+		Reason:        req.Reason,
+		Status:        models.DisputeStatusOpen,
+		Evidence:      req.Evidence,
+		DueBy:         req.DueBy,
+		Metadata:      req.Metadata,
 	}
 
 	if err := s.disputeRepo.Create(ctx, dispute); err != nil {
@@ -71,7 +69,6 @@ func (s *DisputeService) UpdateDispute(ctx context.Context, id string, req *mode
 		return nil, fmt.Errorf("failed to get dispute: %w", err)
 	}
 
-	// Update fields if provided
 	if req.Status != "" {
 		switch req.Status {
 		case models.DisputeStatusOpen, models.DisputeStatusWon, models.DisputeStatusLost, models.DisputeStatusCanceled:
