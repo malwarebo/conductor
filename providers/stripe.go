@@ -247,15 +247,114 @@ func (p *StripeProvider) UpdateSubscription(ctx context.Context, subscriptionID 
 }
 
 func (p *StripeProvider) CancelSubscription(ctx context.Context, subscriptionID string, req *models.CancelSubscriptionRequest) (*models.Subscription, error) {
-	return nil, fmt.Errorf("stripe: subscription cancellation not implemented")
+	params := &stripe.SubscriptionParams{}
+
+	if req.CancelAtPeriodEnd {
+		params.CancelAtPeriodEnd = stripe.Bool(true)
+	}
+
+	if req.Reason != "" {
+		if params.Metadata == nil {
+			params.Metadata = make(map[string]string)
+		}
+		params.Metadata["cancellation_reason"] = req.Reason
+	}
+
+	var sub *stripe.Subscription
+	var err error
+
+	if req.CancelAtPeriodEnd {
+		// Update subscription to cancel at period end
+		sub, err = subscription.Update(subscriptionID, params)
+	} else {
+		cancelParams := &stripe.SubscriptionCancelParams{
+			Prorate: stripe.Bool(true),
+		}
+
+		if len(params.Metadata) > 0 {
+			cancelParams.Metadata = params.Metadata
+		}
+
+		sub, err = subscription.Cancel(subscriptionID, cancelParams)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	canceledAt := time.Now()
+	if sub.CancelAt > 0 {
+		canceledAt = time.Unix(sub.CancelAt, 0)
+	}
+
+	result := &models.Subscription{
+		ID:                 sub.ID,
+		CustomerID:         sub.Customer.ID,
+		Status:             models.SubscriptionStatus(sub.Status),
+		CurrentPeriodStart: time.Unix(sub.Created, 0),
+		CurrentPeriodEnd:   time.Unix(sub.CanceledAt, 0),
+		CanceledAt:         &canceledAt,
+		ProviderName:       "stripe",
+		UpdatedAt:          time.Now(),
+	}
+
+	return result, nil
 }
 
 func (p *StripeProvider) GetSubscription(ctx context.Context, subscriptionID string) (*models.Subscription, error) {
-	return nil, fmt.Errorf("stripe: get subscription not implemented")
+	params := &stripe.SubscriptionParams{}
+	sub, err := subscription.Get(subscriptionID, params)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.Subscription{
+		ID:                 sub.ID,
+		CustomerID:         sub.Customer.ID,
+		Status:             models.SubscriptionStatus(sub.Status),
+		CurrentPeriodStart: time.Unix(sub.Created, 0),
+		CurrentPeriodEnd:   time.Unix(sub.CanceledAt, 0),
+		CanceledAt:         nil,
+		ProviderName:       "stripe",
+	}
+
+	if sub.CancelAt > 0 {
+		canceledAt := time.Unix(sub.CancelAt, 0)
+		result.CanceledAt = &canceledAt
+	}
+
+	return result, nil
 }
 
 func (p *StripeProvider) ListSubscriptions(ctx context.Context, customerID string) ([]*models.Subscription, error) {
-	return nil, fmt.Errorf("stripe: list subscriptions not implemented")
+	params := &stripe.SubscriptionListParams{
+		Customer: stripe.String(customerID),
+	}
+
+	i := subscription.List(params)
+	var subscriptions []*models.Subscription
+
+	for i.Next() {
+		sub := i.Subscription()
+		result := &models.Subscription{
+			ID:                 sub.ID,
+			CustomerID:         sub.Customer.ID,
+			Status:             models.SubscriptionStatus(sub.Status),
+			CurrentPeriodStart: time.Unix(sub.Created, 0),
+			CurrentPeriodEnd:   time.Unix(sub.CanceledAt, 0),
+			CanceledAt:         nil,
+			ProviderName:       "stripe",
+		}
+
+		if sub.CancelAt > 0 {
+			canceledAt := time.Unix(sub.CancelAt, 0)
+			result.CanceledAt = &canceledAt
+		}
+
+		subscriptions = append(subscriptions, result)
+	}
+
+	return subscriptions, nil
 }
 
 func (p *StripeProvider) CreatePlan(ctx context.Context, plan *models.Plan) (*models.Plan, error) {

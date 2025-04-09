@@ -5,7 +5,8 @@
 
 `gopay` is an open-source payment orchestration system with simplified payment flow routing that supports multiple payment providers (currently Stripe and Xendit) with features for payment processing, subscriptions, and dispute management. The goal is to provide a unified interface for payments when you require more than one payment provider to fulfill your operational needs. The system is built with simplicity in mind, rounting complications, focusing on ease of use and flexibility.
 
-Read more about why I decided to build this: <https://github.com/malwarebo/gopay/blob/master/docs/PROBLEM.md>
+> [!NOTE]
+> Read more about why I decided to build this: <https://github.com/malwarebo/gopay/blob/master/docs/PROBLEM.md>
 
 ## Architecture
 
@@ -278,40 +279,3 @@ func (s *ExampleService) GetItem(ctx context.Context, id string) (*Item, error) 
     return item, nil
 }
 ```
-
-## Project Status
-
-1. **Phase 1 (Completed)**
-   - Basic payment processing
-   - Provider orchestration
-   - Configuration management
-   - Database integration with GORM
-
-2. **Phase 2 (Current)**
-   - Subscription management
-   - Dispute handling
-   - Advanced error handling
-   - Improved logging
-
-3. **Phase 3 (Future)**
-   - Webhook handling
-   - Event system
-   - Analytics integration
-   - Advanced reporting
-
-4. **Phase 4 (Future)**
-   - Additional payment providers
-   - Advanced fraud detection
-   - Performance optimization
-
-## Future Considerations
-
-1. **Integration**
-   - Additional payment providers
-   - Third-party services
-   - Notification systems (maybe)
-
-2. **Features**
-   - Advanced reporting
-   - Fraud detection
-   - Real-time analytics
