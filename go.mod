@@ -6,10 +6,11 @@ toolchain go1.24.2
 
 require (
 	github.com/redis/go-redis/v9 v9.7.3
-	github.com/stripe/stripe-go/v72 v72.122.0
+	github.com/stripe/stripe-go/v82 v82.0.0
 	github.com/xendit/xendit-go/v6 v6.3.0
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.25.12
+	gorm.io/plugin/dbresolver v1.5.3
 )
 
 require (
@@ -21,10 +22,8 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/stripe/stripe-go/v82 v82.0.0 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
-	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
-	gorm.io/plugin/dbresolver v1.5.3 // indirect
 )
