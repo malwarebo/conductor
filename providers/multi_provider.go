@@ -9,6 +9,28 @@ import (
 
 type MultiProviderSelector struct {
 	Providers []PaymentProvider
+
+	// In-memory maps for tracking which provider handled each entity
+	paymentProviderMap      map[string]PaymentProvider // paymentID -> provider
+	subscriptionProviderMap map[string]PaymentProvider // subscriptionID -> provider
+	disputeProviderMap      map[string]PaymentProvider // disputeID -> provider
+}
+
+func NewMultiProviderSelector(providers []PaymentProvider) *MultiProviderSelector {
+	return &MultiProviderSelector{
+		Providers:               providers,
+		paymentProviderMap:      make(map[string]PaymentProvider),
+		subscriptionProviderMap: make(map[string]PaymentProvider),
+		disputeProviderMap:      make(map[string]PaymentProvider),
+	}
+}
+
+func getProviderFromMap(m map[string]PaymentProvider, id string) (PaymentProvider, error) {
+	provider, ok := m[id]
+	if !ok {
+		return nil, fmt.Errorf("no provider found for id: %s", id)
+	}
+	return provider, nil
 }
 
 func (m *MultiProviderSelector) selectAvailableProvider(ctx context.Context) (PaymentProvider, error) {
@@ -27,11 +49,15 @@ func (m *MultiProviderSelector) Charge(ctx context.Context, req *models.ChargeRe
 	if err != nil {
 		return nil, err
 	}
-	return provider.Charge(ctx, req)
+	resp, err := provider.Charge(ctx, req)
+	if err == nil && resp != nil && resp.ID != "" {
+		m.paymentProviderMap[resp.ID] = provider
+	}
+	return resp, err
 }
 
 func (m *MultiProviderSelector) Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
-	provider, err := m.selectAvailableProvider(ctx)
+	provider, err := getProviderFromMap(m.paymentProviderMap, req.PaymentID)
 	if err != nil {
 		return nil, err
 	}
@@ -43,11 +69,15 @@ func (m *MultiProviderSelector) CreateSubscription(ctx context.Context, req *mod
 	if err != nil {
 		return nil, err
 	}
-	return provider.CreateSubscription(ctx, req)
+	sub, err := provider.CreateSubscription(ctx, req)
+	if err == nil && sub != nil && sub.ID != "" {
+		m.subscriptionProviderMap[sub.ID] = provider
+	}
+	return sub, err
 }
 
 func (m *MultiProviderSelector) UpdateSubscription(ctx context.Context, subscriptionID string, req *models.UpdateSubscriptionRequest) (*models.Subscription, error) {
-	provider, err := m.selectAvailableProvider(ctx)
+	provider, err := getProviderFromMap(m.subscriptionProviderMap, subscriptionID)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +85,7 @@ func (m *MultiProviderSelector) UpdateSubscription(ctx context.Context, subscrip
 }
 
 func (m *MultiProviderSelector) CancelSubscription(ctx context.Context, subscriptionID string, req *models.CancelSubscriptionRequest) (*models.Subscription, error) {
-	provider, err := m.selectAvailableProvider(ctx)
+	provider, err := getProviderFromMap(m.subscriptionProviderMap, subscriptionID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +93,7 @@ func (m *MultiProviderSelector) CancelSubscription(ctx context.Context, subscrip
 }
 
 func (m *MultiProviderSelector) GetSubscription(ctx context.Context, subscriptionID string) (*models.Subscription, error) {
-	provider, err := m.selectAvailableProvider(ctx)
+	provider, err := getProviderFromMap(m.subscriptionProviderMap, subscriptionID)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +101,7 @@ func (m *MultiProviderSelector) GetSubscription(ctx context.Context, subscriptio
 }
 
 func (m *MultiProviderSelector) ListSubscriptions(ctx context.Context, customerID string) ([]*models.Subscription, error) {
+	// This method may need to aggregate from all providers, but for now, use the first available
 	provider, err := m.selectAvailableProvider(ctx)
 	if err != nil {
 		return nil, err
@@ -87,6 +118,7 @@ func (m *MultiProviderSelector) CreatePlan(ctx context.Context, plan *models.Pla
 }
 
 func (m *MultiProviderSelector) UpdatePlan(ctx context.Context, planID string, plan *models.Plan) (*models.Plan, error) {
+	// Plan-provider mapping not tracked; fallback to first available
 	provider, err := m.selectAvailableProvider(ctx)
 	if err != nil {
 		return nil, err
@@ -123,11 +155,15 @@ func (m *MultiProviderSelector) CreateDispute(ctx context.Context, req *models.C
 	if err != nil {
 		return nil, err
 	}
-	return provider.CreateDispute(ctx, req)
+	dispute, err := provider.CreateDispute(ctx, req)
+	if err == nil && dispute != nil && dispute.ID != "" {
+		m.disputeProviderMap[dispute.ID] = provider
+	}
+	return dispute, err
 }
 
 func (m *MultiProviderSelector) UpdateDispute(ctx context.Context, disputeID string, req *models.UpdateDisputeRequest) (*models.Dispute, error) {
-	provider, err := m.selectAvailableProvider(ctx)
+	provider, err := getProviderFromMap(m.disputeProviderMap, disputeID)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +171,7 @@ func (m *MultiProviderSelector) UpdateDispute(ctx context.Context, disputeID str
 }
 
 func (m *MultiProviderSelector) SubmitDisputeEvidence(ctx context.Context, disputeID string, req *models.SubmitEvidenceRequest) (*models.Evidence, error) {
-	provider, err := m.selectAvailableProvider(ctx)
+	provider, err := getProviderFromMap(m.disputeProviderMap, disputeID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +179,7 @@ func (m *MultiProviderSelector) SubmitDisputeEvidence(ctx context.Context, dispu
 }
 
 func (m *MultiProviderSelector) GetDispute(ctx context.Context, disputeID string) (*models.Dispute, error) {
-	provider, err := m.selectAvailableProvider(ctx)
+	provider, err := getProviderFromMap(m.disputeProviderMap, disputeID)
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +187,7 @@ func (m *MultiProviderSelector) GetDispute(ctx context.Context, disputeID string
 }
 
 func (m *MultiProviderSelector) ListDisputes(ctx context.Context, customerID string) ([]*models.Dispute, error) {
+	// This method may need to aggregate from all providers, but for now, use the first available
 	provider, err := m.selectAvailableProvider(ctx)
 	if err != nil {
 		return nil, err
