@@ -35,7 +35,9 @@ func (p *StripeProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 
 	// Set payment method
 	if req.PaymentMethod != "" {
-		params.SetSource(req.PaymentMethod)
+		if err := params.SetSource(req.PaymentMethod); err != nil {
+			return nil, fmt.Errorf("failed to set payment method: %w", err)
+		}
 	}
 
 	if req.Metadata != nil {
@@ -273,9 +275,7 @@ func (p *StripeProvider) CancelSubscription(ctx context.Context, subscriptionID 
 			Prorate: stripe.Bool(true),
 		}
 
-		if len(params.Metadata) > 0 {
-			cancelParams.Metadata = params.Metadata
-		}
+		// Metadata handling removed as it's deprecated in Stripe API
 
 		sub, err = subscription.Cancel(subscriptionID, cancelParams)
 	}

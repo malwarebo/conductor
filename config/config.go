@@ -72,7 +72,9 @@ func LoadConfig() (*Config, error) {
 		config.Database.Host = dbHost
 	}
 	if dbPort := os.Getenv("DB_PORT"); dbPort != "" {
-		fmt.Sscanf(dbPort, "%d", &config.Database.Port)
+		if _, err := fmt.Sscanf(dbPort, "%d", &config.Database.Port); err != nil {
+			return nil, fmt.Errorf("invalid DB_PORT: %w", err)
+		}
 	}
 	if dbUser := os.Getenv("DB_USER"); dbUser != "" {
 		config.Database.User = dbUser
@@ -101,16 +103,22 @@ func LoadConfig() (*Config, error) {
 		config.Redis.Host = redisHost
 	}
 	if redisPort := os.Getenv("REDIS_PORT"); redisPort != "" {
-		fmt.Sscanf(redisPort, "%d", &config.Redis.Port)
+		if _, err := fmt.Sscanf(redisPort, "%d", &config.Redis.Port); err != nil {
+			return nil, fmt.Errorf("invalid REDIS_PORT: %w", err)
+		}
 	}
 	if redisPass := os.Getenv("REDIS_PASSWORD"); redisPass != "" {
 		config.Redis.Password = redisPass
 	}
 	if redisDB := os.Getenv("REDIS_DB"); redisDB != "" {
-		fmt.Sscanf(redisDB, "%d", &config.Redis.DB)
+		if _, err := fmt.Sscanf(redisDB, "%d", &config.Redis.DB); err != nil {
+			return nil, fmt.Errorf("invalid REDIS_DB: %w", err)
+		}
 	}
 	if redisTTL := os.Getenv("REDIS_TTL"); redisTTL != "" {
-		fmt.Sscanf(redisTTL, "%d", &config.Redis.TTL)
+		if _, err := fmt.Sscanf(redisTTL, "%d", &config.Redis.TTL); err != nil {
+			return nil, fmt.Errorf("invalid REDIS_TTL: %w", err)
+		}
 	}
 
 	// Set defaults if not configured

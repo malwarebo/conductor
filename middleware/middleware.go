@@ -84,7 +84,10 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "apiKey", apiKey)
+		// Define a custom type for context keys to avoid collisions
+		type contextKey string
+		const apiKeyContextKey contextKey = "apiKey"
+		ctx := context.WithValue(r.Context(), apiKeyContextKey, apiKey)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
