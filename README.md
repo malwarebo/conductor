@@ -3,24 +3,24 @@
 [![go build](https://github.com/malwarebo/gopay/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/gopay/actions/workflows/go-build.yml)
 [![docker build](https://github.com/malwarebo/gopay/actions/workflows/docker-image.yml/badge.svg)](https://github.com/malwarebo/gopay/actions/workflows/docker-image.yml)
 
-`gopay` is an open-source payment orchestration system with simplified payment flow routing that supports multiple payment providers (currently Stripe and Xendit) with features for payment processing, subscriptions, and dispute management. The goal is to provide a unified interface for payments when you require more than one payment provider to fulfill your operational needs. The system is built with simplicity in mind, rounting complications, focusing on ease of use and flexibility.
+`gopay` is an open-source payment orchestration system that makes handling multiple payment providers a breeze. It supports Stripe and Xendit out of the box, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
 
 > [!NOTE]
-> Read more about why I decided to build this: <https://github.com/malwarebo/gopay/blob/master/docs/PROBLEM.md>
+> Want to know why I built this? Check out the story here: <https://github.com/malwarebo/gopay/blob/master/docs/PROBLEM.md>
 
 ## Architecture
 
-Architecture diagram and documentation is here: <https://github.com/malwarebo/gopay/blob/master/docs/ARCHITECTURE.md>
+Curious about how it all works under the hood? Check out the architecture docs: <https://github.com/malwarebo/gopay/blob/master/docs/ARCHITECTURE.md>
 
-## Installation
+## Quick Start
 
-1. Install dependencies:
+### 1. Get the dependencies
 
 ```bash
 go mod download
 ```
 
-2. Set up the database:
+### 2. Set up your database
 
 ```bash
 # Connect to PostgreSQL
@@ -38,7 +38,7 @@ GRANT ALL PRIVILEGES ON DATABASE gopay TO gopay_user;
 psql -U gopay_user -d gopay -f db/schema.sql
 ```
 
-3. Configure the application:
+### 3. Configure the app
 
 ```bash
 # Copy the example config
@@ -53,7 +53,7 @@ cp config/config.example.json config/config.json
 
 ## Database Setup Script
 
-For easier setup, you can use the following script to automate the database creation process:
+Want to automate the database setup? Here's a handy script:
 
 ```bash
 #!/bin/bash
@@ -78,48 +78,48 @@ psql -U $DB_USER -d $DB_NAME -f db/schema.sql
 echo "Database setup complete!"
 ```
 
-Make the script executable and run it:
+Make it executable and run:
 
 ```bash
 chmod +x setup_db.sh
 ./setup_db.sh
 ```
 
-## Running the Application
+## Running the App
 
-1. Start the server:
+Start the server:
 
 ```bash
 go run main.go
 ```
 
-2. The API will be available at `http://localhost:8080`
+Your API will be live at `http://localhost:8080`
 
 ## Docker Deployment
 
-### Prerequisites
+### What you need
 
 - Docker
 - Docker Compose
 
 ### Environment Variables (optional)
 
-Create a `.env` file in the project root with the following variables:
+Create a `.env` file in the project root:
 
 ```
 XENDIT_API_KEY=your_xendit_api_key
 STRIPE_API_KEY=your_stripe_api_key
 ```
 
-### Running the Application
+### Running with Docker
 
-1. Build and start the services:
+Build and start everything:
 
 ```bash
 docker-compose up --build
 ```
 
-2. Stop the services:
+Stop the services:
 
 ```bash
 docker-compose down
@@ -127,99 +127,244 @@ docker-compose down
 
 ### Development with Docker
 
-- To rebuild the image: `docker-compose build`
-- To run tests in Docker: `docker-compose run --rm gopay go test ./...`
+- Rebuild the image: `docker-compose build`
+- Run tests in Docker: `docker-compose run --rm gopay go test ./...`
 
-### Accessing the Application
+### Accessing the App
 
-The application will be available at `http://localhost:8080`
+The app will be available at `http://localhost:8080`
 
 ## API Endpoints
 
 ### Payments
 
-- `POST /charges` - Create a new charge
-- `POST /refunds` - Create a refund
+- `POST /api/v1/charges` - Create a new charge
+- `POST /api/v1/refunds` - Create a refund
 
 ### Subscriptions
 
-- `POST /plans` - Create a subscription plan
-- `GET /plans` - List all plans
-- `GET /plans/:id` - Get plan details
-- `PUT /plans/:id` - Update plan
-- `DELETE /plans/:id` - Delete plan
-- `POST /subscriptions` - Create a subscription
-- `GET /subscriptions` - List subscriptions (requires customer_id parameter)
-- `GET /subscriptions/:id` - Get subscription details
-- `PUT /subscriptions/:id` - Update subscription
-- `DELETE /subscriptions/:id` - Cancel subscription
+- `POST /api/v1/plans` - Create a subscription plan
+- `GET /api/v1/plans` - List all plans
+- `GET /api/v1/plans/:id` - Get plan details
+- `PUT /api/v1/plans/:id` - Update plan
+- `DELETE /api/v1/plans/:id` - Delete plan
+- `POST /api/v1/subscriptions` - Create a subscription
+- `GET /api/v1/subscriptions` - List subscriptions (requires customer_id parameter)
+- `GET /api/v1/subscriptions/:id` - Get subscription details
+- `PUT /api/v1/subscriptions/:id` - Update subscription
+- `DELETE /api/v1/subscriptions/:id` - Cancel subscription
 
 ### Disputes
 
-- `POST /disputes` - Create a dispute
-- `GET /disputes` - List disputes (requires customer_id parameter)
-- `GET /disputes/:id` - Get dispute details
-- `PUT /disputes/:id` - Update dispute
-- `POST /disputes/:id/evidence` - Submit evidence
-- `GET /disputes/stats` - Get dispute statistics
+- `POST /api/v1/disputes` - Create a dispute
+- `GET /api/v1/disputes` - List disputes (requires customer_id parameter)
+- `GET /api/v1/disputes/:id` - Get dispute details
+- `PUT /api/v1/disputes/:id` - Update dispute
+- `POST /api/v1/disputes/:id/evidence` - Submit evidence
+- `GET /api/v1/disputes/stats` - Get dispute statistics
 
-## Example Usage
+### System
 
-1. Create a charge:
+- `GET /api/v1/health` - Health check
+- `GET /api/v1/metrics` - System metrics
 
+## API Examples
+
+Here are some real examples of how to use the API. The system automatically routes your requests to the right payment provider based on the currency!
+
+### Creating Charges
+
+#### Basic charge with Stripe (USD)
 ```bash
-curl -X POST http://localhost:8080/charges \
+curl -X POST http://localhost:8080/api/v1/charges \
   -H "Content-Type: application/json" \
   -d '{
+    "customer_id": "cus_123456789",
+    "amount": 2500,
+    "currency": "USD",
+    "payment_method": "pm_123456789",
+    "description": "Payment for order #12345"
+  }'
+```
+
+#### Charge with metadata using Xendit (IDR)
+```bash
+curl -X POST http://localhost:8080/api/v1/charges \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": "customer_123",
+    "amount": 500000,
+    "currency": "IDR",
+    "payment_method": "pm_xendit_123",
+    "description": "Premium subscription payment",
+    "metadata": {
+      "order_id": "ORD-2024-001",
+      "user_id": "user_456",
+      "product_type": "subscription",
+      "billing_cycle": "monthly"
+    }
+  }'
+```
+
+#### High-value charge with Stripe (EUR)
+```bash
+curl -X POST http://localhost:8080/api/v1/charges \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": "cus_europe_789",
+    "amount": 9999,
+    "currency": "EUR",
+    "payment_method": "pm_europe_456",
+    "description": "Annual enterprise license",
+    "metadata": {
+      "license_type": "enterprise",
+      "duration": "annual",
+      "seats": 100,
+      "region": "EU"
+    }
+  }'
+```
+
+### Creating Refunds
+
+#### Simple refund
+```bash
+curl -X POST http://localhost:8080/api/v1/refunds \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payment_id": "ch_123456789",
+    "amount": 2500,
+    "currency": "USD",
+    "reason": "Customer requested refund"
+  }'
+```
+
+#### Partial refund with metadata
+```bash
+curl -X POST http://localhost:8080/api/v1/refunds \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payment_id": "ch_123456789",
     "amount": 1000,
     "currency": "USD",
-    "payment_method_id": "pm_card_visa",
-    "customer_id": "cust_123",
-    "description": "Test charge"
+    "reason": "Partial refund for damaged item",
+    "metadata": {
+      "refund_type": "partial",
+      "damage_reported": true,
+      "customer_service_agent": "agent_123"
+    }
   }'
 ```
 
-2. Create a subscription:
+### Managing Subscriptions
 
+#### Create a subscription plan
 ```bash
-curl -X POST http://localhost:8080/subscriptions \
+curl -X POST http://localhost:8080/api/v1/plans \
   -H "Content-Type: application/json" \
   -d '{
-    "customer_id": "cust_123",
-    "plan_id": "plan_123",
-    "payment_method_id": "pm_card_visa"
+    "name": "Premium Plan",
+    "description": "Premium features with priority support",
+    "amount": 2999,
+    "currency": "USD",
+    "billing_period": "monthly",
+    "pricing_type": "fixed",
+    "trial_days": 7,
+    "features": ["priority_support", "advanced_analytics", "api_access"]
   }'
 ```
 
-3. List disputes for a customer:
-
+#### Create a subscription
 ```bash
-curl -X GET "http://localhost:8080/disputes?customer_id=cust_123" \
-  -H "Content-Type: application/json"
+curl -X POST http://localhost:8080/api/v1/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": "cus_123456789",
+    "plan_id": "plan_premium_001",
+    "quantity": 1,
+    "trial_days": 7,
+    "payment_method_id": "pm_123456789",
+    "metadata": {
+      "marketing_source": "website",
+      "referral_code": "WELCOME10"
+    }
+  }'
 ```
 
-4. Submit evidence for a dispute:
+### Handling Disputes
 
+#### Create a dispute
 ```bash
-curl -X POST http://localhost:8080/disputes/disp_123/evidence \
+curl -X POST http://localhost:8080/api/v1/disputes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": "cus_123456789",
+    "transaction_id": "ch_123456789",
+    "amount": 2500,
+    "currency": "USD",
+    "reason": "fraudulent",
+    "evidence": {
+      "customer_communication": "Customer claims unauthorized charge"
+    },
+    "due_by": "2024-02-15T23:59:59Z"
+  }'
+```
+
+#### Submit evidence for a dispute
+```bash
+curl -X POST http://localhost:8080/api/v1/disputes/disp_123/evidence \
   -H "Content-Type: application/json" \
   -d '{
     "type": "customer_communication",
     "description": "Email from customer confirming receipt",
-    "files": ["https://example.com/evidence1.pdf"]
+    "files": ["https://example.com/evidence1.pdf"],
+    "metadata": {
+      "evidence_type": "email",
+      "customer_email": "customer@example.com"
+    }
   }'
 ```
 
-5. Get dispute statistics:
+### System Health & Metrics
 
+#### Check if the system is healthy
 ```bash
-curl -X GET http://localhost:8080/disputes/stats \
-  -H "Content-Type: application/json"
+curl -X GET http://localhost:8080/api/v1/health
 ```
+
+#### Get system metrics
+```bash
+curl -X GET http://localhost:8080/api/v1/metrics
+```
+
+## How Currency Routing Works
+
+The system is smart about routing your payments to the right provider:
+
+- **Stripe**: USD, EUR, GBP (perfect for international payments)
+- **Xendit**: IDR, SGD, MYR, PHP, THB, VND (great for Southeast Asia)
+
+Just specify the currency in your request, and the system automatically picks the best provider!
+
+## Important Notes
+
+### Amount Format
+Always use the smallest currency unit:
+- **USD/EUR**: cents (1000 = $10.00)
+- **IDR**: rupiah (50000 = Rp 50,000)
+- **SGD**: cents (1500 = S$15.00)
+
+### Payment Methods
+Make sure you're using valid payment method IDs from your chosen provider:
+- Stripe: `pm_123456789`
+- Xendit: `pm_xendit_123`
+
+### Customer IDs
+Your customer IDs should match what's in your provider's system.
 
 ## Redis Cache Configuration
 
-GoPay uses Redis for caching to improve performance and reduce load on payment providers. The Redis configuration can be customized through environment variables.
+GoPay uses Redis for caching to make things faster and reduce load on payment providers. You can customize the Redis setup through environment variables.
 
 ### Configuration Options
 
@@ -233,13 +378,13 @@ GoPay uses Redis for caching to improve performance and reduce load on payment p
 
 ### Usage
 
-The Redis cache is initialized in the application and can be used to cache frequently accessed data such as payment methods, customer information, and subscription details. This reduces API calls to payment providers and improves response times.
+The Redis cache is ready to go and can be used to cache things like payment methods, customer info, and subscription details. This cuts down on API calls to payment providers and makes everything faster.
 
-Currently, Redis is set up but not actively used in caching operations. It's available for future implementations where caching would improve performance.
+Right now, Redis is set up but not actively caching. It's there for when you want to add caching to improve performance.
 
 ### Example Implementation
 
-To use the cache in a service:
+Here's how you might use the cache in a service:
 
 ```go
 type ExampleService struct {
