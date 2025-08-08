@@ -8,6 +8,8 @@ import (
 	"github.com/malwarebo/gopay/models"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/charge"
+	"github.com/stripe/stripe-go/v82/dispute"
+	"github.com/stripe/stripe-go/v82/plan"
 	"github.com/stripe/stripe-go/v82/refund"
 	"github.com/stripe/stripe-go/v82/subscription"
 )
@@ -357,48 +359,382 @@ func (p *StripeProvider) ListSubscriptions(ctx context.Context, customerID strin
 	return subscriptions, nil
 }
 
-func (p *StripeProvider) CreatePlan(ctx context.Context, plan *models.Plan) (*models.Plan, error) {
-	return nil, fmt.Errorf("stripe: create plan not implemented")
+func (p *StripeProvider) CreatePlan(ctx context.Context, planReq *models.Plan) (*models.Plan, error) {
+	params := &stripe.PlanParams{
+		Amount:   stripe.Int64(int64(planReq.Amount * 100)),
+		Currency: stripe.String(planReq.Currency),
+		Interval: stripe.String(string(planReq.BillingPeriod)),
+		Product: &stripe.PlanProductParams{
+			Name: stripe.String(planReq.Name),
+		},
+	}
+
+	if planReq.TrialDays > 0 {
+		params.TrialPeriodDays = stripe.Int64(int64(planReq.TrialDays))
+	}
+
+	if planReq.Metadata != nil {
+		params.Metadata = make(map[string]string)
+		if metadataMap, ok := planReq.Metadata.(map[string]interface{}); ok {
+			for k, v := range metadataMap {
+				if str, ok := v.(string); ok {
+					params.Metadata[k] = str
+				} else {
+					params.Metadata[k] = fmt.Sprintf("%v", v)
+				}
+			}
+		}
+	}
+
+	stripePlan, err := plan.New(params)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.Plan{
+		ID:            stripePlan.ID,
+		Name:          planReq.Name,
+		Description:   planReq.Description,
+		Amount:        float64(stripePlan.Amount) / 100,
+		Currency:      string(stripePlan.Currency),
+		BillingPeriod: models.BillingPeriod(stripePlan.Interval),
+		PricingType:   models.PricingTypeFixed,
+		TrialDays:     planReq.TrialDays,
+		Features:      planReq.Features,
+		Metadata:      planReq.Metadata,
+		CreatedAt:     time.Unix(stripePlan.Created, 0),
+		UpdatedAt:     time.Unix(stripePlan.Created, 0),
+	}
+
+	return result, nil
 }
 
-func (p *StripeProvider) UpdatePlan(ctx context.Context, planID string, plan *models.Plan) (*models.Plan, error) {
-	return nil, fmt.Errorf("stripe: update plan not implemented")
+func (p *StripeProvider) UpdatePlan(ctx context.Context, planID string, planReq *models.Plan) (*models.Plan, error) {
+	params := &stripe.PlanParams{}
+
+	if planReq.Name != "" {
+		params.Product = &stripe.PlanProductParams{
+			Name: stripe.String(planReq.Name),
+		}
+	}
+
+	if planReq.Metadata != nil {
+		params.Metadata = make(map[string]string)
+		if metadataMap, ok := planReq.Metadata.(map[string]interface{}); ok {
+			for k, v := range metadataMap {
+				if str, ok := v.(string); ok {
+					params.Metadata[k] = str
+				} else {
+					params.Metadata[k] = fmt.Sprintf("%v", v)
+				}
+			}
+		}
+	}
+
+	stripePlan, err := plan.Update(planID, params)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.Plan{
+		ID:            stripePlan.ID,
+		Name:          planReq.Name,
+		Description:   planReq.Description,
+		Amount:        float64(stripePlan.Amount) / 100,
+		Currency:      string(stripePlan.Currency),
+		BillingPeriod: models.BillingPeriod(stripePlan.Interval),
+		PricingType:   models.PricingTypeFixed,
+		TrialDays:     planReq.TrialDays,
+		Features:      planReq.Features,
+		Metadata:      planReq.Metadata,
+		UpdatedAt:     time.Now(),
+	}
+
+	return result, nil
 }
 
 func (p *StripeProvider) DeletePlan(ctx context.Context, planID string) error {
-	return fmt.Errorf("stripe: delete plan not implemented")
+	_, err := plan.Del(planID, nil)
+	return err
 }
 
 func (p *StripeProvider) GetPlan(ctx context.Context, planID string) (*models.Plan, error) {
-	return nil, fmt.Errorf("stripe: get plan not implemented")
+	stripePlan, err := plan.Get(planID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.Plan{
+		ID:            stripePlan.ID,
+		Name:          stripePlan.Product.Name,
+		Description:   stripePlan.Product.Description,
+		Amount:        float64(stripePlan.Amount) / 100,
+		Currency:      string(stripePlan.Currency),
+		BillingPeriod: models.BillingPeriod(stripePlan.Interval),
+		PricingType:   models.PricingTypeFixed,
+		TrialDays:     int(stripePlan.TrialPeriodDays),
+		Features:      []string{},
+		Metadata:      nil,
+		CreatedAt:     time.Unix(stripePlan.Created, 0),
+		UpdatedAt:     time.Unix(stripePlan.Created, 0),
+	}
+
+	if stripePlan.Metadata != nil {
+		metadata := make(map[string]interface{})
+		for k, v := range stripePlan.Metadata {
+			metadata[k] = v
+		}
+		result.Metadata = metadata
+	}
+
+	return result, nil
 }
 
 func (p *StripeProvider) ListPlans(ctx context.Context) ([]*models.Plan, error) {
-	return nil, fmt.Errorf("stripe: list plans not implemented")
+	params := &stripe.PlanListParams{}
+	i := plan.List(params)
+	var plans []*models.Plan
+
+	for i.Next() {
+		stripePlan := i.Plan()
+		result := &models.Plan{
+			ID:            stripePlan.ID,
+			Name:          stripePlan.Product.Name,
+			Description:   stripePlan.Product.Description,
+			Amount:        float64(stripePlan.Amount) / 100,
+			Currency:      string(stripePlan.Currency),
+			BillingPeriod: models.BillingPeriod(stripePlan.Interval),
+			PricingType:   models.PricingTypeFixed,
+			TrialDays:     int(stripePlan.TrialPeriodDays),
+			Features:      []string{},
+			Metadata:      nil,
+			CreatedAt:     time.Unix(stripePlan.Created, 0),
+			UpdatedAt:     time.Unix(stripePlan.Created, 0),
+		}
+
+		if stripePlan.Metadata != nil {
+			metadata := make(map[string]interface{})
+			for k, v := range stripePlan.Metadata {
+				metadata[k] = v
+			}
+			result.Metadata = metadata
+		}
+
+		plans = append(plans, result)
+	}
+
+	return plans, nil
 }
 
 func (p *StripeProvider) CreateDispute(ctx context.Context, req *models.CreateDisputeRequest) (*models.Dispute, error) {
-	return nil, fmt.Errorf("stripe: create dispute not implemented")
+	return nil, fmt.Errorf("stripe: disputes are created automatically from charges, cannot create manually")
 }
 
 func (p *StripeProvider) UpdateDispute(ctx context.Context, disputeID string, req *models.UpdateDisputeRequest) (*models.Dispute, error) {
-	return nil, fmt.Errorf("stripe: update dispute not implemented")
+	params := &stripe.DisputeParams{}
+
+	if req.Metadata != nil {
+		params.Metadata = make(map[string]string)
+		for k, v := range req.Metadata {
+			if str, ok := v.(string); ok {
+				params.Metadata[k] = str
+			} else {
+				params.Metadata[k] = fmt.Sprintf("%v", v)
+			}
+		}
+	}
+
+	stripeDispute, err := dispute.Update(disputeID, params)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.Dispute{
+		ID:        stripeDispute.ID,
+		Status:    models.DisputeStatus(stripeDispute.Status),
+		Metadata:  req.Metadata,
+		UpdatedAt: time.Now(),
+	}
+
+	return result, nil
 }
 
 func (p *StripeProvider) SubmitDisputeEvidence(ctx context.Context, disputeID string, req *models.SubmitEvidenceRequest) (*models.Evidence, error) {
-	return nil, fmt.Errorf("stripe: submit dispute evidence not implemented")
+	params := &stripe.DisputeEvidenceParams{}
+
+	if req.Type != "" {
+		switch req.Type {
+		case "customer_email_address":
+			params.CustomerEmailAddress = stripe.String(req.Description)
+		case "customer_purchase_ip":
+			params.CustomerPurchaseIP = stripe.String(req.Description)
+		case "customer_signature":
+			params.CustomerSignature = stripe.String(req.Description)
+		case "billing_address":
+			params.BillingAddress = stripe.String(req.Description)
+		case "receipt":
+			params.Receipt = stripe.String(req.Description)
+		case "service_date":
+			params.ServiceDate = stripe.String(req.Description)
+		case "product_description":
+			params.ProductDescription = stripe.String(req.Description)
+		case "customer_name":
+			params.CustomerName = stripe.String(req.Description)
+		case "customer_communication":
+			params.CustomerCommunication = stripe.String(req.Description)
+		case "duplicate_charge_documentation":
+			params.DuplicateChargeDocumentation = stripe.String(req.Description)
+		case "duplicate_charge_explanation":
+			params.DuplicateChargeExplanation = stripe.String(req.Description)
+		case "duplicate_charge_id":
+			params.DuplicateChargeID = stripe.String(req.Description)
+		case "refund_policy":
+			params.RefundPolicy = stripe.String(req.Description)
+		case "refund_policy_disclosure":
+			params.RefundPolicyDisclosure = stripe.String(req.Description)
+		case "refund_refusal_explanation":
+			params.RefundRefusalExplanation = stripe.String(req.Description)
+		case "cancellation_policy":
+			params.CancellationPolicy = stripe.String(req.Description)
+		case "cancellation_policy_disclosure":
+			params.CancellationPolicyDisclosure = stripe.String(req.Description)
+		case "cancellation_rebuttal":
+			params.CancellationRebuttal = stripe.String(req.Description)
+		case "access_activity_log":
+			params.AccessActivityLog = stripe.String(req.Description)
+		case "shipping_address":
+			params.ShippingAddress = stripe.String(req.Description)
+		case "shipping_carrier":
+			params.ShippingCarrier = stripe.String(req.Description)
+		case "shipping_date":
+			params.ShippingDate = stripe.String(req.Description)
+		case "shipping_documentation":
+			params.ShippingDocumentation = stripe.String(req.Description)
+		case "shipping_tracking_number":
+			params.ShippingTrackingNumber = stripe.String(req.Description)
+		case "uncategorized_file":
+			params.UncategorizedFile = stripe.String(req.Description)
+		}
+	}
+
+	_, err := dispute.Update(disputeID, &stripe.DisputeParams{
+		Evidence: params,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.Evidence{
+		ID:          fmt.Sprintf("evid_%s", disputeID),
+		DisputeID:   disputeID,
+		Type:        req.Type,
+		Description: req.Description,
+		Files:       req.Files,
+		Metadata:    req.Metadata,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	return result, nil
 }
 
 func (p *StripeProvider) GetDispute(ctx context.Context, disputeID string) (*models.Dispute, error) {
-	return nil, fmt.Errorf("stripe: get dispute not implemented")
+	stripeDispute, err := dispute.Get(disputeID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.Dispute{
+		ID:            stripeDispute.ID,
+		TransactionID: stripeDispute.Charge.ID,
+		Amount:        stripeDispute.Amount,
+		Currency:      string(stripeDispute.Currency),
+		Reason:        string(stripeDispute.Reason),
+		Status:        models.DisputeStatus(stripeDispute.Status),
+		Evidence:      make(map[string]interface{}),
+		DueBy:         time.Unix(stripeDispute.EvidenceDetails.DueBy, 0),
+		CreatedAt:     time.Unix(stripeDispute.Created, 0),
+		UpdatedAt:     time.Unix(stripeDispute.Created, 0),
+	}
+
+	if stripeDispute.Metadata != nil {
+		metadata := make(map[string]interface{})
+		for k, v := range stripeDispute.Metadata {
+			metadata[k] = v
+		}
+		result.Metadata = metadata
+	}
+
+	return result, nil
 }
 
 func (p *StripeProvider) ListDisputes(ctx context.Context, customerID string) ([]*models.Dispute, error) {
-	return nil, fmt.Errorf("stripe: list disputes not implemented")
+	params := &stripe.DisputeListParams{}
+	i := dispute.List(params)
+	var disputes []*models.Dispute
+
+	for i.Next() {
+		stripeDispute := i.Dispute()
+		result := &models.Dispute{
+			ID:            stripeDispute.ID,
+			TransactionID: stripeDispute.Charge.ID,
+			Amount:        stripeDispute.Amount,
+			Currency:      string(stripeDispute.Currency),
+			Reason:        string(stripeDispute.Reason),
+			Status:        models.DisputeStatus(stripeDispute.Status),
+			Evidence:      make(map[string]interface{}),
+			DueBy:         time.Unix(stripeDispute.EvidenceDetails.DueBy, 0),
+			CreatedAt:     time.Unix(stripeDispute.Created, 0),
+			UpdatedAt:     time.Unix(stripeDispute.Created, 0),
+		}
+
+		if stripeDispute.Metadata != nil {
+			metadata := make(map[string]interface{})
+			for k, v := range stripeDispute.Metadata {
+				metadata[k] = v
+			}
+			result.Metadata = metadata
+		}
+
+		disputes = append(disputes, result)
+	}
+
+	return disputes, nil
 }
 
 func (p *StripeProvider) GetDisputeStats(ctx context.Context) (*models.DisputeStats, error) {
-	return nil, fmt.Errorf("stripe: get dispute stats not implemented")
+	params := &stripe.DisputeListParams{}
+	i := dispute.List(params)
+
+	stats := &models.DisputeStats{}
+
+	for i.Next() {
+		stripeDispute := i.Dispute()
+		stats.Total++
+
+		switch stripeDispute.Status {
+		case "needs_response":
+			stats.Open++
+		case "won":
+			stats.Won++
+		case "lost":
+			stats.Lost++
+		case "warning_needs_response":
+			stats.Open++
+		case "warning_under_review":
+			stats.Open++
+		case "under_review":
+			stats.Open++
+		case "charge_refunded":
+			stats.Canceled++
+		case "won_charge_refunded":
+			stats.Won++
+		case "lost_charge_refunded":
+			stats.Lost++
+		}
+	}
+
+	return stats, nil
 }
 
 // TODO: need to add a better way to check if the provider is available
