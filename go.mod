@@ -2,7 +2,7 @@ module github.com/malwarebo/gopay
 
 go 1.23.0
 
-toolchain go1.24.2
+toolchain go1.24.5
 
 require (
 	github.com/gorilla/mux v1.8.1
