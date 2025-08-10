@@ -20,5 +20,15 @@
   "server": {
     "port": "8080",
     "env": "development"
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "password": "",
+    "db": 0,
+    "ttl": 86400
+  },
+  "openai": {
+    "api_key": "your_openai_api_key_here"
   }
 }
