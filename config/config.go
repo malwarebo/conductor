@@ -13,6 +13,7 @@ type Config struct {
 	Xendit   XenditConfig   `json:"xendit"`
 	Server   ServerConfig   `json:"server"`
 	Redis    RedisConfig    `json:"redis"`
+	OpenAI   OpenAIConfig   `json:"openai"`
 }
 
 type DatabaseConfig struct {
@@ -32,6 +33,10 @@ type StripeConfig struct {
 type XenditConfig struct {
 	Secret string `json:"secret"`
 	Public string `json:"public"`
+}
+
+type OpenAIConfig struct {
+	APIKey string `json:"api_key"`
 }
 
 type ServerConfig struct {

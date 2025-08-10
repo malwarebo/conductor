@@ -20,7 +20,6 @@ import (
 	"github.com/malwarebo/gopay/services"
 )
 
-// ANSI color codes for debug console output
 const (
 	colorReset  = "\033[0m"
 	colorRed    = "\033[31m"
@@ -128,6 +127,7 @@ func main() {
 	planRepo := repositories.NewPlanRepository(db)
 	subscriptionRepo := repositories.NewSubscriptionRepository(db)
 	disputeRepo := repositories.NewDisputeRepository(db.DB)
+	fraudRepo := repositories.NewFraudRepository(db.DB)
 	printSuccess("Repositories initialized")
 
 	// Initialize services
@@ -135,6 +135,7 @@ func main() {
 	paymentService := services.NewPaymentService(paymentRepo, providerSelector)
 	subscriptionService := services.NewSubscriptionService(planRepo, subscriptionRepo, providerSelector)
 	disputeService := services.NewDisputeService(disputeRepo, providerSelector)
+	fraudService := services.NewFraudService(fraudRepo, cfg.OpenAI.APIKey)
 	printSuccess("Services initialized")
 
 	// Initialize handlers and router
@@ -142,6 +143,7 @@ func main() {
 	paymentHandler := api.NewPaymentHandler(paymentService)
 	subscriptionHandler := api.NewSubscriptionHandler(subscriptionService)
 	disputeHandler := api.NewDisputeHandler(disputeService)
+	fraudHandler := api.NewFraudHandler(fraudService)
 
 	router := mux.NewRouter()
 
@@ -170,6 +172,9 @@ func main() {
 	apiRouter.HandleFunc("/disputes/{id}/evidence", disputeHandler.HandleDisputes).Methods("POST")
 	apiRouter.HandleFunc("/disputes/stats", disputeHandler.HandleDisputes).Methods("GET")
 
+	apiRouter.HandleFunc("/fraud/analyze", fraudHandler.AnalyzeTransaction).Methods("POST")
+	apiRouter.HandleFunc("/fraud/stats", fraudHandler.GetStats).Methods("GET")
+
 	apiRouter.HandleFunc("/webhooks/stripe", paymentHandler.HandleStripeWebhook).Methods("POST")
 	apiRouter.HandleFunc("/webhooks/xendit", paymentHandler.HandleXenditWebhook).Methods("POST")
 
@@ -193,6 +198,8 @@ func main() {
 	fmt.Printf("  %s•%s Payments:     %shttp://localhost:%s/api/v1/charges%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Printf("  %s•%s Subscriptions: %shttp://localhost:%s/api/v1/subscriptions%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Printf("  %s•%s Disputes:     %shttp://localhost:%s/api/v1/disputes%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
+	fmt.Printf("  %s•%s Fraud Detection: %shttp://localhost:%s/api/v1/fraud/analyze%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
+	fmt.Printf("  %s•%s Fraud Stats:    %shttp://localhost:%s/api/v1/fraud/stats%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Println()
 	fmt.Printf("%s%sEnvironment:%s %s%s%s\n", colorPurple, colorBold, colorReset, colorYellow, "development", colorReset)
 	fmt.Printf("%s%sServer Port:%s %s%s%s\n", colorPurple, colorBold, colorReset, colorYellow, cfg.Server.Port, colorReset)
@@ -201,7 +208,7 @@ func main() {
 		fmt.Printf("%s%sRedis:%s %s%s:%d%s\n", colorPurple, colorBold, colorReset, colorYellow, cfg.Redis.Host, cfg.Redis.Port, colorReset)
 	}
 	fmt.Println()
-	fmt.Printf("%s%sPress Ctrl+C to stop the server%s\n", colorYellow, colorReset)
+	fmt.Printf("%s%sPress Ctrl+C to stop the server%s\n", colorYellow, colorBold, colorReset)
 	fmt.Println()
 
 	// Start server
