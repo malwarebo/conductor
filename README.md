@@ -5,6 +5,8 @@
 
 `gopay` is an open-source payment orchestration system that makes handling multiple payment providers a breeze. It supports Stripe and Xendit out of the box, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
 
+The system includes intelligent fraud detection powered by AI that analyzes transactions in real-time before processing payments. It uses OpenAI's advanced models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates seamlessly into your payment flow, automatically blocking high-risk transactions while allowing legitimate ones to proceed smoothly.
+
 > [!NOTE]
 > Want to know why I built this? Check out the story here: <https://github.com/malwarebo/gopay/blob/master/docs/PROBLEM.md>
 
@@ -48,6 +50,7 @@ cp config/config.example.json config/config.json
 # - Update database credentials
 # - Add your Stripe API keys
 # - Add your Xendit API keys
+# - Add your OpenAI API key for fraud detection (optional)
 # - Adjust server settings if needed
 ```
 
@@ -162,6 +165,11 @@ The app will be available at `http://localhost:8080`
 - `PUT /api/v1/disputes/:id` - Update dispute
 - `POST /api/v1/disputes/:id/evidence` - Submit evidence
 - `GET /api/v1/disputes/stats` - Get dispute statistics
+
+### Fraud Detection
+
+- `POST /api/v1/fraud/analyze` - Analyze transaction for fraud risk
+- `GET /api/v1/fraud/stats` - Get fraud detection statistics
 
 ### System
 
