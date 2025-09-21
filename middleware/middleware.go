@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -62,6 +63,7 @@ func RecoveryMiddleware(next http.Handler) http.Handler {
 
 type rateLimiter struct {
 	limiter *rate.Limiter
+	next    http.Handler
 }
 
 func (rl *rateLimiter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -69,18 +71,47 @@ func (rl *rateLimiter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 		return
 	}
+	rl.next.ServeHTTP(w, r)
 }
 
 func RateLimitMiddleware(next http.Handler) http.Handler {
 	limiter := rate.NewLimiter(rate.Every(time.Second), 100)
-	return &rateLimiter{limiter: limiter}
+	return &rateLimiter{
+		limiter: limiter,
+		next:    next,
+	}
 }
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/health" || r.URL.Path == "/api/v1/metrics" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		apiKey := r.Header.Get("X-API-Key")
 		if apiKey == "" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			authHeader := r.Header.Get("Authorization")
+			if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+				apiKey = authHeader[7:]
+			}
+		}
+
+		if apiKey == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "API key required. Provide X-API-Key header or Authorization: Bearer <key>",
+			})
+			return
+		}
+
+		if len(apiKey) < 10 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Invalid API key format",
+			})
 			return
 		}
 
