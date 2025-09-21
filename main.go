@@ -154,6 +154,7 @@ func main() {
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 	apiRouter.Use(middleware.RateLimitMiddleware)
+	apiRouter.Use(middleware.AuthMiddleware)
 
 	// Register routes
 	apiRouter.HandleFunc("/health", api.HealthCheckHandler).Methods("GET")
