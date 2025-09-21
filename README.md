@@ -42,6 +42,25 @@ psql -U gopay_user -d gopay -f db/schema.sql
 
 ### 3. Configure the app
 
+**Option 1: Using Environment Variables (Recommended for Production)**
+
+```bash
+# Copy the environment template
+cp env.example .env
+
+# Edit .env with your actual values:
+# - Set secure database credentials
+# - Add your Stripe API keys
+# - Add your Xendit API keys
+# - Add your OpenAI API key for fraud detection (optional)
+# - Adjust server settings if needed
+
+# Load environment variables
+export $(cat .env | xargs)
+```
+
+**Option 2: Using Configuration File (Development Only)**
+
 ```bash
 # Copy the example config
 cp config/config.example.json config/config.json
@@ -53,6 +72,8 @@ cp config/config.example.json config/config.json
 # - Add your OpenAI API key for fraud detection (optional)
 # - Adjust server settings if needed
 ```
+
+**⚠️ Security Note**: For production deployments, always use environment variables for sensitive data like API keys and database passwords. Never commit actual secrets to version control.
 
 ## Database Setup Script
 
@@ -176,6 +197,22 @@ The app will be available at `http://localhost:8080`
 - `GET /api/v1/health` - Health check
 - `GET /api/v1/metrics` - System metrics
 
+## Authentication
+
+All API endpoints (except health check and metrics) require authentication using an API key. You can provide the API key in two ways:
+
+1. **X-API-Key header** (recommended):
+   ```bash
+   curl -H "X-API-Key: your_api_key_here" http://localhost:8080/api/v1/charges
+   ```
+
+2. **Authorization Bearer header**:
+   ```bash
+   curl -H "Authorization: Bearer your_api_key_here" http://localhost:8080/api/v1/charges
+   ```
+
+**Note**: Replace `your_api_key_here` with your actual API key. For development, you can use any string with at least 10 characters.
+
 ## API Examples
 
 Here are some real examples of how to use the API. The system automatically routes your requests to the right payment provider based on the currency!
@@ -186,6 +223,7 @@ Here are some real examples of how to use the API. The system automatically rout
 ```bash
 curl -X POST http://localhost:8080/api/v1/charges \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key_here" \
   -d '{
     "customer_id": "cus_123456789",
     "amount": 2500,
@@ -199,6 +237,7 @@ curl -X POST http://localhost:8080/api/v1/charges \
 ```bash
 curl -X POST http://localhost:8080/api/v1/charges \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key_here" \
   -d '{
     "customer_id": "customer_123",
     "amount": 500000,
@@ -239,6 +278,7 @@ curl -X POST http://localhost:8080/api/v1/charges \
 ```bash
 curl -X POST http://localhost:8080/api/v1/refunds \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key_here" \
   -d '{
     "payment_id": "ch_123456789",
     "amount": 2500,

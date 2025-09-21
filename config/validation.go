@@ -18,6 +18,14 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("redis config: %w", err)
 	}
 
+	if err := c.Stripe.Validate(); err != nil {
+		return fmt.Errorf("stripe config: %w", err)
+	}
+
+	if err := c.Xendit.Validate(); err != nil {
+		return fmt.Errorf("xendit config: %w", err)
+	}
+
 	return nil
 }
 
@@ -50,6 +58,26 @@ func (c *RedisConfig) Validate() error {
 	}
 	if c.Port == 0 {
 		return fmt.Errorf("port is required")
+	}
+	return nil
+}
+
+func (c *StripeConfig) Validate() error {
+	if c.Secret == "" || c.Secret == "your_stripe_secret_key" {
+		return fmt.Errorf("stripe secret key is required - set STRIPE_SECRET_KEY environment variable")
+	}
+	if c.Public == "" || c.Public == "your_stripe_public_key" {
+		return fmt.Errorf("stripe public key is required - set STRIPE_PUBLIC_KEY environment variable")
+	}
+	return nil
+}
+
+func (c *XenditConfig) Validate() error {
+	if c.Secret == "" || c.Secret == "your_xendit_secret_key" {
+		return fmt.Errorf("xendit secret key is required - set XENDIT_SECRET_KEY environment variable")
+	}
+	if c.Public == "" || c.Public == "your_xendit_public_key" {
+		return fmt.Errorf("xendit public key is required - set XENDIT_PUBLIC_KEY environment variable")
 	}
 	return nil
 }

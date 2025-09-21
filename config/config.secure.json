@@ -1,0 +1,34 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "gopay_user",
+    "password": "PLACEHOLDER_DB_PASSWORD",
+    "dbname": "gopay",
+    "sslmode": "disable"
+  },
+  "stripe": {
+    "secret": "PLACEHOLDER_STRIPE_SECRET",
+    "public": "PLACEHOLDER_STRIPE_PUBLIC",
+    "webhook_secret": "PLACEHOLDER_STRIPE_WEBHOOK"
+  },
+  "xendit": {
+    "secret": "PLACEHOLDER_XENDIT_SECRET",
+    "public": "PLACEHOLDER_XENDIT_PUBLIC",
+    "webhook_secret": "PLACEHOLDER_XENDIT_WEBHOOK"
+  },
+  "server": {
+    "port": "8080",
+    "env": "development"
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "password": "",
+    "db": 0,
+    "ttl": 86400
+  },
+  "openai": {
+    "api_key": "PLACEHOLDER_OPENAI_KEY"
+  }
+}

@@ -39,25 +39,56 @@ func (s *PaymentService) CreateCharge(ctx context.Context, req *models.ChargeReq
 		return nil, ErrInvalidPaymentMethod
 	}
 
-	chargeResp, err := s.provider.Charge(ctx, req)
+	providerName := s.getProviderName(ctx, req.Currency)
+	if providerName == "" {
+		return nil, fmt.Errorf("no available provider for currency: %s", req.Currency)
+	}
+
+	var payment *models.Payment
+	var chargeResp *models.ChargeResponse
+
+	err := s.paymentRepo.WithTransaction(ctx, func(txCtx context.Context) error {
+		var err error
+		chargeResp, err = s.provider.Charge(txCtx, req)
+		if err != nil {
+			return fmt.Errorf("failed to create charge with provider: %w", err)
+		}
+
+		payment = &models.Payment{
+			CustomerID:       req.CustomerID,
+			Amount:           req.Amount,
+			Currency:         req.Currency,
+			Status:           models.PaymentStatusSuccess,
+			PaymentMethod:    req.PaymentMethod,
+			Description:      req.Description,
+			ProviderName:     providerName,
+			ProviderChargeID: chargeResp.ID,
+			Metadata:         req.Metadata,
+		}
+
+		if err := s.paymentRepo.Create(txCtx, payment); err != nil {
+			return fmt.Errorf("failed to store payment: %w", err)
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to create charge: %w", err)
-	}
-
-	payment := &models.Payment{
-		CustomerID:       req.CustomerID,
-		Amount:           req.Amount,
-		Currency:         req.Currency,
-		Status:           models.PaymentStatusSuccess,
-		PaymentMethod:    req.PaymentMethod,
-		Description:      req.Description,
-		ProviderName:     "stripe",
-		ProviderChargeID: chargeResp.ID,
-		Metadata:         req.Metadata,
-	}
-
-	if err := s.paymentRepo.Create(ctx, payment); err != nil {
-		return nil, fmt.Errorf("failed to store payment: %w", err)
+		if chargeResp != nil {
+			go func() {
+				cleanupCtx := context.Background()
+				refundReq := &models.RefundRequest{
+					PaymentID: chargeResp.ID,
+					Amount:    req.Amount,
+					Currency:  req.Currency,
+					Reason:    "Transaction rollback due to database error",
+				}
+				if _, refundErr := s.provider.Refund(cleanupCtx, refundReq); refundErr != nil {
+					fmt.Printf("Warning: Failed to reverse provider charge %s: %v\n", chargeResp.ID, refundErr)
+				}
+			}()
+		}
+		return nil, err
 	}
 
 	return &models.ChargeResponse{
@@ -86,29 +117,48 @@ func (s *PaymentService) CreateRefund(ctx context.Context, req *models.RefundReq
 		return nil, errors.New("payment ID is required")
 	}
 
-	payment, err := s.paymentRepo.GetByID(ctx, req.PaymentID)
+	var refund *models.Refund
+	var refundResp *models.RefundResponse
+
+	err := s.paymentRepo.WithTransaction(ctx, func(txCtx context.Context) error {
+		payment, err := s.paymentRepo.GetByID(txCtx, req.PaymentID)
+		if err != nil {
+			return fmt.Errorf("failed to get payment: %w", err)
+		}
+
+		if req.Amount > payment.Amount {
+			return fmt.Errorf("refund amount %d exceeds payment amount %d", req.Amount, payment.Amount)
+		}
+
+		refundResp, err = s.provider.Refund(txCtx, req)
+		if err != nil {
+			return fmt.Errorf("failed to create refund with provider: %w", err)
+		}
+
+		payment.Status = models.PaymentStatusRefunded
+		if err := s.paymentRepo.Update(txCtx, payment); err != nil {
+			return fmt.Errorf("failed to update payment: %w", err)
+		}
+
+		refund = &models.Refund{
+			PaymentID:        req.PaymentID,
+			Amount:           req.Amount,
+			Reason:           req.Reason,
+			Status:           "succeeded",
+			ProviderName:     payment.ProviderName,
+			ProviderRefundID: refundResp.ID,
+			Metadata:         req.Metadata,
+		}
+
+		if err := s.paymentRepo.CreateRefund(txCtx, refund); err != nil {
+			return fmt.Errorf("failed to store refund: %w", err)
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to get payment: %w", err)
-	}
-
-	refundResp, err := s.provider.Refund(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create refund: %w", err)
-	}
-
-	payment.Status = models.PaymentStatusRefunded
-	if err := s.paymentRepo.Update(ctx, payment); err != nil {
-		return nil, fmt.Errorf("failed to update payment: %w", err)
-	}
-
-	refund := &models.Refund{
-		PaymentID:        req.PaymentID,
-		Amount:           req.Amount,
-		Reason:           req.Reason,
-		Status:           "succeeded",
-		ProviderName:     "stripe",
-		ProviderRefundID: refundResp.ID,
-		Metadata:         req.Metadata,
+		return nil, err
 	}
 
 	return &models.RefundResponse{
@@ -139,4 +189,18 @@ func (s *PaymentService) ListPayments(ctx context.Context, customerID string) ([
 		return nil, fmt.Errorf("failed to list payments: %w", err)
 	}
 	return payments, nil
+}
+
+func (s *PaymentService) getProviderName(ctx context.Context, currency string) string {
+	if s.provider.IsAvailable(ctx) {
+		switch currency {
+		case "USD", "EUR", "GBP":
+			return "stripe"
+		case "IDR", "SGD", "MYR", "PHP", "THB", "VND":
+			return "xendit"
+		default:
+			return ""
+		}
+	}
+	return ""
 }

@@ -26,13 +26,15 @@ type DatabaseConfig struct {
 }
 
 type StripeConfig struct {
-	Secret string `json:"secret"`
-	Public string `json:"public"`
+	Secret        string `json:"secret"`
+	Public        string `json:"public"`
+	WebhookSecret string `json:"webhook_secret"`
 }
 
 type XenditConfig struct {
-	Secret string `json:"secret"`
-	Public string `json:"public"`
+	Secret        string `json:"secret"`
+	Public        string `json:"public"`
+	WebhookSecret string `json:"webhook_secret"`
 }
 
 type OpenAIConfig struct {
@@ -93,12 +95,31 @@ func LoadConfig() (*Config, error) {
 	if dbSSLMode := os.Getenv("DB_SSLMODE"); dbSSLMode != "" {
 		config.Database.SSLMode = dbSSLMode
 	}
-	if stripeKey := os.Getenv("STRIPE_API_KEY"); stripeKey != "" {
-		config.Stripe.Secret = stripeKey
+
+	if stripeSecret := os.Getenv("STRIPE_SECRET_KEY"); stripeSecret != "" {
+		config.Stripe.Secret = stripeSecret
 	}
-	if xenditKey := os.Getenv("XENDIT_API_KEY"); xenditKey != "" {
-		config.Xendit.Secret = xenditKey
+	if stripePublic := os.Getenv("STRIPE_PUBLIC_KEY"); stripePublic != "" {
+		config.Stripe.Public = stripePublic
 	}
+	if stripeWebhook := os.Getenv("STRIPE_WEBHOOK_SECRET"); stripeWebhook != "" {
+		config.Stripe.WebhookSecret = stripeWebhook
+	}
+
+	if xenditSecret := os.Getenv("XENDIT_SECRET_KEY"); xenditSecret != "" {
+		config.Xendit.Secret = xenditSecret
+	}
+	if xenditPublic := os.Getenv("XENDIT_PUBLIC_KEY"); xenditPublic != "" {
+		config.Xendit.Public = xenditPublic
+	}
+	if xenditWebhook := os.Getenv("XENDIT_WEBHOOK_SECRET"); xenditWebhook != "" {
+		config.Xendit.WebhookSecret = xenditWebhook
+	}
+
+	if openAIKey := os.Getenv("OPENAI_API_KEY"); openAIKey != "" {
+		config.OpenAI.APIKey = openAIKey
+	}
+
 	if port := os.Getenv("PORT"); port != "" {
 		config.Server.Port = port
 	}
