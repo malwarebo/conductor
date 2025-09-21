@@ -3,11 +3,12 @@ package middleware
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
 	"runtime/debug"
 	"time"
 
+	"github.com/malwarebo/gopay/utils"
 	"golang.org/x/time/rate"
 )
 
@@ -26,33 +27,73 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		rw := &responseWriter{w, http.StatusOK}
 
+		correlationID := r.Header.Get("X-Correlation-ID")
+		if correlationID == "" {
+			correlationID = generateCorrelationID()
+		}
+
+		ctx := utils.WithCorrelationID(r.Context(), correlationID)
+		r = r.WithContext(ctx)
+
 		next.ServeHTTP(rw, r)
 
 		duration := time.Since(start)
-		log.Printf("%s %s %d %v", r.Method, r.URL.Path, rw.statusCode, duration)
+		utils.Info(ctx, "HTTP request completed", map[string]interface{}{
+			"method":      r.Method,
+			"path":        r.URL.Path,
+			"status":      rw.statusCode,
+			"duration":    duration.String(),
+			"user_agent":  r.UserAgent(),
+			"remote_addr": r.RemoteAddr,
+		})
 	})
 }
 
-func CORSMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+func CORSMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
 
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
+			if isOriginAllowed(origin, allowedOrigins) {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			}
+
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, X-Correlation-ID")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Max-Age", "86400")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func isOriginAllowed(origin string, allowedOrigins []string) bool {
+	if len(allowedOrigins) == 0 {
+		return false
+	}
+
+	for _, allowed := range allowedOrigins {
+		if allowed == "*" || allowed == origin {
+			return true
 		}
-
-		next.ServeHTTP(w, r)
-	})
+	}
+	return false
 }
 
 func RecoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("Panic: %v\n%s", err, debug.Stack())
+				utils.Error(r.Context(), "Panic recovered", map[string]interface{}{
+					"error": err,
+					"stack": string(debug.Stack()),
+				})
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}
 		}()
@@ -121,4 +162,8 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), apiKeyContextKey, apiKey)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func generateCorrelationID() string {
+	return fmt.Sprintf("%d", time.Now().UnixNano())
 }

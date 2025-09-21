@@ -12,6 +12,7 @@ import (
 
 	"github.com/malwarebo/gopay/models"
 	"github.com/malwarebo/gopay/repositories"
+	"github.com/malwarebo/gopay/utils"
 )
 
 const (
@@ -34,6 +35,8 @@ type fraudService struct {
 	repo       repositories.FraudRepository
 	openAIKey  string
 	httpClient *http.Client
+	ipAnalyzer *utils.IPAnalyzer
+	cache      map[string]*models.FraudAnalysisResult
 }
 
 type OpenAIRequest struct {
@@ -61,10 +64,29 @@ func NewFraudService(repo repositories.FraudRepository, openAIKey string) FraudS
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		ipAnalyzer: utils.NewIPAnalyzer(),
+		cache:      make(map[string]*models.FraudAnalysisResult),
 	}
 }
 
 func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.FraudAnalysisRequest) (*models.FraudAnalysisResponse, error) {
+	cacheKey := fmt.Sprintf("%s_%s_%s_%s", request.TransactionID, request.UserID, request.IPAddress, request.BillingCountry)
+
+	if cached, exists := s.cache[cacheKey]; exists {
+		utils.Info(ctx, "Using cached fraud analysis result", map[string]interface{}{
+			"transaction_id": request.TransactionID,
+			"cache_key":      cacheKey,
+		})
+		return &models.FraudAnalysisResponse{
+			Allow:  cached.Allow,
+			Reason: cached.Reason,
+		}, nil
+	}
+
+	ipRiskLevel := s.ipAnalyzer.AnalyzeIP(ctx, request.IPAddress)
+	ipRiskScore := s.ipAnalyzer.GetRiskScore(ipRiskLevel)
+	ipRiskDescription := s.ipAnalyzer.GetRiskDescription(ipRiskLevel)
+
 	anonymizedData := map[string]interface{}{
 		"transaction_amount":   request.TransactionAmount,
 		"billing_country":      request.BillingCountry,
@@ -72,7 +94,9 @@ func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.F
 		"transaction_velocity": request.TransactionVelocity,
 		"countries_match":      request.BillingCountry == request.ShippingCountry,
 		"amount_category":      categorizeAmount(request.TransactionAmount),
-		"ip_risk_level":        categorizeIPAddress(request.IPAddress),
+		"ip_risk_level":        ipRiskLevel,
+		"ip_risk_score":        ipRiskScore,
+		"ip_risk_description":  ipRiskDescription,
 	}
 
 	userMessageData, err := json.Marshal(anonymizedData)
@@ -104,9 +128,14 @@ func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.F
 	}
 
 	if err := s.repo.SaveAnalysisResult(result); err != nil {
-		log.Printf("Failed to save fraud analysis result: %v", err)
-		// Don't fail the request if we can't save to DB
+		utils.Error(ctx, "Failed to save fraud analysis result", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
+
+	s.cache[cacheKey] = result
+
+	utils.RecordFraudMetrics(ctx, assessment.IsFraudulent, assessment.FraudScore, assessment.Reason)
 
 	response := &models.FraudAnalysisResponse{
 		Allow:  allow,
@@ -229,12 +258,9 @@ func categorizeAmount(amount float64) string {
 }
 
 func categorizeIPAddress(ip string) string {
-	// This is a simplified implementation
-	// In production, might want to use a proper IP geolocation/risk service
 	if ip == "" {
 		return "unknown"
 	}
-	// TODO: Add more elaborated IP risk analysis here
 	return "normal"
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/malwarebo/gopay/models"
 	"github.com/malwarebo/gopay/providers"
 	"github.com/malwarebo/gopay/repositories"
+	"github.com/malwarebo/gopay/utils"
 )
 
 var (
@@ -49,9 +50,13 @@ func (s *PaymentService) CreateCharge(ctx context.Context, req *models.ChargeReq
 
 	err := s.paymentRepo.WithTransaction(ctx, func(txCtx context.Context) error {
 		var err error
-		chargeResp, err = s.provider.Charge(txCtx, req)
+		retryConfig := utils.DefaultRetryConfig()
+		err = utils.Retry(txCtx, retryConfig, func() error {
+			chargeResp, err = s.provider.Charge(txCtx, req)
+			return err
+		})
 		if err != nil {
-			return fmt.Errorf("failed to create charge with provider: %w", err)
+			return utils.WrapError(err, "failed to create charge with provider")
 		}
 
 		payment = &models.Payment{
@@ -90,6 +95,9 @@ func (s *PaymentService) CreateCharge(ctx context.Context, req *models.ChargeReq
 		}
 		return nil, err
 	}
+
+	utils.RecordPaymentMetrics(ctx, payment.Amount, payment.Currency, payment.ProviderName, string(payment.Status))
+	utils.RecordProviderMetrics(ctx, payment.ProviderName, "charge", true)
 
 	return &models.ChargeResponse{
 		ID:               payment.ID,
@@ -130,9 +138,13 @@ func (s *PaymentService) CreateRefund(ctx context.Context, req *models.RefundReq
 			return fmt.Errorf("refund amount %d exceeds payment amount %d", req.Amount, payment.Amount)
 		}
 
-		refundResp, err = s.provider.Refund(txCtx, req)
+		retryConfig := utils.DefaultRetryConfig()
+		err = utils.Retry(txCtx, retryConfig, func() error {
+			refundResp, err = s.provider.Refund(txCtx, req)
+			return err
+		})
 		if err != nil {
-			return fmt.Errorf("failed to create refund with provider: %w", err)
+			return utils.WrapError(err, "failed to create refund with provider")
 		}
 
 		payment.Status = models.PaymentStatusRefunded
@@ -160,6 +172,9 @@ func (s *PaymentService) CreateRefund(ctx context.Context, req *models.RefundReq
 	if err != nil {
 		return nil, err
 	}
+
+	utils.RecordPaymentMetrics(ctx, refund.Amount, req.Currency, refund.ProviderName, refund.Status)
+	utils.RecordProviderMetrics(ctx, refund.ProviderName, "refund", true)
 
 	return &models.RefundResponse{
 		ID:               refund.ID,
