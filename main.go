@@ -149,7 +149,8 @@ func main() {
 
 	// Apply middleware
 	router.Use(middleware.LoggingMiddleware)
-	router.Use(middleware.CORSMiddleware)
+	allowedOrigins := []string{"http://localhost:3000", "http://localhost:8080"}
+	router.Use(middleware.CORSMiddleware(allowedOrigins))
 	router.Use(middleware.RecoveryMiddleware)
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
