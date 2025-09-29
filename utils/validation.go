@@ -14,6 +14,10 @@ type ValidationError struct {
 	Message string `json:"message"`
 }
 
+func (ve *ValidationError) Error() string {
+	return fmt.Sprintf("%s: %s", ve.Field, ve.Message)
+}
+
 type ValidationErrors []ValidationError
 
 func (ve ValidationErrors) Error() string {
