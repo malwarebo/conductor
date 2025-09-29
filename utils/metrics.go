@@ -196,3 +196,34 @@ func RecordProviderMetrics(ctx context.Context, provider string, operation strin
 		"success":   success,
 	})
 }
+
+func RecordRoutingMetrics(ctx context.Context, provider string, confidenceScore int, successRate float64) {
+	IncrementCounter("routing_decisions_total", map[string]string{
+		"provider":         provider,
+		"confidence_level": getConfidenceLevel(confidenceScore),
+	})
+
+	SetGauge("routing_confidence_score", float64(confidenceScore), map[string]string{
+		"provider": provider,
+	})
+
+	SetGauge("routing_success_rate", successRate, map[string]string{
+		"provider": provider,
+	})
+
+	Info(ctx, "Routing metric recorded", map[string]interface{}{
+		"provider":         provider,
+		"confidence_score": confidenceScore,
+		"success_rate":     successRate,
+	})
+}
+
+func getConfidenceLevel(score int) string {
+	if score >= 90 {
+		return "high"
+	} else if score >= 70 {
+		return "medium"
+	} else {
+		return "low"
+	}
+}
