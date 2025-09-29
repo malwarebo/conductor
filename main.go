@@ -136,6 +136,7 @@ func main() {
 	subscriptionService := services.NewSubscriptionService(planRepo, subscriptionRepo, providerSelector)
 	disputeService := services.NewDisputeService(disputeRepo, providerSelector)
 	fraudService := services.NewFraudService(fraudRepo, cfg.OpenAI.APIKey)
+	routingService := services.NewRoutingService(cfg.OpenAI.APIKey)
 	printSuccess("Services initialized")
 
 	// Initialize handlers and router
@@ -144,6 +145,7 @@ func main() {
 	subscriptionHandler := api.NewSubscriptionHandler(subscriptionService)
 	disputeHandler := api.NewDisputeHandler(disputeService)
 	fraudHandler := api.NewFraudHandler(fraudService)
+	routingHandler := api.NewRoutingHandler(routingService)
 
 	router := mux.NewRouter()
 
@@ -177,6 +179,11 @@ func main() {
 	apiRouter.HandleFunc("/fraud/analyze", fraudHandler.AnalyzeTransaction).Methods("POST")
 	apiRouter.HandleFunc("/fraud/stats", fraudHandler.GetStats).Methods("GET")
 
+	apiRouter.HandleFunc("/routing/select", routingHandler.HandleRouting).Methods("POST")
+	apiRouter.HandleFunc("/routing/stats", routingHandler.HandleProviderStats).Methods("GET")
+	apiRouter.HandleFunc("/routing/metrics", routingHandler.HandleRoutingMetrics).Methods("GET")
+	apiRouter.HandleFunc("/routing/config", routingHandler.HandleRoutingConfig).Methods("GET", "PUT")
+
 	apiRouter.HandleFunc("/webhooks/stripe", paymentHandler.HandleStripeWebhook).Methods("POST")
 	apiRouter.HandleFunc("/webhooks/xendit", paymentHandler.HandleXenditWebhook).Methods("POST")
 
@@ -202,6 +209,8 @@ func main() {
 	fmt.Printf("  %s•%s Disputes:     %shttp://localhost:%s/api/v1/disputes%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Printf("  %s•%s Fraud Detection: %shttp://localhost:%s/api/v1/fraud/analyze%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Printf("  %s•%s Fraud Stats:    %shttp://localhost:%s/api/v1/fraud/stats%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
+	fmt.Printf("  %s•%s AI Routing:     %shttp://localhost:%s/api/v1/routing/select%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
+	fmt.Printf("  %s•%s Routing Stats:  %shttp://localhost:%s/api/v1/routing/stats%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Println()
 	fmt.Printf("%s%sEnvironment:%s %s%s%s\n", colorPurple, colorBold, colorReset, colorYellow, "development", colorReset)
 	fmt.Printf("%s%sServer Port:%s %s%s%s\n", colorPurple, colorBold, colorReset, colorYellow, cfg.Server.Port, colorReset)
