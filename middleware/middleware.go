@@ -123,7 +123,7 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 	}
 }
 
-func AuthMiddleware(next http.Handler) http.Handler {
+func BasicAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/health" || r.URL.Path == "/api/v1/metrics" {
 			next.ServeHTTP(w, r)

@@ -5,30 +5,6 @@ import (
 	"strings"
 )
 
-func (c *Config) Validate() error {
-	if err := c.Database.Validate(); err != nil {
-		return fmt.Errorf("database config: %w", err)
-	}
-
-	if err := c.Server.Validate(); err != nil {
-		return fmt.Errorf("server config: %w", err)
-	}
-
-	if err := c.Redis.Validate(); err != nil {
-		return fmt.Errorf("redis config: %w", err)
-	}
-
-	if err := c.Stripe.Validate(); err != nil {
-		return fmt.Errorf("stripe config: %w", err)
-	}
-
-	if err := c.Xendit.Validate(); err != nil {
-		return fmt.Errorf("xendit config: %w", err)
-	}
-
-	return nil
-}
-
 func (c *DatabaseConfig) Validate() error {
 	if c.Host == "" {
 		return fmt.Errorf("host is required")

@@ -3,15 +3,15 @@ package repositories
 import (
 	"context"
 
-	"github.com/malwarebo/gopay/db"
 	"github.com/malwarebo/gopay/models"
+	"gorm.io/gorm"
 )
 
 type SubscriptionRepository struct {
-	db *db.DB
+	db *gorm.DB
 }
 
-func NewSubscriptionRepository(db *db.DB) *SubscriptionRepository {
+func NewSubscriptionRepository(db *gorm.DB) *SubscriptionRepository {
 	return &SubscriptionRepository{db: db}
 }
 
