@@ -1,9 +1,13 @@
-# gopay - Payment orchestration made better
+# gopay - Payments made better
 
 [![go build](https://github.com/malwarebo/gopay/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/gopay/actions/workflows/go-build.yml)
 [![docker build](https://github.com/malwarebo/gopay/actions/workflows/docker-image.yml/badge.svg)](https://github.com/malwarebo/gopay/actions/workflows/docker-image.yml)
 
-`gopay` is an open-source payment orchestration system that makes handling multiple payment providers a breeze. It supports Stripe and Xendit out of the box, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
+<div align="center">
+  <img src="assets/gopay-logo.png" alt="gopay Logo" width="200" height="200">
+</div>
+
+`gopay` is an open-source payment switch that makes handling multiple payment providers a breeze. It supports Stripe and Xendit out of the box, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
 
 The system includes intelligent fraud detection powered by AI that analyzes transactions in real-time before processing payments. It uses OpenAI's advanced models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates seamlessly into your payment flow, automatically blocking high-risk transactions while allowing legitimate ones to proceed smoothly.
 
@@ -13,6 +17,10 @@ The system includes intelligent fraud detection powered by AI that analyzes tran
 ## Architecture
 
 Curious about how it all works under the hood? Check out the architecture docs: <https://github.com/malwarebo/gopay/blob/master/docs/ARCHITECTURE.md>
+
+## API reference
+
+API docs are available here: <https://github.com/malwarebo/gopay/blob/master/docs/API_REFERENCE.md>
 
 ## Quick Start
 
@@ -202,11 +210,13 @@ The app will be available at `http://localhost:8080`
 All API endpoints (except health check and metrics) require authentication using an API key. You can provide the API key in two ways:
 
 1. **X-API-Key header** (recommended):
+
    ```bash
    curl -H "X-API-Key: your_api_key_here" http://localhost:8080/api/v1/charges
    ```
 
 2. **Authorization Bearer header**:
+
    ```bash
    curl -H "Authorization: Bearer your_api_key_here" http://localhost:8080/api/v1/charges
    ```
@@ -220,6 +230,7 @@ Here are some real examples of how to use the API. The system automatically rout
 ### Creating Charges
 
 #### Basic charge with Stripe (USD)
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/charges \
   -H "Content-Type: application/json" \
@@ -234,6 +245,7 @@ curl -X POST http://localhost:8080/api/v1/charges \
 ```
 
 #### Charge with metadata using Xendit (IDR)
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/charges \
   -H "Content-Type: application/json" \
@@ -254,6 +266,7 @@ curl -X POST http://localhost:8080/api/v1/charges \
 ```
 
 #### High-value charge with Stripe (EUR)
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/charges \
   -H "Content-Type: application/json" \
@@ -275,6 +288,7 @@ curl -X POST http://localhost:8080/api/v1/charges \
 ### Creating Refunds
 
 #### Simple refund
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/refunds \
   -H "Content-Type: application/json" \
@@ -288,6 +302,7 @@ curl -X POST http://localhost:8080/api/v1/refunds \
 ```
 
 #### Partial refund with metadata
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/refunds \
   -H "Content-Type: application/json" \
@@ -307,6 +322,7 @@ curl -X POST http://localhost:8080/api/v1/refunds \
 ### Managing Subscriptions
 
 #### Create a subscription plan
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/plans \
   -H "Content-Type: application/json" \
@@ -323,6 +339,7 @@ curl -X POST http://localhost:8080/api/v1/plans \
 ```
 
 #### Create a subscription
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/subscriptions \
   -H "Content-Type: application/json" \
@@ -342,6 +359,7 @@ curl -X POST http://localhost:8080/api/v1/subscriptions \
 ### Handling Disputes
 
 #### Create a dispute
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/disputes \
   -H "Content-Type: application/json" \
@@ -359,6 +377,7 @@ curl -X POST http://localhost:8080/api/v1/disputes \
 ```
 
 #### Submit evidence for a dispute
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/disputes/disp_123/evidence \
   -H "Content-Type: application/json" \
@@ -376,11 +395,13 @@ curl -X POST http://localhost:8080/api/v1/disputes/disp_123/evidence \
 ### System Health & Metrics
 
 #### Check if the system is healthy
+
 ```bash
 curl -X GET http://localhost:8080/api/v1/health
 ```
 
 #### Get system metrics
+
 ```bash
 curl -X GET http://localhost:8080/api/v1/metrics
 ```
@@ -397,17 +418,22 @@ Just specify the currency in your request, and the system automatically picks th
 ## Important Notes
 
 ### Amount Format
+
 Always use the smallest currency unit:
+
 - **USD/EUR**: cents (1000 = $10.00)
 - **IDR**: rupiah (50000 = Rp 50,000)
 - **SGD**: cents (1500 = S$15.00)
 
 ### Payment Methods
+
 Make sure you're using valid payment method IDs from your chosen provider:
+
 - Stripe: `pm_123456789`
 - Xendit: `pm_xendit_123`
 
 ### Customer IDs
+
 Your customer IDs should match what's in your provider's system.
 
 ## Redis Cache Configuration
