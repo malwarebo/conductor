@@ -82,14 +82,14 @@ type ProviderWrapper struct {
 	name           string
 }
 
-func NewProviderWrapper(provider PaymentProvider, name string) *ProviderWrapper {
+func CreateProviderWrapper(provider PaymentProvider, name string) *ProviderWrapper {
 	ep := &ProviderWrapper{
 		provider:       provider,
 		name:           name,
-		circuitBreaker: utils.NewCircuitBreaker(5, 30*time.Second),
+		circuitBreaker: utils.CreateCircuitBreaker(5, 30*time.Second),
 	}
 
-	ep.healthChecker = utils.NewHealthChecker(ep.healthCheck, 30*time.Second, 5*time.Second)
+	ep.healthChecker = utils.CreateHealthChecker(ep.healthCheck, 30*time.Second, 5*time.Second)
 	ep.healthChecker.Start()
 
 	return ep

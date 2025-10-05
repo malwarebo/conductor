@@ -32,7 +32,7 @@ type Memory struct {
 
 var startTime = time.Now()
 
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+func CreateHealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	uptime := time.Since(startTime)
 
 	response := HealthResponse{
@@ -49,14 +49,14 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func MetricsHandler(w http.ResponseWriter, r *http.Request) {
+func CreateMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
 	uptime := time.Since(startTime)
 
 	businessMetrics := make(map[string]interface{})
-	allMetrics := utils.GetAllMetrics()
+	allMetrics := utils.CreateGetAllMetrics()
 
 	paymentCounts := make(map[string]int)
 	fraudCounts := make(map[string]int)

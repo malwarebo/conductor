@@ -10,17 +10,18 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/malwarebo/gopay/analytics"
 	"github.com/malwarebo/gopay/api"
 	"github.com/malwarebo/gopay/cache"
 	"github.com/malwarebo/gopay/config"
+	"github.com/malwarebo/gopay/db"
 	"github.com/malwarebo/gopay/middleware"
 	"github.com/malwarebo/gopay/monitoring"
 	"github.com/malwarebo/gopay/providers"
 	"github.com/malwarebo/gopay/repositories"
 	"github.com/malwarebo/gopay/security"
 	"github.com/malwarebo/gopay/services"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"github.com/malwarebo/gopay/webhooks"
 )
 
 const (
@@ -31,7 +32,6 @@ const (
 	colorBlue   = "\033[34m"
 	colorPurple = "\033[35m"
 	colorCyan   = "\033[36m"
-	colorWhite  = "\033[37m"
 	colorBold   = "\033[1m"
 )
 
@@ -39,7 +39,7 @@ func printBanner() {
 	fmt.Printf("%s%s", colorCyan, colorBold)
 	fmt.Println("╔══════════════════════════════════════════════════════════════╗")
 	fmt.Println("║                                                              ║")
-	fmt.Println("║  🚀 GoPay Payment Orchestration System                      ║")
+	fmt.Println("║  GoPay Payment Orchestration System                      ║")
 	fmt.Println("║                                                              ║")
 	fmt.Println("║  Multi-provider payment processing made simple              ║")
 	fmt.Println("║                                                              ║")
@@ -72,7 +72,7 @@ func main() {
 	fmt.Println()
 
 	printStep("1/10", "Loading configuration...")
-	cfg, err := config.LoadConfig()
+	cfg, err := config.CreateLoadConfig()
 	if err != nil {
 		printError(fmt.Sprintf("Failed to load configuration: %v", err))
 		os.Exit(1)
@@ -87,23 +87,39 @@ func main() {
 	printSuccess("Configuration validation passed")
 
 	printStep("3/10", "Connecting to database...")
-	db, err := gorm.Open(postgres.Open(cfg.GetDatabaseURL()), &gorm.Config{})
-	if err != nil {
-		printError(fmt.Sprintf("Failed to connect to database: %v", err))
-		os.Exit(1)
+	poolConfig := db.PoolConfig{
+		MaxOpenConns:    cfg.Database.MaxOpenConns,
+		MaxIdleConns:    cfg.Database.MaxIdleConns,
+		ConnMaxLifetime: cfg.Database.MaxLifetime,
+		ConnMaxIdleTime: cfg.Database.MaxIdleTime,
+		MaxRetries:      3,
+		RetryDelay:      time.Second,
 	}
 
-	sqlDB, err := db.DB()
+	connectionPool, err := db.CreateNewConnectionPool(cfg.GetDatabaseURL(), cfg.Database.ReplicaDSNs, poolConfig)
 	if err != nil {
-		printError(fmt.Sprintf("Failed to get database instance: %v", err))
+		printError(fmt.Sprintf("Failed to create connection pool: %v", err))
 		os.Exit(1)
 	}
-	defer sqlDB.Close()
+	defer connectionPool.Close()
 
+	database := connectionPool.GetPrimary()
 	printSuccess(fmt.Sprintf("Connected to PostgreSQL at %s:%d", cfg.Database.Host, cfg.Database.Port))
 
+	printStep("3.1/10", "Running database migrations...")
+	migrator := db.CreateNewMigrator(database)
+	if err := migrator.LoadMigrationsFromDir("db/migrations"); err != nil {
+		printWarning(fmt.Sprintf("Failed to load migrations: %v", err))
+	} else {
+		if err := migrator.Up(); err != nil {
+			printWarning(fmt.Sprintf("Failed to run migrations: %v", err))
+		} else {
+			printSuccess("Database migrations completed")
+		}
+	}
+
 	printStep("4/10", "Connecting to Redis...")
-	redisCache, err := cache.NewRedisCache(cache.RedisConfig{
+	redisCache, err := cache.CreateRedisCache(cache.RedisConfig{
 		Host:     cfg.Redis.Host,
 		Port:     cfg.Redis.Port,
 		Password: cfg.Redis.Password,
@@ -117,22 +133,32 @@ func main() {
 		printSuccess(fmt.Sprintf("Connected to Redis at %s:%d", cfg.Redis.Host, cfg.Redis.Port))
 	}
 
+	_ = cache.CacheConfig{
+		Strategy:       cache.WriteThrough,
+		TTL:            cfg.Redis.TTL,
+		MaxSize:        1000,
+		EvictionPolicy: "lru",
+	}
+
 	printStep("5/10", "Initializing security components...")
-	encryptionKey, err := security.GenerateEncryptionKey()
+	encryptionKey, err := security.CreateGenerateEncryptionKey()
 	if err != nil {
 		printError(fmt.Sprintf("Failed to generate encryption key: %v", err))
 		os.Exit(1)
 	}
 
-	encryption, err := security.NewEncryptionManager(encryptionKey)
+	encryption, err := security.CreateEncryptionManager(encryptionKey)
 	if err != nil {
 		printError(fmt.Sprintf("Failed to initialize encryption: %v", err))
 		os.Exit(1)
 	}
 
-	jwtManager := security.NewJWTManager(cfg.Security.JWTSecret, "gopay", "gopay-api")
+	jwtManager := security.CreateJWTManager(cfg.Security.JWTSecret, "gopay", "gopay-api")
+	_ = security.CreateAPIKeyManager()
+	_ = security.CreateAuditLogger()
+	_ = security.CreateValidator()
 
-	rateLimiter := security.NewTieredRateLimiter(map[string]security.RateLimitConfig{
+	rateLimiter := security.CreateTieredRateLimiter(map[string]security.RateLimitConfig{
 		"default":  {RequestsPerSecond: 10, Burst: 20, Window: time.Minute},
 		"premium":  {RequestsPerSecond: 100, Burst: 200, Window: time.Minute},
 		"standard": {RequestsPerSecond: 50, Burst: 100, Window: time.Minute},
@@ -140,7 +166,9 @@ func main() {
 	printSuccess("Security components initialized")
 
 	printStep("6/10", "Initializing monitoring and alerting...")
-	alertManager := monitoring.NewAlertManager()
+	alertManager := monitoring.CreateAlertManager()
+	_ = monitoring.CreateMetricsCollector()
+	healthService := monitoring.CreateHealthService("1.0.0")
 
 	alertManager.AddRule(&monitoring.AlertRule{
 		ID:   "high_error_rate",
@@ -163,57 +191,77 @@ func main() {
 		Cooldown: 2 * time.Minute,
 		Enabled:  true,
 	})
+
+	healthService.AddCheck("database", func(ctx context.Context) error {
+		sqlDB, err := database.DB()
+		if err != nil {
+			return err
+		}
+		return sqlDB.PingContext(ctx)
+	})
+
+	healthService.AddCheck("redis", func(ctx context.Context) error {
+		if redisCache == nil {
+			return fmt.Errorf("redis not available")
+		}
+		return nil
+	})
+
 	printSuccess("Monitoring and alerting initialized")
 
 	printStep("7/10", "Initializing payment providers...")
-	stripeProvider := providers.NewStripeProvider(cfg.Stripe.Secret)
-	xenditProvider := providers.NewXenditProvider(cfg.Xendit.Secret)
+	stripeProvider := providers.CreateStripeProvider(cfg.Stripe.Secret)
+	xenditProvider := providers.CreateXenditProvider(cfg.Xendit.Secret)
 
-	providerSelector := providers.NewMultiProviderSelector([]providers.PaymentProvider{stripeProvider, xenditProvider})
+	providerSelector := providers.CreateMultiProviderSelector([]providers.PaymentProvider{stripeProvider, xenditProvider})
 	printSuccess("Payment providers initialized")
 	printInfo("  • Stripe: Ready for USD, EUR, GBP")
 	printInfo("  • Xendit: Ready for IDR, SGD, MYR, PHP, THB, VND")
 
 	printStep("8/10", "Initializing repositories...")
-	paymentRepo := repositories.NewPaymentRepository(db)
-	planRepo := repositories.NewPlanRepository(db)
-	subscriptionRepo := repositories.NewSubscriptionRepository(db)
-	disputeRepo := repositories.NewDisputeRepository(db)
-	fraudRepo := repositories.NewFraudRepository(db)
+	paymentRepo := repositories.CreatePaymentRepository(database)
+	planRepo := repositories.CreatePlanRepository(database)
+	subscriptionRepo := repositories.CreateSubscriptionRepository(database)
+	disputeRepo := repositories.CreateDisputeRepository(database)
+	fraudRepo := repositories.CreateFraudRepository(database)
 	printSuccess("Repositories initialized")
 
 	printStep("9/10", "Initializing services...")
-	paymentService := services.NewPaymentService(paymentRepo, providerSelector)
-	subscriptionService := services.NewSubscriptionService(planRepo, subscriptionRepo, providerSelector)
-	disputeService := services.NewDisputeService(disputeRepo, providerSelector)
-	fraudService := services.NewFraudService(fraudRepo, cfg.OpenAI.APIKey)
-	routingService := services.NewRoutingService(cfg.OpenAI.APIKey)
+	paymentService := services.CreatePaymentService(paymentRepo, providerSelector)
+	subscriptionService := services.CreateSubscriptionService(planRepo, subscriptionRepo, providerSelector)
+	disputeService := services.CreateDisputeService(disputeRepo, providerSelector)
+	fraudService := services.CreateFraudService(fraudRepo, cfg.OpenAI.APIKey)
+	routingService := services.CreateRoutingService(cfg.OpenAI.APIKey)
+
+	_ = webhooks.CreateWebhookManager()
+	_ = analytics.CreateAnalyticsReporter()
+
 	printSuccess("Services initialized")
 
 	printStep("10/10", "Setting up HTTP server...")
-	paymentHandler := api.NewPaymentHandler(paymentService)
-	subscriptionHandler := api.NewSubscriptionHandler(subscriptionService)
-	disputeHandler := api.NewDisputeHandler(disputeService)
-	fraudHandler := api.NewFraudHandler(fraudService)
-	routingHandler := api.NewRoutingHandler(routingService)
+	paymentHandler := api.CreatePaymentHandler(paymentService)
+	subscriptionHandler := api.CreateSubscriptionHandler(subscriptionService)
+	disputeHandler := api.CreateDisputeHandler(disputeService)
+	fraudHandler := api.CreateFraudHandler(fraudService)
+	routingHandler := api.CreateRoutingHandler(routingService)
 
 	router := mux.NewRouter()
 
-	authMiddleware := middleware.NewAuthMiddleware(jwtManager, rateLimiter, encryption, cfg.Security.WebhookSecret)
+	authMiddleware := middleware.CreateAuthMiddleware(jwtManager, rateLimiter, encryption, cfg.Security.WebhookSecret)
 
-	router.Use(middleware.LoggingMiddleware)
+	router.Use(middleware.CreateLoggingMiddleware)
 	router.Use(authMiddleware.HeadersMiddleware)
 	allowedOrigins := []string{"http://localhost:3000", "http://localhost:8080"}
-	router.Use(middleware.CORSMiddleware(allowedOrigins))
-	router.Use(middleware.RecoveryMiddleware)
+	router.Use(middleware.CreateCORSMiddleware(allowedOrigins))
+	router.Use(middleware.CreateRecoveryMiddleware)
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 	apiRouter.Use(authMiddleware.RateLimitMiddleware)
 	apiRouter.Use(authMiddleware.JWTMiddleware)
 	apiRouter.Use(authMiddleware.EncryptionMiddleware)
 
-	apiRouter.HandleFunc("/health", api.HealthCheckHandler).Methods("GET")
-	apiRouter.HandleFunc("/metrics", api.MetricsHandler).Methods("GET")
+	apiRouter.HandleFunc("/health", api.CreateHealthCheckHandler).Methods("GET")
+	apiRouter.HandleFunc("/metrics", api.CreateMetricsHandler).Methods("GET")
 
 	apiRouter.HandleFunc("/charges", paymentHandler.HandleCharge).Methods("POST")
 	apiRouter.HandleFunc("/refunds", paymentHandler.HandleRefund).Methods("POST")
@@ -253,7 +301,7 @@ func main() {
 	printSuccess("HTTP server configured")
 
 	fmt.Println()
-	fmt.Printf("%s%s🎉 GoPay is ready!%s\n", colorGreen, colorBold, colorReset)
+	fmt.Printf("%s%s GoPay is ready!%s\n", colorGreen, colorBold, colorReset)
 	fmt.Println()
 	fmt.Printf("%s%sAPI Endpoints:%s\n", colorPurple, colorBold, colorReset)
 	fmt.Printf("  %s•%s Health Check: %shttp://localhost:%s/api/v1/health%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)

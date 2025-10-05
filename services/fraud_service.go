@@ -57,14 +57,14 @@ type Choice struct {
 	Message Message `json:"message"`
 }
 
-func NewFraudService(repo repositories.FraudRepository, openAIKey string) FraudService {
+func CreateFraudService(repo repositories.FraudRepository, openAIKey string) FraudService {
 	return &fraudService{
 		repo:      repo,
 		openAIKey: openAIKey,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		ipAnalyzer: utils.NewIPAnalyzer(),
+		ipAnalyzer: utils.CreateIPAnalyzer(),
 		cache:      make(map[string]*models.FraudAnalysisResult),
 	}
 }
@@ -73,7 +73,7 @@ func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.F
 	cacheKey := fmt.Sprintf("%s_%s_%s_%s", request.TransactionID, request.UserID, request.IPAddress, request.BillingCountry)
 
 	if cached, exists := s.cache[cacheKey]; exists {
-		utils.Info(ctx, "Using cached fraud analysis result", map[string]interface{}{
+		utils.CreateLogger("gopay").Info(ctx, "Using cached fraud analysis result", map[string]interface{}{
 			"transaction_id": request.TransactionID,
 			"cache_key":      cacheKey,
 		})
@@ -128,14 +128,14 @@ func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.F
 	}
 
 	if err := s.repo.SaveAnalysisResult(result); err != nil {
-		utils.Error(ctx, "Failed to save fraud analysis result", map[string]interface{}{
+		utils.CreateLogger("gopay").Error(ctx, "Failed to save fraud analysis result", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
 
 	s.cache[cacheKey] = result
 
-	utils.RecordFraudMetrics(ctx, assessment.IsFraudulent, assessment.FraudScore, assessment.Reason)
+	utils.CreateRecordFraudMetrics(ctx, assessment.IsFraudulent, assessment.FraudScore, assessment.Reason)
 
 	response := &models.FraudAnalysisResponse{
 		Allow:  allow,

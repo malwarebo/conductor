@@ -14,7 +14,7 @@ type EncryptionManager struct {
 	key []byte
 }
 
-func NewEncryptionManager(key []byte) (*EncryptionManager, error) {
+func CreateEncryptionManager(key []byte) (*EncryptionManager, error) {
 	if len(key) != 32 {
 		return nil, fmt.Errorf("encryption key must be 32 bytes")
 	}
@@ -84,7 +84,7 @@ func (e *EncryptionManager) VerifyPassword(password, hash string) bool {
 	return hashedPassword == hash
 }
 
-func GenerateEncryptionKey() ([]byte, error) {
+func CreateGenerateEncryptionKey() ([]byte, error) {
 	key := make([]byte, 32)
 	_, err := rand.Read(key)
 	if err != nil {

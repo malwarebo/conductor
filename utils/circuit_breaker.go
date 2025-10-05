@@ -23,7 +23,7 @@ type CircuitBreaker struct {
 	mutex        sync.RWMutex
 }
 
-func NewCircuitBreaker(maxFailures int, resetTimeout time.Duration) *CircuitBreaker {
+func CreateCircuitBreaker(maxFailures int, resetTimeout time.Duration) *CircuitBreaker {
 	return &CircuitBreaker{
 		maxFailures:  maxFailures,
 		resetTimeout: resetTimeout,

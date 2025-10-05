@@ -69,7 +69,7 @@ type RoutingMessage struct {
 	Content string `json:"content"`
 }
 
-func NewRoutingService(openAIKey string) RoutingService {
+func CreateRoutingService(openAIKey string) RoutingService {
 	return &routingService{
 		openAIKey: openAIKey,
 		httpClient: &http.Client{
@@ -89,7 +89,7 @@ func (s *routingService) SelectOptimalProvider(ctx context.Context, request *mod
 		request.TransactionType)
 
 	if cached, exists := s.cache[cacheKey]; exists {
-		utils.Info(ctx, "Using cached routing decision", map[string]interface{}{
+		utils.CreateLogger("gopay").Info(ctx, "Using cached routing decision", map[string]interface{}{
 			"cache_key": cacheKey,
 			"provider":  cached.RecommendedProvider,
 		})
@@ -106,7 +106,7 @@ func (s *routingService) SelectOptimalProvider(ctx context.Context, request *mod
 
 	s.cache[cacheKey] = response
 
-	utils.RecordRoutingMetrics(ctx, response.RecommendedProvider, response.ConfidenceScore, response.EstimatedSuccessRate)
+	utils.CreateRecordRoutingMetrics(ctx, response.RecommendedProvider, response.ConfidenceScore, response.EstimatedSuccessRate)
 
 	return response, nil
 }

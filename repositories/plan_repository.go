@@ -11,7 +11,7 @@ type PlanRepository struct {
 	db *gorm.DB
 }
 
-func NewPlanRepository(db *gorm.DB) *PlanRepository {
+func CreatePlanRepository(db *gorm.DB) *PlanRepository {
 	return &PlanRepository{db: db}
 }
 

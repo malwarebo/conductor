@@ -21,7 +21,7 @@ type RedisCache struct {
 	ttl    time.Duration
 }
 
-func NewRedisCache(config RedisConfig) (*RedisCache, error) {
+func CreateRedisCache(config RedisConfig) (*RedisCache, error) {
 	// Convert port to string
 	portStr := strconv.Itoa(config.Port)
 

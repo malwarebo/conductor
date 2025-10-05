@@ -24,7 +24,7 @@ type HealthChecker struct {
 	stopChan  chan struct{}
 }
 
-func NewHealthChecker(checkFunc func(ctx context.Context) error, interval, timeout time.Duration) *HealthChecker {
+func CreateHealthChecker(checkFunc func(ctx context.Context) error, interval, timeout time.Duration) *HealthChecker {
 	return &HealthChecker{
 		checkFunc: checkFunc,
 		interval:  interval,

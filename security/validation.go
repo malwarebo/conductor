@@ -24,7 +24,7 @@ type Validator struct {
 	errors []ValidationError
 }
 
-func NewValidator() *Validator {
+func CreateValidator() *Validator {
 	return &Validator{
 		errors: make([]ValidationError, 0),
 	}
@@ -172,7 +172,7 @@ func (v *Validator) NoSpecialChars(field, value string) {
 	}
 }
 
-func GenerateAPIKey() (string, error) {
+func CreateGenerateAPIKey() (string, error) {
 	bytes := make([]byte, 32)
 	_, err := rand.Read(bytes)
 	if err != nil {
@@ -181,11 +181,11 @@ func GenerateAPIKey() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func HashAPIKey(key string) string {
+func CreateHashAPIKey(key string) string {
 	return hex.EncodeToString([]byte(key))
 }
 
-func ValidateAPIKey(key string) error {
+func CreateValidateAPIKey(key string) error {
 	if len(key) < 32 {
 		return fmt.Errorf("API key must be at least 32 characters")
 	}
@@ -198,7 +198,7 @@ func ValidateAPIKey(key string) error {
 	return nil
 }
 
-func SanitizeInput(input string) string {
+func CreateSanitizeInput(input string) string {
 	input = strings.TrimSpace(input)
 	input = strings.ReplaceAll(input, "<", "&lt;")
 	input = strings.ReplaceAll(input, ">", "&gt;")
@@ -207,7 +207,7 @@ func SanitizeInput(input string) string {
 	return input
 }
 
-func ValidateWebhookSignature(payload, signature, secret string) bool {
+func CreateValidateWebhookSignature(payload, signature, secret string) bool {
 	expectedSignature := calculateHMAC(payload, secret)
 	return signature == expectedSignature
 }

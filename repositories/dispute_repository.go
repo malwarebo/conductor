@@ -11,7 +11,7 @@ type DisputeRepository struct {
 	db *gorm.DB
 }
 
-func NewDisputeRepository(db *gorm.DB) *DisputeRepository {
+func CreateDisputeRepository(db *gorm.DB) *DisputeRepository {
 	return &DisputeRepository{db: db}
 }
 

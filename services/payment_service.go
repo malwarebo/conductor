@@ -23,14 +23,14 @@ type PaymentService struct {
 	alertManager *monitoring.AlertManager
 }
 
-func NewPaymentService(paymentRepo *repositories.PaymentRepository, provider providers.PaymentProvider) *PaymentService {
+func CreatePaymentService(paymentRepo *repositories.PaymentRepository, provider providers.PaymentProvider) *PaymentService {
 	return &PaymentService{
 		paymentRepo: paymentRepo,
 		provider:    provider,
 	}
 }
 
-func NewPaymentServiceWithMonitoring(paymentRepo *repositories.PaymentRepository, provider providers.PaymentProvider, encryption *security.EncryptionManager, alertManager *monitoring.AlertManager) *PaymentService {
+func CreatePaymentServiceWithMonitoring(paymentRepo *repositories.PaymentRepository, provider providers.PaymentProvider, encryption *security.EncryptionManager, alertManager *monitoring.AlertManager) *PaymentService {
 	return &PaymentService{
 		paymentRepo:  paymentRepo,
 		provider:     provider,
@@ -40,18 +40,7 @@ func NewPaymentServiceWithMonitoring(paymentRepo *repositories.PaymentRepository
 }
 
 func (s *PaymentService) CreateCharge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error) {
-	startTime := time.Now()
-	defer func() {
-		monitoring.RecordPaymentMetrics(ctx, req.Amount, req.Currency, "unknown", "processing")
-		monitoring.RecordHistogram("payment_processing_duration", float64(time.Since(startTime).Milliseconds()), map[string]string{
-			"currency": req.Currency,
-		})
-	}()
-
 	if err := s.validateChargeRequest(req); err != nil {
-		monitoring.IncrementCounter("payment_validation_errors", map[string]string{
-			"error_type": "validation",
-		})
 		return nil, err
 	}
 
@@ -65,9 +54,6 @@ func (s *PaymentService) CreateCharge(ctx context.Context, req *models.ChargeReq
 
 	providerName := s.selectProvider(ctx, req.Currency)
 	if providerName == "" {
-		monitoring.IncrementCounter("payment_provider_errors", map[string]string{
-			"error_type": "no_provider",
-		})
 		return nil, fmt.Errorf("no available provider for currency: %s", req.Currency)
 	}
 
@@ -75,196 +61,136 @@ func (s *PaymentService) CreateCharge(ctx context.Context, req *models.ChargeReq
 	var chargeResp *models.ChargeResponse
 
 	err = s.paymentRepo.WithTransaction(ctx, func(txCtx context.Context) error {
-		retryConfig := utils.DefaultRetryConfig()
+		retryConfig := utils.CreateDefaultRetryConfig()
 		retryConfig.MaxAttempts = 5
 		retryConfig.BaseDelay = 200 * time.Millisecond
 		retryConfig.MaxDelay = 10 * time.Second
 
-		err := utils.Retry(txCtx, retryConfig, func() error {
+		err := utils.CreateRetry(txCtx, retryConfig, func() error {
 			chargeResp, err = s.provider.Charge(txCtx, req)
 			return err
 		})
 		if err != nil {
-			monitoring.IncrementCounter("payment_provider_errors", map[string]string{
-				"error_type": "provider_failure",
-				"provider":   providerName,
-			})
 			return fmt.Errorf("failed to create charge with provider: %w", err)
 		}
 
 		payment = &models.Payment{
-			CustomerID:       req.CustomerID,
-			Amount:           req.Amount,
-			Currency:         req.Currency,
-			Status:           models.PaymentStatusSuccess,
+			ID:               chargeResp.ID,
+			Amount:           chargeResp.Amount,
+			Currency:         chargeResp.Currency,
+			Status:           chargeResp.Status,
 			PaymentMethod:    req.PaymentMethod,
+			CustomerID:       req.CustomerID,
 			Description:      req.Description,
 			ProviderName:     providerName,
-			ProviderChargeID: chargeResp.ID,
+			ProviderChargeID: chargeResp.ProviderChargeID,
 			Metadata:         req.Metadata,
+			CreatedAt:        time.Now(),
 		}
 
-		if err := s.paymentRepo.Create(txCtx, payment); err != nil {
-			monitoring.IncrementCounter("payment_database_errors", map[string]string{
-				"error_type": "database_failure",
-			})
-			return fmt.Errorf("failed to store payment: %w", err)
-		}
-
-		return nil
+		return s.paymentRepo.Create(txCtx, payment)
 	})
 
 	if err != nil {
-		if chargeResp != nil {
-			go s.cleanupFailedPayment(ctx, chargeResp, req)
-		}
 		return nil, err
 	}
-
-	monitoring.IncrementCounter("payments_total", map[string]string{
-		"currency": req.Currency,
-		"provider": providerName,
-		"status":   "success",
-	})
-
-	monitoring.SetGauge("payment_amount", float64(req.Amount), map[string]string{
-		"currency": req.Currency,
-		"provider": providerName,
-	})
 
 	return s.buildChargeResponse(payment), nil
 }
 
 func (s *PaymentService) CreateRefund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
-	startTime := time.Now()
-	defer func() {
-		monitoring.RecordHistogram("refund_processing_duration", float64(time.Since(startTime).Milliseconds()), map[string]string{
-			"currency": req.Currency,
-		})
-	}()
-
 	if err := s.validateRefundRequest(req); err != nil {
-		monitoring.IncrementCounter("refund_validation_errors", map[string]string{
-			"error_type": "validation",
-		})
 		return nil, err
 	}
 
-	var refund *models.Refund
+	payment, err := s.paymentRepo.GetByID(ctx, req.PaymentID)
+	if err != nil {
+		return nil, fmt.Errorf("payment not found: %v", err)
+	}
+
+	if payment.Status != "succeeded" {
+		return nil, fmt.Errorf("cannot refund payment with status: %s", payment.Status)
+	}
+
 	var refundResp *models.RefundResponse
 
-	err := s.paymentRepo.WithTransaction(ctx, func(txCtx context.Context) error {
-		payment, err := s.paymentRepo.GetByID(txCtx, req.PaymentID)
-		if err != nil {
-			monitoring.IncrementCounter("refund_database_errors", map[string]string{
-				"error_type": "payment_not_found",
-			})
-			return fmt.Errorf("failed to get payment: %w", err)
-		}
-
-		if req.Amount > payment.Amount {
-			monitoring.IncrementCounter("refund_validation_errors", map[string]string{
-				"error_type": "amount_exceeds_payment",
-			})
-			return fmt.Errorf("refund amount %d exceeds payment amount %d", req.Amount, payment.Amount)
-		}
-
-		retryConfig := utils.DefaultRetryConfig()
+	err = s.paymentRepo.WithTransaction(ctx, func(txCtx context.Context) error {
+		retryConfig := utils.CreateDefaultRetryConfig()
 		retryConfig.MaxAttempts = 3
 		retryConfig.BaseDelay = 500 * time.Millisecond
 
-		err = utils.Retry(txCtx, retryConfig, func() error {
+		err := utils.CreateRetry(txCtx, retryConfig, func() error {
 			refundResp, err = s.provider.Refund(txCtx, req)
 			return err
 		})
 		if err != nil {
-			monitoring.IncrementCounter("refund_provider_errors", map[string]string{
-				"error_type": "provider_failure",
-				"provider":   payment.ProviderName,
-			})
 			return fmt.Errorf("failed to create refund with provider: %w", err)
 		}
 
-		payment.Status = models.PaymentStatusRefunded
-		if err := s.paymentRepo.Update(txCtx, payment); err != nil {
-			monitoring.IncrementCounter("refund_database_errors", map[string]string{
-				"error_type": "update_payment_failed",
-			})
-			return fmt.Errorf("failed to update payment: %w", err)
-		}
-
-		refund = &models.Refund{
+		refund := &models.Refund{
+			ID:               refundResp.ID,
 			PaymentID:        req.PaymentID,
-			Amount:           req.Amount,
+			Amount:           refundResp.Amount,
+			Status:           refundResp.Status,
 			Reason:           req.Reason,
-			Status:           "succeeded",
-			ProviderName:     payment.ProviderName,
-			ProviderRefundID: refundResp.ID,
+			ProviderName:     refundResp.ProviderName,
+			ProviderRefundID: refundResp.ProviderRefundID,
 			Metadata:         req.Metadata,
+			CreatedAt:        time.Now(),
 		}
 
-		if err := s.paymentRepo.CreateRefund(txCtx, refund); err != nil {
-			monitoring.IncrementCounter("refund_database_errors", map[string]string{
-				"error_type": "create_refund_failed",
-			})
-			return fmt.Errorf("failed to store refund: %w", err)
-		}
-
-		return nil
+		return s.paymentRepo.CreateRefund(txCtx, refund)
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	monitoring.IncrementCounter("refunds_total", map[string]string{
-		"currency": req.Currency,
-		"provider": refund.ProviderName,
-		"status":   "success",
-	})
+	return refundResp, nil
+}
 
-	return s.buildRefundResponse(refund, req.Currency), nil
+func (s *PaymentService) GetPayment(ctx context.Context, id string) (*models.Payment, error) {
+	return s.paymentRepo.GetByID(ctx, id)
+}
+
+func (s *PaymentService) ListPayments(ctx context.Context, customerID string) ([]*models.Payment, error) {
+	return s.paymentRepo.ListByCustomer(ctx, customerID)
+}
+
+func (s *PaymentService) GetRefund(ctx context.Context, id string) (*models.Refund, error) {
+	return s.paymentRepo.GetRefundByID(ctx, id)
+}
+
+func (s *PaymentService) ListRefunds(ctx context.Context, paymentID string) ([]*models.Refund, error) {
+	return s.paymentRepo.ListRefundsByPayment(ctx, paymentID)
 }
 
 func (s *PaymentService) validateChargeRequest(req *models.ChargeRequest) error {
 	if req.Amount <= 0 {
-		return errors.New("invalid amount")
+		return errors.New("amount must be positive")
 	}
 	if req.Currency == "" {
-		return errors.New("invalid currency")
+		return errors.New("currency is required")
 	}
 	if req.PaymentMethod == "" {
-		return errors.New("invalid payment method")
-	}
-	if req.CustomerID == "" {
-		return errors.New("customer ID is required")
+		return errors.New("payment method is required")
 	}
 	return nil
 }
 
 func (s *PaymentService) validateRefundRequest(req *models.RefundRequest) error {
-	if req.Amount <= 0 {
-		return errors.New("invalid amount")
-	}
-	if req.Currency == "" {
-		return errors.New("invalid currency")
-	}
 	if req.PaymentID == "" {
 		return errors.New("payment ID is required")
+	}
+	if req.Amount <= 0 {
+		return errors.New("amount must be positive")
 	}
 	return nil
 }
 
 func (s *PaymentService) selectProvider(ctx context.Context, currency string) string {
 	if s.provider.IsAvailable(ctx) {
-		switch currency {
-		case "USD", "EUR", "GBP":
-			return "stripe"
-		case "IDR", "SGD", "MYR", "PHP", "THB", "VND":
-			return "xendit"
-		default:
-			return ""
-		}
+		return "stripe"
 	}
 	return ""
 }
@@ -273,31 +199,6 @@ func (s *PaymentService) generateIdempotencyKey() string {
 	bytes := make([]byte, 16)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)
-}
-
-func (s *PaymentService) cleanupFailedPayment(ctx context.Context, chargeResp *models.ChargeResponse, req *models.ChargeRequest) {
-	cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	refundReq := &models.RefundRequest{
-		PaymentID: chargeResp.ID,
-		Amount:    req.Amount,
-		Currency:  req.Currency,
-		Reason:    "Transaction rollback due to database error",
-	}
-
-	if _, refundErr := s.provider.Refund(cleanupCtx, refundReq); refundErr != nil {
-		monitoring.IncrementCounter("payment_cleanup_errors", map[string]string{
-			"error_type": "refund_failed",
-		})
-
-		s.alertManager.TriggerAlert(&monitoring.Alert{
-			Level:   monitoring.Critical,
-			Title:   "Payment Cleanup Failed",
-			Message: fmt.Sprintf("Failed to reverse provider charge %s: %v", chargeResp.ID, refundErr),
-			Source:  "payment_service",
-		})
-	}
 }
 
 func (s *PaymentService) buildChargeResponse(payment *models.Payment) *models.ChargeResponse {
@@ -313,20 +214,5 @@ func (s *PaymentService) buildChargeResponse(payment *models.Payment) *models.Ch
 		ProviderChargeID: payment.ProviderChargeID,
 		Metadata:         payment.Metadata,
 		CreatedAt:        payment.CreatedAt,
-	}
-}
-
-func (s *PaymentService) buildRefundResponse(refund *models.Refund, currency string) *models.RefundResponse {
-	return &models.RefundResponse{
-		ID:               refund.ID,
-		PaymentID:        refund.PaymentID,
-		Amount:           refund.Amount,
-		Currency:         currency,
-		Status:           refund.Status,
-		Reason:           refund.Reason,
-		ProviderName:     refund.ProviderName,
-		ProviderRefundID: refund.ProviderRefundID,
-		Metadata:         refund.Metadata,
-		CreatedAt:        refund.CreatedAt,
 	}
 }

@@ -21,7 +21,7 @@ type AuthMiddleware struct {
 	webhookSecret string
 }
 
-func NewAuthMiddleware(jwtManager *security.JWTManager, rateLimiter *security.TieredRateLimiter, encryption *security.EncryptionManager, webhookSecret string) *AuthMiddleware {
+func CreateAuthMiddleware(jwtManager *security.JWTManager, rateLimiter *security.TieredRateLimiter, encryption *security.EncryptionManager, webhookSecret string) *AuthMiddleware {
 	return &AuthMiddleware{
 		jwtManager:    jwtManager,
 		rateLimiter:   rateLimiter,

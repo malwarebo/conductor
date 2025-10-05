@@ -35,7 +35,7 @@ func (ve ValidationErrors) ToJSON() map[string]interface{} {
 	}
 }
 
-func ValidateString(value, fieldName string, minLen, maxLen int, required bool) *ValidationError {
+func CreateValidateString(value, fieldName string, minLen, maxLen int, required bool) *ValidationError {
 	if required && strings.TrimSpace(value) == "" {
 		return &ValidationError{Field: fieldName, Message: "is required"}
 	}
@@ -52,7 +52,7 @@ func ValidateString(value, fieldName string, minLen, maxLen int, required bool) 
 	return nil
 }
 
-func ValidateAmount(amount int64, fieldName string) *ValidationError {
+func CreateValidateAmount(amount int64, fieldName string) *ValidationError {
 	if amount <= 0 {
 		return &ValidationError{Field: fieldName, Message: "must be greater than 0"}
 	}
@@ -62,7 +62,7 @@ func ValidateAmount(amount int64, fieldName string) *ValidationError {
 	return nil
 }
 
-func ValidateCurrency(currency, fieldName string) *ValidationError {
+func CreateValidateCurrency(currency, fieldName string) *ValidationError {
 	validCurrencies := map[string]bool{
 		"USD": true, "EUR": true, "GBP": true,
 		"IDR": true, "SGD": true, "MYR": true,
@@ -80,7 +80,7 @@ func ValidateCurrency(currency, fieldName string) *ValidationError {
 	return nil
 }
 
-func ValidateEmail(email, fieldName string) *ValidationError {
+func CreateValidateEmail(email, fieldName string) *ValidationError {
 	if email == "" {
 		return &ValidationError{Field: fieldName, Message: "is required"}
 	}
@@ -93,7 +93,7 @@ func ValidateEmail(email, fieldName string) *ValidationError {
 	return nil
 }
 
-func ValidateUUID(id, fieldName string) *ValidationError {
+func CreateValidateUUID(id, fieldName string) *ValidationError {
 	if id == "" {
 		return &ValidationError{Field: fieldName, Message: "is required"}
 	}
@@ -106,7 +106,7 @@ func ValidateUUID(id, fieldName string) *ValidationError {
 	return nil
 }
 
-func ValidateCountryCode(code, fieldName string) *ValidationError {
+func CreateValidateCountryCode(code, fieldName string) *ValidationError {
 	if code == "" {
 		return &ValidationError{Field: fieldName, Message: "is required"}
 	}
@@ -118,7 +118,7 @@ func ValidateCountryCode(code, fieldName string) *ValidationError {
 	return nil
 }
 
-func ValidateIPAddress(ip, fieldName string) *ValidationError {
+func CreateValidateIPAddress(ip, fieldName string) *ValidationError {
 	if ip == "" {
 		return &ValidationError{Field: fieldName, Message: "is required"}
 	}
@@ -131,7 +131,7 @@ func ValidateIPAddress(ip, fieldName string) *ValidationError {
 	return nil
 }
 
-func ValidateRequestSize(r *http.Request, maxSize int64) error {
+func CreateValidateRequestSize(r *http.Request, maxSize int64) error {
 	if r.ContentLength > maxSize {
 		return &APIError{
 			Code:    http.StatusRequestEntityTooLarge,
@@ -141,8 +141,8 @@ func ValidateRequestSize(r *http.Request, maxSize int64) error {
 	return nil
 }
 
-func ValidateJSONRequest(w http.ResponseWriter, r *http.Request, maxSize int64) error {
-	if err := ValidateRequestSize(r, maxSize); err != nil {
+func CreateValidateJSONRequest(w http.ResponseWriter, r *http.Request, maxSize int64) error {
+	if err := CreateValidateRequestSize(r, maxSize); err != nil {
 		return err
 	}
 
@@ -156,7 +156,7 @@ func ValidateJSONRequest(w http.ResponseWriter, r *http.Request, maxSize int64) 
 	return nil
 }
 
-func WriteValidationError(w http.ResponseWriter, err error) {
+func CreateWriteValidationError(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if validationErr, ok := err.(ValidationErrors); ok {

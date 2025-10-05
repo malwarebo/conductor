@@ -20,7 +20,7 @@ type DisputeService struct {
 	provider    providers.PaymentProvider
 }
 
-func NewDisputeService(disputeRepo *repositories.DisputeRepository, provider providers.PaymentProvider) *DisputeService {
+func CreateDisputeService(disputeRepo *repositories.DisputeRepository, provider providers.PaymentProvider) *DisputeService {
 	return &DisputeService{
 		disputeRepo: disputeRepo,
 		provider:    provider,

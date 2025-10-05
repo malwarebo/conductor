@@ -19,7 +19,7 @@ func (db *DB) GetDB() *gorm.DB {
 	return db.DB
 }
 
-func NewDB(primaryDSN string, replicaDSNs ...string) (*DB, error) {
+func CreateDB(primaryDSN string, replicaDSNs ...string) (*DB, error) {
 	config := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	}

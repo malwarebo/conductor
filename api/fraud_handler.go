@@ -14,7 +14,7 @@ type FraudHandler struct {
 	service services.FraudService
 }
 
-func NewFraudHandler(service services.FraudService) *FraudHandler {
+func CreateFraudHandler(service services.FraudService) *FraudHandler {
 	return &FraudHandler{
 		service: service,
 	}

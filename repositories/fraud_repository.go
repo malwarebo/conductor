@@ -16,7 +16,7 @@ type fraudRepository struct {
 	db *gorm.DB
 }
 
-func NewFraudRepository(db *gorm.DB) FraudRepository {
+func CreateFraudRepository(db *gorm.DB) FraudRepository {
 	return &fraudRepository{
 		db: db,
 	}

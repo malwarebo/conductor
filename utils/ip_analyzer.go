@@ -20,7 +20,7 @@ type IPAnalyzer struct {
 	datacenterRanges  []string
 }
 
-func NewIPAnalyzer() *IPAnalyzer {
+func CreateIPAnalyzer() *IPAnalyzer {
 	return &IPAnalyzer{
 		highRiskCountries: map[string]bool{
 			"CN": true, "RU": true, "KP": true, "IR": true,

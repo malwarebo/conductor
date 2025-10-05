@@ -92,7 +92,7 @@ type MonitoringConfig struct {
 	TracingEndpoint string `json:"tracing_endpoint"`
 }
 
-func LoadConfig() (*Config, error) {
+func CreateLoadConfig() (*Config, error) {
 	config := &Config{}
 
 	env := os.Getenv("ENVIRONMENT")
