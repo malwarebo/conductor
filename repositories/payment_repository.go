@@ -3,16 +3,15 @@ package repositories
 import (
 	"context"
 
-	"github.com/malwarebo/gopay/db"
 	"github.com/malwarebo/gopay/models"
 	"gorm.io/gorm"
 )
 
 type PaymentRepository struct {
-	db *db.DB
+	db *gorm.DB
 }
 
-func NewPaymentRepository(db *db.DB) *PaymentRepository {
+func NewPaymentRepository(db *gorm.DB) *PaymentRepository {
 	return &PaymentRepository{db: db}
 }
 
@@ -69,13 +68,17 @@ func (r *PaymentRepository) ListRefundsByPayment(ctx context.Context, paymentID 
 
 func (r *PaymentRepository) WithTransaction(ctx context.Context, fn func(context.Context) error) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		txCtx := context.WithValue(ctx, "tx", tx)
+		txCtx := context.WithValue(ctx, txKey, tx)
 		return fn(txCtx)
 	})
 }
 
+type contextKey string
+
+const txKey contextKey = "tx"
+
 func (r *PaymentRepository) getDB(ctx context.Context) *gorm.DB {
-	if tx, ok := ctx.Value("tx").(*gorm.DB); ok {
+	if tx, ok := ctx.Value(txKey).(*gorm.DB); ok {
 		return tx
 	}
 	return r.db.WithContext(ctx)

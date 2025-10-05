@@ -1,34 +1,66 @@
 {
+  "environment": "development",
   "database": {
     "host": "localhost",
     "port": 5432,
     "user": "gopay_user",
-    "password": "root@406",
+    "password": "password",
     "dbname": "gopay",
-    "sslmode": "disable"
-  },
-  "stripe": {
-    "secret": "your_stripe_secret_key",
-    "public": "your_stripe_public_key",
-    "webhook_secret": "your_stripe_webhook_secret"
-  },
-  "xendit": {
-    "secret": "your_xendit_secret_key",
-    "public": "your_xendit_public_key",
-    "webhook_secret": "your_xendit_webhook_secret"
+    "sslmode": "disable",
+    "max_open_conns": 100,
+    "max_idle_conns": 10,
+    "max_lifetime": 3600000000000,
+    "max_idle_time": 600000000000,
+    "replica_dsns": []
   },
   "server": {
     "port": "8080",
-    "env": "development"
+    "read_timeout": 15000000000,
+    "write_timeout": 15000000000,
+    "idle_timeout": 60000000000,
+    "max_header_bytes": 1048576,
+    "enable_tls": false,
+    "tls_cert_file": "",
+    "tls_key_file": ""
   },
   "redis": {
     "host": "localhost",
     "port": 6379,
     "password": "",
     "db": 0,
-    "ttl": 86400
+    "ttl": 3600000000000,
+    "pool_size": 10,
+    "min_idle": 1
+  },
+  "security": {
+    "jwt_secret": "dev-jwt-secret-key",
+    "jwt_expiration": 86400000000000,
+    "encryption_key": "dev-encryption-key-32-bytes-long",
+    "webhook_secret": "dev-webhook-secret",
+    "rate_limit_enabled": false,
+    "rate_limit_rps": 1000.0,
+    "rate_limit_burst": 2000
+  },
+  "monitoring": {
+    "enabled": true,
+    "metrics_port": "9090",
+    "health_check_port": "8081",
+    "alerting_enabled": false,
+    "log_level": "debug",
+    "log_format": "text",
+    "enable_tracing": false
+  },
+  "stripe": {
+    "secret": "sk_test_your_stripe_secret_key",
+    "public": "pk_test_your_stripe_publishable_key",
+    "webhook_secret": "whsec_your_stripe_webhook_secret"
+  },
+  "xendit": {
+    "secret": "xnd_public_development_your_xendit_secret_key",
+    "public": "xnd_public_development_your_xendit_public_key",
+    "webhook_secret": "your_xendit_webhook_secret"
   },
   "openai": {
-    "api_key": "your_openai_api_key_here"
+    "api_key": "sk-your-openai-api-key"
   }
 }
