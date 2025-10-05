@@ -7,11 +7,11 @@ import (
 	"github.com/malwarebo/gopay/utils"
 )
 
-func RequestSizeLimitMiddleware(maxSize int64) func(http.Handler) http.Handler {
+func CreateRequestSizeLimitMiddleware(maxSize int64) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if err := utils.ValidateRequestSize(r, maxSize); err != nil {
-				utils.WriteValidationError(w, err)
+			if err := utils.CreateValidateRequestSize(r, maxSize); err != nil {
+				utils.CreateWriteValidationError(w, err)
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -19,8 +19,8 @@ func RequestSizeLimitMiddleware(maxSize int64) func(http.Handler) http.Handler {
 	}
 }
 
-func ValidateChargeRequest(w http.ResponseWriter, r *http.Request, req interface{}) error {
-	if err := utils.ValidateJSONRequest(w, r, 1024*1024); err != nil {
+func CreateValidateChargeRequest(w http.ResponseWriter, r *http.Request, req interface{}) error {
+	if err := utils.CreateValidateJSONRequest(w, r, 1024*1024); err != nil {
 		return err
 	}
 
@@ -33,19 +33,19 @@ func ValidateChargeRequest(w http.ResponseWriter, r *http.Request, req interface
 		PaymentMethod string `json:"payment_method"`
 		Description   string `json:"description"`
 	}); ok {
-		if err := utils.ValidateString(chargeReq.CustomerID, "customer_id", 1, 255, true); err != nil {
+		if err := utils.CreateValidateString(chargeReq.CustomerID, "customer_id", 1, 255, true); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
-		if err := utils.ValidateAmount(chargeReq.Amount, "amount"); err != nil {
+		if err := utils.CreateValidateAmount(chargeReq.Amount, "amount"); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
-		if err := utils.ValidateCurrency(chargeReq.Currency, "currency"); err != nil {
+		if err := utils.CreateValidateCurrency(chargeReq.Currency, "currency"); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
-		if err := utils.ValidateString(chargeReq.PaymentMethod, "payment_method", 1, 255, true); err != nil {
+		if err := utils.CreateValidateString(chargeReq.PaymentMethod, "payment_method", 1, 255, true); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
-		if err := utils.ValidateString(chargeReq.Description, "description", 0, 500, false); err != nil {
+		if err := utils.CreateValidateString(chargeReq.Description, "description", 0, 500, false); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
 	}
@@ -57,8 +57,8 @@ func ValidateChargeRequest(w http.ResponseWriter, r *http.Request, req interface
 	return nil
 }
 
-func ValidateRefundRequest(w http.ResponseWriter, r *http.Request, req interface{}) error {
-	if err := utils.ValidateJSONRequest(w, r, 1024*1024); err != nil {
+func CreateValidateRefundRequest(w http.ResponseWriter, r *http.Request, req interface{}) error {
+	if err := utils.CreateValidateJSONRequest(w, r, 1024*1024); err != nil {
 		return err
 	}
 
@@ -70,16 +70,16 @@ func ValidateRefundRequest(w http.ResponseWriter, r *http.Request, req interface
 		Currency  string `json:"currency"`
 		Reason    string `json:"reason"`
 	}); ok {
-		if err := utils.ValidateUUID(refundReq.PaymentID, "payment_id"); err != nil {
+		if err := utils.CreateValidateUUID(refundReq.PaymentID, "payment_id"); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
-		if err := utils.ValidateAmount(refundReq.Amount, "amount"); err != nil {
+		if err := utils.CreateValidateAmount(refundReq.Amount, "amount"); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
-		if err := utils.ValidateCurrency(refundReq.Currency, "currency"); err != nil {
+		if err := utils.CreateValidateCurrency(refundReq.Currency, "currency"); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
-		if err := utils.ValidateString(refundReq.Reason, "reason", 0, 500, false); err != nil {
+		if err := utils.CreateValidateString(refundReq.Reason, "reason", 0, 500, false); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
 	}
@@ -91,8 +91,8 @@ func ValidateRefundRequest(w http.ResponseWriter, r *http.Request, req interface
 	return nil
 }
 
-func ValidateFraudRequest(w http.ResponseWriter, r *http.Request, req interface{}) error {
-	if err := utils.ValidateJSONRequest(w, r, 1024*1024); err != nil {
+func CreateValidateFraudRequest(w http.ResponseWriter, r *http.Request, req interface{}) error {
+	if err := utils.CreateValidateJSONRequest(w, r, 1024*1024); err != nil {
 		return err
 	}
 
@@ -107,10 +107,10 @@ func ValidateFraudRequest(w http.ResponseWriter, r *http.Request, req interface{
 		IPAddress           string  `json:"ip_address"`
 		TransactionVelocity int     `json:"transaction_velocity"`
 	}); ok {
-		if err := utils.ValidateString(fraudReq.TransactionID, "transaction_id", 1, 255, true); err != nil {
+		if err := utils.CreateValidateString(fraudReq.TransactionID, "transaction_id", 1, 255, true); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
-		if err := utils.ValidateString(fraudReq.UserID, "user_id", 1, 255, true); err != nil {
+		if err := utils.CreateValidateString(fraudReq.UserID, "user_id", 1, 255, true); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
 		if fraudReq.TransactionAmount <= 0 {
@@ -119,13 +119,13 @@ func ValidateFraudRequest(w http.ResponseWriter, r *http.Request, req interface{
 				Message: "must be greater than 0",
 			})
 		}
-		if err := utils.ValidateCountryCode(fraudReq.BillingCountry, "billing_country"); err != nil {
+		if err := utils.CreateValidateCountryCode(fraudReq.BillingCountry, "billing_country"); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
-		if err := utils.ValidateCountryCode(fraudReq.ShippingCountry, "shipping_country"); err != nil {
+		if err := utils.CreateValidateCountryCode(fraudReq.ShippingCountry, "shipping_country"); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
-		if err := utils.ValidateIPAddress(fraudReq.IPAddress, "ip_address"); err != nil {
+		if err := utils.CreateValidateIPAddress(fraudReq.IPAddress, "ip_address"); err != nil {
 			validationErrors = append(validationErrors, *err)
 		}
 		if fraudReq.TransactionVelocity < 0 {
@@ -143,7 +143,7 @@ func ValidateFraudRequest(w http.ResponseWriter, r *http.Request, req interface{
 	return nil
 }
 
-func ParseIntParam(r *http.Request, param string, defaultValue int) (int, error) {
+func CreateParseIntParam(r *http.Request, param string, defaultValue int) (int, error) {
 	value := r.URL.Query().Get(param)
 	if value == "" {
 		return defaultValue, nil

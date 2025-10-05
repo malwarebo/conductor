@@ -14,7 +14,7 @@ type RoutingHandler struct {
 	routingService services.RoutingService
 }
 
-func NewRoutingHandler(routingService services.RoutingService) *RoutingHandler {
+func CreateRoutingHandler(routingService services.RoutingService) *RoutingHandler {
 	return &RoutingHandler{
 		routingService: routingService,
 	}
@@ -25,7 +25,7 @@ func (h *RoutingHandler) HandleRouting(w http.ResponseWriter, r *http.Request) {
 
 	var request models.RoutingRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		utils.Error(r.Context(), "Failed to decode routing request", map[string]interface{}{
+		utils.CreateLogger("gopay").Error(r.Context(), "Failed to decode routing request", map[string]interface{}{
 			"error": err.Error(),
 		})
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -33,7 +33,7 @@ func (h *RoutingHandler) HandleRouting(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := validateRoutingRequest(&request); err != nil {
-		utils.Error(r.Context(), "Invalid routing request", map[string]interface{}{
+		utils.CreateLogger("gopay").Error(r.Context(), "Invalid routing request", map[string]interface{}{
 			"error": err.Error(),
 		})
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -42,7 +42,7 @@ func (h *RoutingHandler) HandleRouting(w http.ResponseWriter, r *http.Request) {
 
 	response, err := h.routingService.SelectOptimalProvider(r.Context(), &request)
 	if err != nil {
-		utils.Error(r.Context(), "Failed to get routing recommendation", map[string]interface{}{
+		utils.CreateLogger("gopay").Error(r.Context(), "Failed to get routing recommendation", map[string]interface{}{
 			"error": err.Error(),
 		})
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -51,13 +51,13 @@ func (h *RoutingHandler) HandleRouting(w http.ResponseWriter, r *http.Request) {
 
 	response.RoutingTime = time.Since(startTime).Milliseconds()
 
-	utils.RecordRoutingMetrics(r.Context(), response.RecommendedProvider, response.ConfidenceScore, response.EstimatedSuccessRate)
+	utils.CreateRecordRoutingMetrics(r.Context(), response.RecommendedProvider, response.ConfidenceScore, response.EstimatedSuccessRate)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		utils.Error(r.Context(), "Failed to encode routing response", map[string]interface{}{
+		utils.CreateLogger("gopay").Error(r.Context(), "Failed to encode routing response", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -66,7 +66,7 @@ func (h *RoutingHandler) HandleRouting(w http.ResponseWriter, r *http.Request) {
 func (h *RoutingHandler) HandleProviderStats(w http.ResponseWriter, r *http.Request) {
 	stats, err := h.routingService.GetProviderStats(r.Context())
 	if err != nil {
-		utils.Error(r.Context(), "Failed to get provider stats", map[string]interface{}{
+		utils.CreateLogger("gopay").Error(r.Context(), "Failed to get provider stats", map[string]interface{}{
 			"error": err.Error(),
 		})
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -77,7 +77,7 @@ func (h *RoutingHandler) HandleProviderStats(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(stats); err != nil {
-		utils.Error(r.Context(), "Failed to encode provider stats", map[string]interface{}{
+		utils.CreateLogger("gopay").Error(r.Context(), "Failed to encode provider stats", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -122,7 +122,7 @@ func (h *RoutingHandler) HandleRoutingMetrics(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(metrics); err != nil {
-		utils.Error(r.Context(), "Failed to encode routing metrics", map[string]interface{}{
+		utils.CreateLogger("gopay").Error(r.Context(), "Failed to encode routing metrics", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -153,7 +153,7 @@ func (h *RoutingHandler) getRoutingConfig(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(config); err != nil {
-		utils.Error(r.Context(), "Failed to encode routing config", map[string]interface{}{
+		utils.CreateLogger("gopay").Error(r.Context(), "Failed to encode routing config", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -176,7 +176,7 @@ func (h *RoutingHandler) updateRoutingConfig(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	utils.Info(r.Context(), "Routing configuration updated", map[string]interface{}{
+	utils.CreateLogger("gopay").Info(r.Context(), "Routing configuration updated", map[string]interface{}{
 		"enable_ai_routing": config.EnableAIRouting,
 		"cache_ttl":         config.CacheTTL,
 		"min_confidence":    config.MinConfidenceScore,
@@ -191,7 +191,7 @@ func (h *RoutingHandler) updateRoutingConfig(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		utils.Error(r.Context(), "Failed to encode response", map[string]interface{}{
+		utils.CreateLogger("gopay").Error(r.Context(), "Failed to encode response", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}

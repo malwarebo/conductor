@@ -20,7 +20,7 @@ type RateLimitConfig struct {
 	Window            time.Duration
 }
 
-func NewRateLimiter() *RateLimiter {
+func CreateRateLimiter() *RateLimiter {
 	rl := &RateLimiter{
 		limiters: make(map[string]*rate.Limiter),
 	}
@@ -112,10 +112,10 @@ type TieredRateLimiter struct {
 	rl    *RateLimiter
 }
 
-func NewTieredRateLimiter(tiers map[string]RateLimitConfig) *TieredRateLimiter {
+func CreateTieredRateLimiter(tiers map[string]RateLimitConfig) *TieredRateLimiter {
 	return &TieredRateLimiter{
 		tiers: tiers,
-		rl:    NewRateLimiter(),
+		rl:    CreateRateLimiter(),
 	}
 }
 

@@ -13,7 +13,7 @@ type SubscriptionHandler struct {
 	subscriptionService *services.SubscriptionService
 }
 
-func NewSubscriptionHandler(subscriptionService *services.SubscriptionService) *SubscriptionHandler {
+func CreateSubscriptionHandler(subscriptionService *services.SubscriptionService) *SubscriptionHandler {
 	return &SubscriptionHandler{
 		subscriptionService: subscriptionService,
 	}

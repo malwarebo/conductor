@@ -23,7 +23,7 @@ type SubscriptionService struct {
 	mu        sync.RWMutex
 }
 
-func NewSubscriptionService(planRepo *repositories.PlanRepository, subRepo *repositories.SubscriptionRepository, providers ...providers.PaymentProvider) *SubscriptionService {
+func CreateSubscriptionService(planRepo *repositories.PlanRepository, subRepo *repositories.SubscriptionRepository, providers ...providers.PaymentProvider) *SubscriptionService {
 	return &SubscriptionService{
 		providers: providers,
 		planRepo:  planRepo,

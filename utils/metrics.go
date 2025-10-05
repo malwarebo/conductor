@@ -31,7 +31,7 @@ var globalMetrics = &MetricsCollector{
 	metrics: make(map[string]*Metric),
 }
 
-func NewMetricsCollector() *MetricsCollector {
+func CreateMetricsCollector() *MetricsCollector {
 	return &MetricsCollector{
 		metrics: make(map[string]*Metric),
 	}
@@ -116,39 +116,39 @@ func (mc *MetricsCollector) getKey(name string, labels map[string]string) string
 	return key
 }
 
-func IncrementCounter(name string, labels map[string]string) {
+func CreateIncrementCounter(name string, labels map[string]string) {
 	globalMetrics.IncrementCounter(name, labels)
 }
 
-func SetGauge(name string, value float64, labels map[string]string) {
+func CreateSetGauge(name string, value float64, labels map[string]string) {
 	globalMetrics.SetGauge(name, value, labels)
 }
 
-func RecordHistogram(name string, value float64, labels map[string]string) {
+func CreateRecordHistogram(name string, value float64, labels map[string]string) {
 	globalMetrics.RecordHistogram(name, value, labels)
 }
 
-func GetMetric(name string, labels map[string]string) *Metric {
+func CreateGetMetric(name string, labels map[string]string) *Metric {
 	return globalMetrics.GetMetric(name, labels)
 }
 
-func GetAllMetrics() map[string]*Metric {
+func CreateGetAllMetrics() map[string]*Metric {
 	return globalMetrics.GetAllMetrics()
 }
 
-func RecordPaymentMetrics(ctx context.Context, amount int64, currency, provider, status string) {
-	IncrementCounter("payments_total", map[string]string{
+func CreateRecordPaymentMetrics(ctx context.Context, amount int64, currency, provider, status string) {
+	CreateIncrementCounter("payments_total", map[string]string{
 		"currency": currency,
 		"provider": provider,
 		"status":   status,
 	})
 
-	SetGauge("payment_amount", float64(amount), map[string]string{
+	CreateSetGauge("payment_amount", float64(amount), map[string]string{
 		"currency": currency,
 		"provider": provider,
 	})
 
-	Info(ctx, "Payment metric recorded", map[string]interface{}{
+	CreateLogger("gopay").Info(ctx, "Payment metric recorded", map[string]interface{}{
 		"amount":   amount,
 		"currency": currency,
 		"provider": provider,
@@ -156,62 +156,62 @@ func RecordPaymentMetrics(ctx context.Context, amount int64, currency, provider,
 	})
 }
 
-func RecordFraudMetrics(ctx context.Context, isFraudulent bool, fraudScore int, reason string) {
+func CreateRecordFraudMetrics(ctx context.Context, isFraudulent bool, fraudScore int, reason string) {
 	status := "allowed"
 	if isFraudulent {
 		status = "blocked"
 	}
 
-	IncrementCounter("fraud_analysis_total", map[string]string{
+	CreateIncrementCounter("fraud_analysis_total", map[string]string{
 		"status": status,
 		"reason": reason,
 	})
 
-	SetGauge("fraud_score", float64(fraudScore), map[string]string{
+	CreateSetGauge("fraud_score", float64(fraudScore), map[string]string{
 		"status": status,
 	})
 
-	Info(ctx, "Fraud metric recorded", map[string]interface{}{
+	CreateLogger("gopay").Info(ctx, "Fraud metric recorded", map[string]interface{}{
 		"is_fraudulent": isFraudulent,
 		"fraud_score":   fraudScore,
 		"reason":        reason,
 	})
 }
 
-func RecordProviderMetrics(ctx context.Context, provider string, operation string, success bool) {
+func CreateRecordProviderMetrics(ctx context.Context, provider string, operation string, success bool) {
 	status := "success"
 	if !success {
 		status = "failure"
 	}
 
-	IncrementCounter("provider_operations_total", map[string]string{
+	CreateIncrementCounter("provider_operations_total", map[string]string{
 		"provider":  provider,
 		"operation": operation,
 		"status":    status,
 	})
 
-	Info(ctx, "Provider metric recorded", map[string]interface{}{
+	CreateLogger("gopay").Info(ctx, "Provider metric recorded", map[string]interface{}{
 		"provider":  provider,
 		"operation": operation,
 		"success":   success,
 	})
 }
 
-func RecordRoutingMetrics(ctx context.Context, provider string, confidenceScore int, successRate float64) {
-	IncrementCounter("routing_decisions_total", map[string]string{
+func CreateRecordRoutingMetrics(ctx context.Context, provider string, confidenceScore int, successRate float64) {
+	CreateIncrementCounter("routing_decisions_total", map[string]string{
 		"provider":         provider,
 		"confidence_level": getConfidenceLevel(confidenceScore),
 	})
 
-	SetGauge("routing_confidence_score", float64(confidenceScore), map[string]string{
+	CreateSetGauge("routing_confidence_score", float64(confidenceScore), map[string]string{
 		"provider": provider,
 	})
 
-	SetGauge("routing_success_rate", successRate, map[string]string{
+	CreateSetGauge("routing_success_rate", successRate, map[string]string{
 		"provider": provider,
 	})
 
-	Info(ctx, "Routing metric recorded", map[string]interface{}{
+	CreateLogger("gopay").Info(ctx, "Routing metric recorded", map[string]interface{}{
 		"provider":         provider,
 		"confidence_score": confidenceScore,
 		"success_rate":     successRate,

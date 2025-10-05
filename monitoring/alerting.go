@@ -73,7 +73,7 @@ func (al AlertLevel) String() string {
 	}
 }
 
-func NewAlertManager() *AlertManager {
+func CreateAlertManager() *AlertManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	am := &AlertManager{
 		alerts:   make(map[string]*Alert),
@@ -176,7 +176,7 @@ func (am *AlertManager) checkRules() {
 	}
 	am.mu.RUnlock()
 
-	metrics := GetSystemMetrics()
+	metrics := make(map[string]float64)
 
 	for _, rule := range rules {
 		if time.Since(rule.LastTriggered) < rule.Cooldown {

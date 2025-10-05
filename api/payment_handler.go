@@ -12,7 +12,7 @@ type PaymentHandler struct {
 	paymentService *services.PaymentService
 }
 
-func NewPaymentHandler(paymentService *services.PaymentService) *PaymentHandler {
+func CreatePaymentHandler(paymentService *services.PaymentService) *PaymentHandler {
 	return &PaymentHandler{
 		paymentService: paymentService,
 	}

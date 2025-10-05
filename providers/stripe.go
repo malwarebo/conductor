@@ -18,7 +18,7 @@ type StripeProvider struct {
 	apiKey string
 }
 
-func NewStripeProvider(apiKey string) *StripeProvider {
+func CreateStripeProvider(apiKey string) *StripeProvider {
 	stripe.Key = apiKey
 	return &StripeProvider{
 		apiKey: apiKey,

@@ -22,7 +22,7 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
-func LoggingMiddleware(next http.Handler) http.Handler {
+func CreateLoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		rw := &responseWriter{w, http.StatusOK}
@@ -32,13 +32,13 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 			correlationID = generateCorrelationID()
 		}
 
-		ctx := utils.WithCorrelationID(r.Context(), correlationID)
+		ctx := utils.CreateWithCorrelationID(r.Context(), correlationID)
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(rw, r)
 
 		duration := time.Since(start)
-		utils.Info(ctx, "HTTP request completed", map[string]interface{}{
+		utils.CreateLogger("gopay").Info(ctx, "HTTP request completed", map[string]interface{}{
 			"method":      r.Method,
 			"path":        r.URL.Path,
 			"status":      rw.statusCode,
@@ -49,7 +49,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func CORSMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
+func CreateCORSMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
@@ -86,11 +86,11 @@ func isOriginAllowed(origin string, allowedOrigins []string) bool {
 	return false
 }
 
-func RecoveryMiddleware(next http.Handler) http.Handler {
+func CreateRecoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				utils.Error(r.Context(), "Panic recovered", map[string]interface{}{
+				utils.CreateLogger("gopay").Error(r.Context(), "Panic recovered", map[string]interface{}{
 					"error": err,
 					"stack": string(debug.Stack()),
 				})
@@ -115,7 +115,7 @@ func (rl *rateLimiter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rl.next.ServeHTTP(w, r)
 }
 
-func RateLimitMiddleware(next http.Handler) http.Handler {
+func CreateRateLimitMiddleware(next http.Handler) http.Handler {
 	limiter := rate.NewLimiter(rate.Every(time.Second), 100)
 	return &rateLimiter{
 		limiter: limiter,
@@ -123,7 +123,7 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 	}
 }
 
-func BasicAuthMiddleware(next http.Handler) http.Handler {
+func CreateBasicAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/health" || r.URL.Path == "/api/v1/metrics" {
 			next.ServeHTTP(w, r)

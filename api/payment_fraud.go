@@ -16,7 +16,7 @@ type PaymentWithFraudHandler struct {
 	fraudService   services.FraudService
 }
 
-func NewPaymentWithFraudHandler(paymentService *services.PaymentService, fraudService services.FraudService) *PaymentWithFraudHandler {
+func CreatePaymentWithFraudHandler(paymentService *services.PaymentService, fraudService services.FraudService) *PaymentWithFraudHandler {
 	return &PaymentWithFraudHandler{
 		paymentService: paymentService,
 		fraudService:   fraudService,

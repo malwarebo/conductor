@@ -29,7 +29,7 @@ type Cluster struct {
 	health   map[string]bool
 }
 
-func NewCluster(config ClusterConfig) (*Cluster, error) {
+func CreateCluster(config ClusterConfig) (*Cluster, error) {
 	cluster := &Cluster{
 		config: config,
 		health: make(map[string]bool),

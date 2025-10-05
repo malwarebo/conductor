@@ -19,7 +19,7 @@ type MultiProviderSelector struct {
 	providerPreferences map[string]int
 }
 
-func NewMultiProviderSelector(providers []PaymentProvider) *MultiProviderSelector {
+func CreateMultiProviderSelector(providers []PaymentProvider) *MultiProviderSelector {
 	preferences := make(map[string]int)
 	for i, provider := range providers {
 		switch provider.(type) {

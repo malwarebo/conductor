@@ -13,7 +13,7 @@ type DisputeHandler struct {
 	disputeService *services.DisputeService
 }
 
-func NewDisputeHandler(disputeService *services.DisputeService) *DisputeHandler {
+func CreateDisputeHandler(disputeService *services.DisputeService) *DisputeHandler {
 	return &DisputeHandler{
 		disputeService: disputeService,
 	}

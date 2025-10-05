@@ -43,7 +43,7 @@ func init() {
 	}
 }
 
-func NewLogger(service string) *Logger {
+func CreateLogger(service string) *Logger {
 	return &Logger{
 		service: service,
 		level:   defaultLogger.level,
@@ -76,8 +76,8 @@ func (l *Logger) log(ctx context.Context, level LogLevel, message string, fields
 		Level:         l.levelString(level),
 		Message:       message,
 		Service:       l.service,
-		CorrelationID: GetCorrelationID(ctx),
-		UserID:        GetUserID(ctx),
+		CorrelationID: CreateGetCorrelationID(ctx),
+		UserID:        CreateGetUserID(ctx),
 	}
 
 	if len(fields) > 0 {
@@ -108,40 +108,40 @@ func (l *Logger) levelString(level LogLevel) string {
 	}
 }
 
-func GetCorrelationID(ctx context.Context) string {
+func CreateGetCorrelationID(ctx context.Context) string {
 	if id, ok := ctx.Value("correlation_id").(string); ok {
 		return id
 	}
 	return ""
 }
 
-func GetUserID(ctx context.Context) string {
+func CreateGetUserID(ctx context.Context) string {
 	if id, ok := ctx.Value("user_id").(string); ok {
 		return id
 	}
 	return ""
 }
 
-func WithCorrelationID(ctx context.Context, id string) context.Context {
+func CreateWithCorrelationID(ctx context.Context, id string) context.Context {
 	return context.WithValue(ctx, "correlation_id", id)
 }
 
-func WithUserID(ctx context.Context, userID string) context.Context {
+func CreateWithUserID(ctx context.Context, userID string) context.Context {
 	return context.WithValue(ctx, "user_id", userID)
 }
 
-func Debug(ctx context.Context, message string, fields ...map[string]interface{}) {
+func CreateDebug(ctx context.Context, message string, fields ...map[string]interface{}) {
 	defaultLogger.Debug(ctx, message, fields...)
 }
 
-func Info(ctx context.Context, message string, fields ...map[string]interface{}) {
+func CreateInfo(ctx context.Context, message string, fields ...map[string]interface{}) {
 	defaultLogger.Info(ctx, message, fields...)
 }
 
-func Warn(ctx context.Context, message string, fields ...map[string]interface{}) {
+func CreateWarn(ctx context.Context, message string, fields ...map[string]interface{}) {
 	defaultLogger.Warn(ctx, message, fields...)
 }
 
-func Error(ctx context.Context, message string, fields ...map[string]interface{}) {
+func CreateError(ctx context.Context, message string, fields ...map[string]interface{}) {
 	defaultLogger.Error(ctx, message, fields...)
 }

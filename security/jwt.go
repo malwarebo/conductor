@@ -27,7 +27,7 @@ type Claims struct {
 	Audience  string   `json:"aud"`
 }
 
-func NewJWTManager(secretKey, issuer, audience string) *JWTManager {
+func CreateJWTManager(secretKey, issuer, audience string) *JWTManager {
 	return &JWTManager{
 		secretKey: secretKey,
 		issuer:    issuer,

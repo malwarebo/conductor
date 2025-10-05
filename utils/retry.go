@@ -39,7 +39,7 @@ func (e *RetryableError) Unwrap() error {
 	return e.Err
 }
 
-func DefaultRetryConfig() *RetryConfig {
+func CreateDefaultRetryConfig() *RetryConfig {
 	return &RetryConfig{
 		MaxAttempts:     3,
 		BaseDelay:       100 * time.Millisecond,
@@ -51,7 +51,7 @@ func DefaultRetryConfig() *RetryConfig {
 	}
 }
 
-func Retry(ctx context.Context, config *RetryConfig, operation func() error) error {
+func CreateRetry(ctx context.Context, config *RetryConfig, operation func() error) error {
 	var lastErr error
 	attempt := 0
 
@@ -83,7 +83,7 @@ func Retry(ctx context.Context, config *RetryConfig, operation func() error) err
 	return fmt.Errorf("operation failed after %d attempts: %w", config.MaxAttempts, lastErr)
 }
 
-func RetryWithResult(ctx context.Context, config *RetryConfig, operation func() (interface{}, error)) (interface{}, error) {
+func CreateRetryWithResult(ctx context.Context, config *RetryConfig, operation func() (interface{}, error)) (interface{}, error) {
 	var result interface{}
 	var lastErr error
 	attempt := 0
@@ -159,7 +159,7 @@ func isRetryableError(err error, retryableErrors []error) bool {
 	return false
 }
 
-func NewRetryableError(err error) *RetryableError {
+func CreateRetryableError(err error) *RetryableError {
 	return &RetryableError{Err: err}
 }
 
@@ -168,7 +168,7 @@ type CircuitBreakerRetry struct {
 	circuitBreaker *CircuitBreaker
 }
 
-func NewCircuitBreakerRetry(config *RetryConfig, cb *CircuitBreaker) *CircuitBreakerRetry {
+func CreateCircuitBreakerRetry(config *RetryConfig, cb *CircuitBreaker) *CircuitBreakerRetry {
 	return &CircuitBreakerRetry{
 		config:         config,
 		circuitBreaker: cb,
@@ -177,7 +177,7 @@ func NewCircuitBreakerRetry(config *RetryConfig, cb *CircuitBreaker) *CircuitBre
 
 func (cbr *CircuitBreakerRetry) Execute(ctx context.Context, operation func() error) error {
 	return cbr.circuitBreaker.Execute(ctx, func() error {
-		return Retry(ctx, cbr.config, operation)
+		return CreateRetry(ctx, cbr.config, operation)
 	})
 }
 
@@ -186,7 +186,7 @@ func (cbr *CircuitBreakerRetry) ExecuteWithResult(ctx context.Context, operation
 	var err error
 
 	executeErr := cbr.circuitBreaker.Execute(ctx, func() error {
-		result, err = RetryWithResult(ctx, cbr.config, operation)
+		result, err = CreateRetryWithResult(ctx, cbr.config, operation)
 		return err
 	})
 

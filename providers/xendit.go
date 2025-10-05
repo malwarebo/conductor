@@ -17,7 +17,7 @@ type XenditProvider struct {
 	client *xendit.APIClient
 }
 
-func NewXenditProvider(apiKey string) *XenditProvider {
+func CreateXenditProvider(apiKey string) *XenditProvider {
 	client := xendit.NewClient(apiKey)
 
 	return &XenditProvider{
