@@ -3,10 +3,33 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "daily"
-    open-pull-requests-limit: 20
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "malwarebo"
+    assignees:
+      - "malwarebo"
     commit-message:
-      prefix: (build)-
-      include: scope
-    pull-request-branch-name:
-      separator: "-"
+      prefix: "security"
+      include: "scope"
+    labels:
+      - "security"
+      - "dependencies"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "malwarebo"
+    assignees:
+      - "malwarebo"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "docker"
+      - "security"

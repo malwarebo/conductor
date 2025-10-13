@@ -7,15 +7,17 @@ import (
 
 	"github.com/malwarebo/gopay/models"
 	"github.com/stripe/stripe-go/v82"
-	"github.com/stripe/stripe-go/v82/charge"
 	"github.com/stripe/stripe-go/v82/dispute"
+	"github.com/stripe/stripe-go/v82/paymentintent"
 	"github.com/stripe/stripe-go/v82/plan"
 	"github.com/stripe/stripe-go/v82/refund"
 	"github.com/stripe/stripe-go/v82/subscription"
+	"github.com/stripe/stripe-go/v82/webhook"
 )
 
 type StripeProvider struct {
-	apiKey string
+	apiKey        string
+	webhookSecret string
 }
 
 func CreateStripeProvider(apiKey string) *StripeProvider {
@@ -25,19 +27,29 @@ func CreateStripeProvider(apiKey string) *StripeProvider {
 	}
 }
 
+func CreateStripeProviderWithWebhook(apiKey, webhookSecret string) *StripeProvider {
+	stripe.Key = apiKey
+	return &StripeProvider{
+		apiKey:        apiKey,
+		webhookSecret: webhookSecret,
+	}
+}
+
 func (p *StripeProvider) Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error) {
-	params := &stripe.ChargeParams{
-		Amount:      stripe.Int64(req.Amount), // Amount is already in cents
+	params := &stripe.PaymentIntentParams{
+		Amount:      stripe.Int64(req.Amount),
 		Currency:    stripe.String(req.Currency),
 		Description: stripe.String(req.Description),
 		Customer:    stripe.String(req.CustomerID),
 	}
 
-	// Set payment method
 	if req.PaymentMethod != "" {
-		if err := params.SetSource(req.PaymentMethod); err != nil {
-			return nil, fmt.Errorf("failed to set payment method: %w", err)
-		}
+		params.PaymentMethod = stripe.String(req.PaymentMethod)
+		params.Confirm = stripe.Bool(true)
+	}
+
+	params.AutomaticPaymentMethods = &stripe.PaymentIntentAutomaticPaymentMethodsParams{
+		Enabled: stripe.Bool(true),
 	}
 
 	if req.Metadata != nil {
@@ -49,29 +61,53 @@ func (p *StripeProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 		}
 	}
 
-	ch, err := charge.New(params)
+	pi, err := paymentintent.New(params)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("stripe payment intent creation failed: %w", err)
 	}
 
 	metadata := make(map[string]interface{})
-	for k, v := range ch.Metadata {
+	for k, v := range pi.Metadata {
 		metadata[k] = v
 	}
 
-	return &models.ChargeResponse{
-		ID:               ch.ID,
+	status := models.PaymentStatusPending
+	if pi.Status == stripe.PaymentIntentStatusSucceeded {
+		status = models.PaymentStatusSuccess
+	} else if pi.Status == stripe.PaymentIntentStatusRequiresAction {
+		status = models.PaymentStatusPending
+	} else if pi.Status == stripe.PaymentIntentStatusCanceled {
+		status = models.PaymentStatusFailed
+	}
+
+	paymentMethodID := ""
+	if pi.PaymentMethod != nil {
+		paymentMethodID = pi.PaymentMethod.ID
+	}
+
+	response := &models.ChargeResponse{
+		ID:               pi.ID,
 		CustomerID:       req.CustomerID,
-		Amount:           ch.Amount,
-		Currency:         string(ch.Currency),
-		Status:           models.PaymentStatusSuccess,
-		PaymentMethod:    ch.Source.ID,
+		Amount:           pi.Amount,
+		Currency:         string(pi.Currency),
+		Status:           status,
+		PaymentMethod:    paymentMethodID,
 		Description:      req.Description,
 		ProviderName:     "stripe",
-		ProviderChargeID: ch.ID,
+		ProviderChargeID: pi.ID,
 		Metadata:         metadata,
-		CreatedAt:        time.Unix(ch.Created, 0),
-	}, nil
+		CreatedAt:        time.Unix(pi.Created, 0),
+	}
+
+	if pi.NextAction != nil && pi.NextAction.Type == "redirect_to_url" {
+		response.Metadata["requires_action"] = true
+		response.Metadata["next_action_type"] = string(pi.NextAction.Type)
+		if pi.NextAction.RedirectToURL != nil {
+			response.Metadata["redirect_url"] = pi.NextAction.RedirectToURL.URL
+		}
+	}
+
+	return response, nil
 }
 
 func (p *StripeProvider) Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
@@ -115,7 +151,15 @@ func (p *StripeProvider) Refund(ctx context.Context, req *models.RefundRequest) 
 }
 
 func (p *StripeProvider) ValidateWebhookSignature(payload []byte, signature string) error {
-	// Implement webhook signature validation
+	if p.webhookSecret == "" {
+		return fmt.Errorf("webhook secret not configured")
+	}
+
+	_, err := webhook.ConstructEvent(payload, signature, p.webhookSecret)
+	if err != nil {
+		return fmt.Errorf("webhook signature verification failed: %w", err)
+	}
+
 	return nil
 }
 func (p *StripeProvider) CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
