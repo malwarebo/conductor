@@ -2,19 +2,22 @@ package providers
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"time"
 
 	"github.com/malwarebo/gopay/models"
 	xendit "github.com/xendit/xendit-go/v6"
-	invoice "github.com/xendit/xendit-go/v6/invoice"
 	paymentrequest "github.com/xendit/xendit-go/v6/payment_request"
 	refund "github.com/xendit/xendit-go/v6/refund"
 )
 
 type XenditProvider struct {
-	apiKey string
-	client *xendit.APIClient
+	apiKey        string
+	webhookSecret string
+	client        *xendit.APIClient
 }
 
 func CreateXenditProvider(apiKey string) *XenditProvider {
@@ -26,23 +29,42 @@ func CreateXenditProvider(apiKey string) *XenditProvider {
 	}
 }
 
+func CreateXenditProviderWithWebhook(apiKey, webhookSecret string) *XenditProvider {
+	client := xendit.NewClient(apiKey)
+
+	return &XenditProvider{
+		apiKey:        apiKey,
+		webhookSecret: webhookSecret,
+		client:        client,
+	}
+}
+
 func (p *XenditProvider) Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error) {
-	payerEmail := "customer@example.com"
-	data := invoice.NewCreateInvoiceRequest(req.CustomerID, float64(req.Amount))
-	data.PayerEmail = &payerEmail
-	data.Description = &req.Description
+	currency, err := p.getCurrency(req.Currency)
+	if err != nil {
+		return nil, fmt.Errorf("unsupported currency: %w", err)
+	}
+
+	paymentReq := paymentrequest.NewPaymentRequestParameters(currency)
+	paymentReq.SetAmount(float64(req.Amount))
+	paymentReq.SetReferenceId(req.CustomerID)
+	paymentReq.SetDescription(req.Description)
+
+	if req.PaymentMethod != "" {
+		paymentReq.SetPaymentMethodId(req.PaymentMethod)
+	}
 
 	if req.Metadata != nil {
 		metadata := make(map[string]interface{})
 		for k, v := range req.Metadata {
 			metadata[k] = v
 		}
-		data.SetMetadata(metadata)
+		paymentReq.SetMetadata(metadata)
 	}
 
-	inv, _, err := p.client.InvoiceApi.CreateInvoice(ctx).CreateInvoiceRequest(*data).Execute()
+	pr, _, err := p.client.PaymentRequestApi.CreatePaymentRequest(ctx).PaymentRequestParameters(*paymentReq).Execute()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("xendit payment request creation failed: %w", err)
 	}
 
 	metadata := make(map[string]interface{})
@@ -51,14 +73,16 @@ func (p *XenditProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 	}
 
 	status := models.PaymentStatusPending
-	if inv.GetStatus() == "PAID" {
+	if pr.GetStatus() == "SUCCEEDED" {
 		status = models.PaymentStatusSuccess
-	} else if inv.GetStatus() == "EXPIRED" {
+	} else if pr.GetStatus() == "FAILED" {
 		status = models.PaymentStatusFailed
+	} else if pr.GetStatus() == "PENDING" {
+		status = models.PaymentStatusPending
 	}
 
-	return &models.ChargeResponse{
-		ID:               inv.GetId(),
+	response := &models.ChargeResponse{
+		ID:               pr.GetId(),
 		CustomerID:       req.CustomerID,
 		Amount:           req.Amount,
 		Currency:         req.Currency,
@@ -66,10 +90,33 @@ func (p *XenditProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 		PaymentMethod:    req.PaymentMethod,
 		Description:      req.Description,
 		ProviderName:     "xendit",
-		ProviderChargeID: inv.GetId(),
+		ProviderChargeID: pr.GetId(),
 		Metadata:         metadata,
 		CreatedAt:        time.Now(),
-	}, nil
+	}
+
+	if actions := pr.GetActions(); len(actions) > 0 {
+		response.Metadata["requires_action"] = true
+		for _, action := range actions {
+			if action.GetAction() == "AUTH" {
+				response.Metadata["auth_url"] = action.GetUrl()
+				response.Metadata["auth_method"] = action.GetMethod()
+			}
+		}
+	}
+
+	return response, nil
+}
+
+func (p *XenditProvider) getCurrency(currency string) (paymentrequest.PaymentRequestCurrency, error) {
+	switch currency {
+	case "IDR":
+		return paymentrequest.PAYMENTREQUESTCURRENCY_IDR, nil
+	case "PHP":
+		return paymentrequest.PAYMENTREQUESTCURRENCY_PHP, nil
+	default:
+		return paymentrequest.PAYMENTREQUESTCURRENCY_IDR, nil
+	}
 }
 
 func (p *XenditProvider) Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
@@ -390,6 +437,22 @@ func (p *XenditProvider) GetDisputeStats(ctx context.Context) (*models.DisputeSt
 		Lost:     0,
 		Canceled: 0,
 	}, nil
+}
+
+func (p *XenditProvider) ValidateWebhookSignature(payload []byte, signature string) error {
+	if p.webhookSecret == "" {
+		return fmt.Errorf("webhook secret not configured")
+	}
+
+	mac := hmac.New(sha256.New, []byte(p.webhookSecret))
+	mac.Write(payload)
+	expectedSignature := hex.EncodeToString(mac.Sum(nil))
+
+	if signature != expectedSignature {
+		return fmt.Errorf("webhook signature verification failed")
+	}
+
+	return nil
 }
 
 func (p *XenditProvider) IsAvailable(ctx context.Context) bool {
