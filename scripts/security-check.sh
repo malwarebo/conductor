@@ -2,6 +2,8 @@
 
 set -e
 
+export PATH=$PATH:$(go env GOPATH)/bin
+
 echo "Running Security Compliance Checks..."
 
 echo "Checking Go module dependencies..."
@@ -22,7 +24,7 @@ if command -v gosec &> /dev/null; then
     gosec -fmt json -out gosec-report.json ./...
 else
     echo "Installing gosec..."
-    go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+    go install github.com/securego/gosec/v2/cmd/gosec@latest
     gosec -fmt json -out gosec-report.json ./...
 fi
 
