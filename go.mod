@@ -11,7 +11,7 @@ require (
 	github.com/xendit/xendit-go/v6 v6.4.0
 	golang.org/x/time v0.13.0
 	gorm.io/driver/postgres v1.6.0
-	gorm.io/gorm v1.31.0
+	gorm.io/gorm v1.31.1
 	gorm.io/plugin/dbresolver v1.6.2
 )
 
