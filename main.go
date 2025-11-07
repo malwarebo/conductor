@@ -20,7 +20,7 @@ import (
 	"github.com/malwarebo/gopay/observability"
 	"github.com/malwarebo/gopay/performance"
 	"github.com/malwarebo/gopay/providers"
-	"github.com/malwarebo/gopay/repositories"
+	"github.com/malwarebo/gopay/stores"
 	"github.com/malwarebo/gopay/security"
 	"github.com/malwarebo/gopay/services"
 	"github.com/malwarebo/gopay/webhooks"
@@ -220,13 +220,13 @@ func main() {
 	printInfo("  • Stripe: Ready for USD, EUR, GBP")
 	printInfo("  • Xendit: Ready for IDR, SGD, MYR, PHP, THB, VND")
 
-	printStep("8/10", "Initializing repositories...")
-	paymentRepo := repositories.CreatePaymentRepository(database)
-	planRepo := repositories.CreatePlanRepository(database)
-	subscriptionRepo := repositories.CreateSubscriptionRepository(database)
-	disputeRepo := repositories.CreateDisputeRepository(database)
-	fraudRepo := repositories.CreateFraudRepository(database)
-	printSuccess("Repositories initialized")
+	printStep("8/10", "Initializing stores...")
+	paymentRepo := stores.CreatePaymentRepository(database)
+	planRepo := stores.CreatePlanRepository(database)
+	subscriptionRepo := stores.CreateSubscriptionRepository(database)
+	disputeRepo := stores.CreateDisputeRepository(database)
+	fraudRepo := stores.CreateFraudRepository(database)
+	printSuccess("Stores initialized")
 
 	printStep("9/10", "Initializing services...")
 	paymentService := services.CreatePaymentService(paymentRepo, providerSelector)

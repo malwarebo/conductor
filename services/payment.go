@@ -11,26 +11,26 @@ import (
 	"github.com/malwarebo/gopay/models"
 	"github.com/malwarebo/gopay/monitoring"
 	"github.com/malwarebo/gopay/providers"
-	"github.com/malwarebo/gopay/repositories"
+	"github.com/malwarebo/gopay/stores"
 	"github.com/malwarebo/gopay/security"
 	"github.com/malwarebo/gopay/utils"
 )
 
 type PaymentService struct {
-	paymentRepo  *repositories.PaymentRepository
+	paymentRepo  *stores.PaymentRepository
 	provider     providers.PaymentProvider
 	encryption   *security.EncryptionManager
 	alertManager *monitoring.AlertManager
 }
 
-func CreatePaymentService(paymentRepo *repositories.PaymentRepository, provider providers.PaymentProvider) *PaymentService {
+func CreatePaymentService(paymentRepo *stores.PaymentRepository, provider providers.PaymentProvider) *PaymentService {
 	return &PaymentService{
 		paymentRepo: paymentRepo,
 		provider:    provider,
 	}
 }
 
-func CreatePaymentServiceWithMonitoring(paymentRepo *repositories.PaymentRepository, provider providers.PaymentProvider, encryption *security.EncryptionManager, alertManager *monitoring.AlertManager) *PaymentService {
+func CreatePaymentServiceWithMonitoring(paymentRepo *stores.PaymentRepository, provider providers.PaymentProvider, encryption *security.EncryptionManager, alertManager *monitoring.AlertManager) *PaymentService {
 	return &PaymentService{
 		paymentRepo:  paymentRepo,
 		provider:     provider,

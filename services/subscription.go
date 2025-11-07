@@ -8,7 +8,7 @@ import (
 
 	"github.com/malwarebo/gopay/models"
 	"github.com/malwarebo/gopay/providers"
-	"github.com/malwarebo/gopay/repositories"
+	"github.com/malwarebo/gopay/stores"
 )
 
 var (
@@ -18,12 +18,12 @@ var (
 
 type SubscriptionService struct {
 	providers []providers.PaymentProvider
-	planRepo  *repositories.PlanRepository
-	subRepo   *repositories.SubscriptionRepository
+	planRepo  *stores.PlanRepository
+	subRepo   *stores.SubscriptionRepository
 	mu        sync.RWMutex
 }
 
-func CreateSubscriptionService(planRepo *repositories.PlanRepository, subRepo *repositories.SubscriptionRepository, providers ...providers.PaymentProvider) *SubscriptionService {
+func CreateSubscriptionService(planRepo *stores.PlanRepository, subRepo *stores.SubscriptionRepository, providers ...providers.PaymentProvider) *SubscriptionService {
 	return &SubscriptionService{
 		providers: providers,
 		planRepo:  planRepo,
