@@ -60,7 +60,9 @@ func MockPayment() *models.Payment {
 		Description:      "Test payment",
 		ProviderName:     "stripe",
 		ProviderChargeID: "pi_test123",
-		Metadata:         `{"order_id":"order_123"}`,
+		Metadata: models.JSON{
+			"order_id": "order_123",
+		},
 	}
 }
 
