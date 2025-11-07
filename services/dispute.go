@@ -7,7 +7,7 @@ import (
 
 	"github.com/malwarebo/gopay/models"
 	"github.com/malwarebo/gopay/providers"
-	"github.com/malwarebo/gopay/repositories"
+	"github.com/malwarebo/gopay/stores"
 )
 
 var (
@@ -16,11 +16,11 @@ var (
 )
 
 type DisputeService struct {
-	disputeRepo *repositories.DisputeRepository
+	disputeRepo *stores.DisputeRepository
 	provider    providers.PaymentProvider
 }
 
-func CreateDisputeService(disputeRepo *repositories.DisputeRepository, provider providers.PaymentProvider) *DisputeService {
+func CreateDisputeService(disputeRepo *stores.DisputeRepository, provider providers.PaymentProvider) *DisputeService {
 	return &DisputeService{
 		disputeRepo: disputeRepo,
 		provider:    provider,

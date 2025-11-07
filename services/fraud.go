@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/malwarebo/gopay/models"
-	"github.com/malwarebo/gopay/repositories"
+	"github.com/malwarebo/gopay/stores"
 	"github.com/malwarebo/gopay/utils"
 )
 
@@ -32,7 +32,7 @@ type FraudService interface {
 }
 
 type fraudService struct {
-	repo       repositories.FraudRepository
+	repo       stores.FraudRepository
 	openAIKey  string
 	httpClient *http.Client
 	ipAnalyzer *utils.IPAnalyzer
@@ -57,7 +57,7 @@ type Choice struct {
 	Message Message `json:"message"`
 }
 
-func CreateFraudService(repo repositories.FraudRepository, openAIKey string) FraudService {
+func CreateFraudService(repo stores.FraudRepository, openAIKey string) FraudService {
 	return &fraudService{
 		repo:      repo,
 		openAIKey: openAIKey,
