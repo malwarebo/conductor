@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/malwarebo/gopay/models"
-	"github.com/malwarebo/gopay/stores"
-	"github.com/malwarebo/gopay/utils"
+	"github.com/malwarebo/conductor/models"
+	"github.com/malwarebo/conductor/stores"
+	"github.com/malwarebo/conductor/utils"
 )
 
 const (
@@ -73,7 +73,7 @@ func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.F
 	cacheKey := fmt.Sprintf("%s_%s_%s_%s", request.TransactionID, request.UserID, request.IPAddress, request.BillingCountry)
 
 	if cached, exists := s.cache[cacheKey]; exists {
-		utils.CreateLogger("gopay").Info(ctx, "Using cached fraud analysis result", map[string]interface{}{
+		utils.CreateLogger("conductor").Info(ctx, "Using cached fraud analysis result", map[string]interface{}{
 			"transaction_id": request.TransactionID,
 			"cache_key":      cacheKey,
 		})
@@ -128,7 +128,7 @@ func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.F
 	}
 
 	if err := s.repo.SaveAnalysisResult(result); err != nil {
-		utils.CreateLogger("gopay").Error(ctx, "Failed to save fraud analysis result", map[string]interface{}{
+		utils.CreateLogger("conductor").Error(ctx, "Failed to save fraud analysis result", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}

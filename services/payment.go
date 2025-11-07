@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/malwarebo/gopay/models"
-	"github.com/malwarebo/gopay/monitoring"
-	"github.com/malwarebo/gopay/providers"
-	"github.com/malwarebo/gopay/stores"
-	"github.com/malwarebo/gopay/security"
-	"github.com/malwarebo/gopay/utils"
+	"github.com/malwarebo/conductor/models"
+	"github.com/malwarebo/conductor/monitoring"
+	"github.com/malwarebo/conductor/providers"
+	"github.com/malwarebo/conductor/stores"
+	"github.com/malwarebo/conductor/security"
+	"github.com/malwarebo/conductor/utils"
 )
 
 type PaymentService struct {

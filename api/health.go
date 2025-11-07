@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/malwarebo/gopay/utils"
+	"github.com/malwarebo/conductor/utils"
 )
 
 type HealthResponse struct {

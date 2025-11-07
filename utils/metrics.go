@@ -148,7 +148,7 @@ func CreateRecordPaymentMetrics(ctx context.Context, amount int64, currency, pro
 		"provider": provider,
 	})
 
-	CreateLogger("gopay").Info(ctx, "Payment metric recorded", map[string]interface{}{
+	CreateLogger("conductor").Info(ctx, "Payment metric recorded", map[string]interface{}{
 		"amount":   amount,
 		"currency": currency,
 		"provider": provider,
@@ -171,7 +171,7 @@ func CreateRecordFraudMetrics(ctx context.Context, isFraudulent bool, fraudScore
 		"status": status,
 	})
 
-	CreateLogger("gopay").Info(ctx, "Fraud metric recorded", map[string]interface{}{
+	CreateLogger("conductor").Info(ctx, "Fraud metric recorded", map[string]interface{}{
 		"is_fraudulent": isFraudulent,
 		"fraud_score":   fraudScore,
 		"reason":        reason,
@@ -190,7 +190,7 @@ func CreateRecordProviderMetrics(ctx context.Context, provider string, operation
 		"status":    status,
 	})
 
-	CreateLogger("gopay").Info(ctx, "Provider metric recorded", map[string]interface{}{
+	CreateLogger("conductor").Info(ctx, "Provider metric recorded", map[string]interface{}{
 		"provider":  provider,
 		"operation": operation,
 		"success":   success,
@@ -211,7 +211,7 @@ func CreateRecordRoutingMetrics(ctx context.Context, provider string, confidence
 		"provider": provider,
 	})
 
-	CreateLogger("gopay").Info(ctx, "Routing metric recorded", map[string]interface{}{
+	CreateLogger("conductor").Info(ctx, "Routing metric recorded", map[string]interface{}{
 		"provider":         provider,
 		"confidence_score": confidenceScore,
 		"success_rate":     successRate,

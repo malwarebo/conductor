@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/malwarebo/gopay/utils"
+	"github.com/malwarebo/conductor/utils"
 )
 
 func CreateRequestSizeLimitMiddleware(maxSize int64) func(http.Handler) http.Handler {

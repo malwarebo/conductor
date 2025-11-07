@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/malwarebo/gopay/security"
+	"github.com/malwarebo/conductor/security"
 )
 
 type AuthMiddleware struct {

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/malwarebo/gopay/models"
+	"github.com/malwarebo/conductor/models"
 	xendit "github.com/xendit/xendit-go/v6"
 	paymentrequest "github.com/xendit/xendit-go/v6/payment_request"
 	refund "github.com/xendit/xendit-go/v6/refund"

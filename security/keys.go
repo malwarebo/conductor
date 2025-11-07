@@ -38,7 +38,7 @@ func (m *APIKeyManager) GenerateKey(name, userID string, scopes []string, expire
 		return nil, "", err
 	}
 
-	key := fmt.Sprintf("gopay_%s", hex.EncodeToString(keyBytes))
+	key := fmt.Sprintf("conductor_%s", hex.EncodeToString(keyBytes))
 	keyHash := m.hashKey(key)
 	keyPrefix := key[:12]
 

@@ -6,7 +6,7 @@ import (
 )
 
 func TestJWTManager_GenerateToken(t *testing.T) {
-	manager := CreateJWTManager("test-secret-key-32-bytes-long!!", "gopay-test", "gopay-api")
+	manager := CreateJWTManager("test-secret-key-32-bytes-long!!", "conductor-test", "conductor-api")
 
 	tests := []struct {
 		name   string
@@ -48,7 +48,7 @@ func TestJWTManager_GenerateToken(t *testing.T) {
 }
 
 func TestJWTManager_ValidateToken(t *testing.T) {
-	manager := CreateJWTManager("test-secret-key-32-bytes-long!!", "gopay-test", "gopay-api")
+	manager := CreateJWTManager("test-secret-key-32-bytes-long!!", "conductor-test", "conductor-api")
 
 	t.Run("Valid token", func(t *testing.T) {
 		userID := "user123"
@@ -96,8 +96,8 @@ func TestJWTManager_ValidateToken(t *testing.T) {
 	})
 
 	t.Run("Wrong secret", func(t *testing.T) {
-		manager1 := CreateJWTManager("secret1-key-32-bytes-long!!!!", "gopay-test", "gopay-api")
-		manager2 := CreateJWTManager("secret2-key-32-bytes-long!!!!", "gopay-test", "gopay-api")
+		manager1 := CreateJWTManager("secret1-key-32-bytes-long!!!!", "conductor-test", "conductor-api")
+		manager2 := CreateJWTManager("secret2-key-32-bytes-long!!!!", "conductor-test", "conductor-api")
 
 		token, err := manager1.GenerateToken("user123", "user@test.com", []string{"admin"}, "api_key_test", 24*time.Hour)
 		if err != nil {
@@ -112,7 +112,7 @@ func TestJWTManager_ValidateToken(t *testing.T) {
 }
 
 func TestJWTManager_ExpiredToken(t *testing.T) {
-	manager := CreateJWTManager("test-secret-key-32-bytes-long!!", "gopay-test", "gopay-api")
+	manager := CreateJWTManager("test-secret-key-32-bytes-long!!", "conductor-test", "conductor-api")
 
 	token, err := manager.GenerateToken("user123", "user@test.com", []string{"admin"}, "api_key_test", -1*time.Hour)
 	if err != nil {
@@ -126,7 +126,7 @@ func TestJWTManager_ExpiredToken(t *testing.T) {
 }
 
 func TestJWTManager_EmptyUserID(t *testing.T) {
-	manager := CreateJWTManager("test-secret-key-32-bytes-long!!", "gopay-test", "gopay-api")
+	manager := CreateJWTManager("test-secret-key-32-bytes-long!!", "conductor-test", "conductor-api")
 
 	token, err := manager.GenerateToken("", "user@test.com", []string{"admin"}, "api_key_test", 24*time.Hour)
 	if err != nil {

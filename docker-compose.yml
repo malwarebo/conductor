@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  gopay:
+  conductor:
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,18 +11,18 @@ services:
       # Add environment variables for configuration
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_USER=gopay
-      - DB_PASSWORD=gopay_password
-      - DB_NAME=gopay_db
+      - DB_USER=conductor
+      - DB_PASSWORD=conductor_password
+      - DB_NAME=conductor_db
       - XENDIT_API_KEY=${XENDIT_API_KEY}
       - STRIPE_API_KEY=${STRIPE_API_KEY}
 
   postgres:
     image: postgres:13
     environment:
-      - POSTGRES_DB=gopay_db
-      - POSTGRES_USER=gopay
-      - POSTGRES_PASSWORD=gopay_password
+      - POSTGRES_DB=conductor_db
+      - POSTGRES_USER=conductor
+      - POSTGRES_PASSWORD=conductor_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

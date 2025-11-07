@@ -33,7 +33,7 @@ type Logger struct {
 }
 
 var defaultLogger = &Logger{
-	service: "gopay",
+	service: "conductor",
 	level:   LevelInfo,
 }
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/malwarebo/gopay/models"
+	"github.com/malwarebo/conductor/models"
 )
 
 type MultiProviderSelector struct {

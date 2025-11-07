@@ -10,7 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/malwarebo/gopay/providers"
+	"github.com/malwarebo/conductor/providers"
 )
 
 func TestWebhookHandler_HandleStripeWebhook_MissingSignature(t *testing.T) {

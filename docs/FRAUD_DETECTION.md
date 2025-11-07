@@ -176,5 +176,5 @@ Use the statistics endpoint to build monitoring dashboards tracking:
 Run the migration to add the fraud analysis table:
 
 ```bash
-psql -h localhost -U gopay_user -d gopay -f db/migrations/001_add_fraud_analysis_table.sql
+psql -h localhost -U conductor_user -d conductor -f db/migrations/001_add_fraud_analysis_table.sql
 ```

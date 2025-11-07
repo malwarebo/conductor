@@ -41,8 +41,8 @@ fi
 
 echo "Scanning Docker image for vulnerabilities..."
 if command -v trivy &> /dev/null; then
-    docker build -t gopay:security-scan .
-    trivy image gopay:security-scan --format json --output trivy-report.json
+    docker build -t conductor:security-scan .
+    trivy image conductor:security-scan --format json --output trivy-report.json
     echo "Docker security scan completed: trivy-report.json"
 else
     echo "Trivy not found. Install with: brew install aquasecurity/trivy/trivy"

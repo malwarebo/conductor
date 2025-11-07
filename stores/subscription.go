@@ -3,7 +3,7 @@ package stores
 import (
 	"context"
 
-	"github.com/malwarebo/gopay/models"
+	"github.com/malwarebo/conductor/models"
 	"gorm.io/gorm"
 )
 
