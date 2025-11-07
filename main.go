@@ -18,7 +18,6 @@ import (
 	"github.com/malwarebo/gopay/middleware"
 	"github.com/malwarebo/gopay/monitoring"
 	"github.com/malwarebo/gopay/observability"
-	"github.com/malwarebo/gopay/performance"
 	"github.com/malwarebo/gopay/providers"
 	"github.com/malwarebo/gopay/stores"
 	"github.com/malwarebo/gopay/security"
@@ -240,12 +239,7 @@ func main() {
 
 	printSuccess("Services initialized")
 
-	printStep("10/11", "Initializing performance and observability...")
-	benchmarkSuite := performance.CreateBenchmarkSuite()
-	optimizer := performance.CreatePerformanceOptimizer()
-	loadTester := performance.CreateLoadTester()
-	metricsCollector := observability.CreateMetricsCollector()
-	tracer := observability.CreateTracer()
+	printStep("10/10", "Initializing observability...")
 	healthChecker := observability.CreateHealthChecker()
 
 	healthChecker.AddCheck("database", func(ctx context.Context) error {
@@ -263,7 +257,7 @@ func main() {
 		return nil
 	})
 
-	printSuccess("Performance and observability initialized")
+	printSuccess("Observability initialized")
 
 	printStep("11/11", "Setting up HTTP server...")
 	paymentHandler := api.CreatePaymentHandler(paymentService)
@@ -271,7 +265,6 @@ func main() {
 	disputeHandler := api.CreateDisputeHandler(disputeService)
 	fraudHandler := api.CreateFraudHandler(fraudService)
 	routingHandler := api.CreateRoutingHandler(routingService)
-	performanceHandler := api.CreatePerformanceHandler(benchmarkSuite, optimizer, loadTester, metricsCollector, tracer, healthChecker)
 
 	router := mux.NewRouter()
 
@@ -312,13 +305,6 @@ func main() {
 	apiRouter.HandleFunc("/routing/metrics", routingHandler.HandleRoutingMetrics).Methods("GET")
 	apiRouter.HandleFunc("/routing/config", routingHandler.HandleRoutingConfig).Methods("GET", "PUT")
 
-	apiRouter.HandleFunc("/performance/benchmark", performanceHandler.HandleBenchmark).Methods("POST")
-	apiRouter.HandleFunc("/performance/load-test", performanceHandler.HandleLoadTest).Methods("POST")
-	apiRouter.HandleFunc("/performance/metrics", performanceHandler.HandleMetrics).Methods("GET")
-	apiRouter.HandleFunc("/performance/traces", performanceHandler.HandleTraces).Methods("GET")
-	apiRouter.HandleFunc("/performance/health", performanceHandler.HandleHealth).Methods("GET")
-	apiRouter.HandleFunc("/performance/optimization", performanceHandler.HandleOptimization).Methods("GET")
-
 	webhookRouter := router.PathPrefix("/api/v1/webhooks").Subrouter()
 	webhookRouter.Use(authMiddleware.WebhookMiddleware)
 	webhookRouter.HandleFunc("/stripe", paymentHandler.HandleStripeWebhook).Methods("POST")
@@ -346,8 +332,6 @@ func main() {
 	fmt.Printf("  %s•%s Disputes:     %shttp://localhost:%s/api/v1/disputes%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Printf("  %s•%s Fraud Detection: %shttp://localhost:%s/api/v1/fraud/analyze%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Printf("  %s•%s AI Routing:     %shttp://localhost:%s/api/v1/routing/select%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
-	fmt.Printf("  %s•%s Performance:    %shttp://localhost:%s/api/v1/performance/benchmark%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
-	fmt.Printf("  %s•%s Load Testing:   %shttp://localhost:%s/api/v1/performance/load-test%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Println()
 	fmt.Printf("%s%sEnvironment:%s %s%s%s\n", colorPurple, colorBold, colorReset, colorYellow, cfg.Environment, colorReset)
 	fmt.Printf("%s%sServer Port:%s %s%s%s\n", colorPurple, colorBold, colorReset, colorYellow, cfg.Server.Port, colorReset)
