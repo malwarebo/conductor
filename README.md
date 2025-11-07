@@ -3,10 +3,6 @@
 [![go build](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml)
 [![docker build](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml)
 
-<div align="center">
-  <img src="assets/conductor-logo.png" alt="Conductor Logo" width="200" height="200">
-</div>
-
 `Conductor` is an open-source payment orchestration platform that makes handling multiple payment providers a breeze. It supports Stripe and Xendit out of the box, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
 
 The system includes intelligent fraud detection powered by AI that analyzes transactions in real-time before processing payments. It uses OpenAI's advanced models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates seamlessly into your payment flow, automatically blocking high-risk transactions while allowing legitimate ones to proceed smoothly.
@@ -462,14 +458,14 @@ Here's how you might use the cache in a service:
 
 ```go
 type ExampleService struct {
-    repository Repository
-    cache      *cache.RedisCache
+    store Store
+    cache *cache.RedisCache
 }
 
-func NewExampleService(repo Repository, cache *cache.RedisCache) *ExampleService {
+func NewExampleService(store Store, cache *cache.RedisCache) *ExampleService {
     return &ExampleService{
-        repository: repo,
-        cache:      cache,
+        store: store,
+        cache: cache,
     }
 }
 
@@ -484,8 +480,8 @@ func (s *ExampleService) GetItem(ctx context.Context, id string) (*Item, error) 
         }
     }
     
-    // Not in cache or error deserializing, get from repository
-    item, err := s.repository.GetItem(ctx, id)
+    // Not in cache or error deserializing, get from store
+    item, err := s.store.GetItem(ctx, id)
     if err != nil {
         return nil, err
     }
