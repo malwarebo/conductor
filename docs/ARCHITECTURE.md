@@ -22,7 +22,7 @@ Conductor is a payment orchestration system that provides a unified interface fo
 - **Dispute Service**: Handles payment disputes and evidence management
 - **Configuration Service**: Manages system configuration and provider settings
 
-### 3. Repository Layer
+### 3. Store Layer
 - Implements data access patterns using GORM
 - Handles database operations and transactions
 - Provides clean interfaces for services
@@ -79,11 +79,11 @@ Conductor is a payment orchestration system that provides a unified interface fo
 ### Data Flow
 1. **API Request Flow**
    ```
-   HTTP Request -> Handler -> Service -> Repository -> Database
+   HTTP Request -> Handler -> Service -> Store -> Database
                          -> Service -> Payment Provider
    ```
 
 2. **Database Operations**
    ```
-   Service Layer -> Repository Layer -> GORM -> PostgreSQL
+   Service Layer -> Store Layer -> GORM -> PostgreSQL
    ```
