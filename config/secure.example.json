@@ -2,9 +2,9 @@
   "database": {
     "host": "localhost",
     "port": 5432,
-    "user": "gopay_user",
+    "user": "conductor_user",
     "password": "PLACEHOLDER_DB_PASSWORD",
-    "dbname": "gopay",
+    "dbname": "conductor",
     "sslmode": "disable"
   },
   "stripe": {

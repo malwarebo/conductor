@@ -1,8 +1,8 @@
-# GoPay Security Best Practices Guide
+# Conductor Security Best Practices Guide
 
 ## Overview
 
-This guide outlines security best practices for deploying and operating GoPay in production environments. It covers authentication, data protection, network security, and compliance considerations.
+This guide outlines security best practices for deploying and operating Conductor in production environments. It covers authentication, data protection, network security, and compliance considerations.
 
 ## Table of Contents
 
@@ -67,7 +67,7 @@ func (m *APIKeyManager) GenerateKey(name, userID string, scopes []string) (*APIK
         return nil, "", err
     }
     
-    key := fmt.Sprintf("gopay_%s", hex.EncodeToString(keyBytes))
+    key := fmt.Sprintf("conductor_%s", hex.EncodeToString(keyBytes))
     keyHash := m.hashKey(key)
     
     return &APIKey{
@@ -524,17 +524,17 @@ func (cp *ConnectionPool) ConfigurePool() {
 #### User Permissions
 ```sql
 -- Create application user with minimal permissions
-CREATE USER gopay_app WITH PASSWORD 'secure_password';
+CREATE USER conductor_app WITH PASSWORD 'secure_password';
 
 -- Grant only necessary permissions
-GRANT CONNECT ON DATABASE gopay_prod TO gopay_app;
-GRANT USAGE ON SCHEMA public TO gopay_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gopay_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO gopay_app;
+GRANT CONNECT ON DATABASE conductor_prod TO conductor_app;
+GRANT USAGE ON SCHEMA public TO conductor_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO conductor_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO conductor_app;
 
 -- Revoke unnecessary permissions
-REVOKE CREATE ON DATABASE gopay_prod FROM gopay_app;
-REVOKE DROP ON DATABASE gopay_prod FROM gopay_app;
+REVOKE CREATE ON DATABASE conductor_prod FROM conductor_app;
+REVOKE DROP ON DATABASE conductor_prod FROM conductor_app;
 ```
 
 #### Row-Level Security
@@ -544,7 +544,7 @@ ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 
 -- Create policy for user-specific access
 CREATE POLICY payment_user_policy ON payments
-    FOR ALL TO gopay_app
+    FOR ALL TO conductor_app
     USING (user_id = current_setting('app.current_user_id'));
 ```
 
@@ -580,14 +580,14 @@ $$ LANGUAGE plpgsql;
 FROM golang:1.21-alpine AS builder
 
 # Create non-root user
-RUN adduser -D -s /bin/sh gopay
+RUN adduser -D -s /bin/sh conductor
 
 # Copy application
-COPY --chown=gopay:gopay . /app
+COPY --chown=conductor:conductor . /app
 WORKDIR /app
 
 # Build application
-RUN go build -o gopay main.go
+RUN go build -o conductor main.go
 
 # Final stage
 FROM alpine:latest
@@ -595,10 +595,10 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 
 # Copy binary
-COPY --from=builder /app/gopay .
+COPY --from=builder /app/conductor .
 
 # Run as non-root user
-USER gopay
+USER conductor
 
 # Expose port
 EXPOSE 8080
@@ -608,7 +608,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/api/v1/health || exit 1
 
 # Start application
-CMD ["./gopay"]
+CMD ["./conductor"]
 ```
 
 #### Kubernetes Security
@@ -617,7 +617,7 @@ CMD ["./gopay"]
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: gopay
+  name: conductor
 spec:
   template:
     spec:
@@ -626,7 +626,7 @@ spec:
         runAsUser: 1000
         fsGroup: 1000
       containers:
-      - name: gopay
+      - name: conductor
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -645,7 +645,7 @@ spec:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: gopay-secrets
+  name: conductor-secrets
 type: Opaque
 data:
   jwt-secret: <base64-encoded-secret>
@@ -679,7 +679,7 @@ Resources:
       EnableDnsSupport: true
       Tags:
         - Key: Name
-          Value: GoPay-VPC
+          Value: Conductor-VPC
 
   PrivateSubnet:
     Type: AWS::EC2::Subnet
@@ -689,7 +689,7 @@ Resources:
       AvailabilityZone: us-west-2a
       Tags:
         - Key: Name
-          Value: GoPay-Private-Subnet
+          Value: Conductor-Private-Subnet
 ```
 
 ## Monitoring and Incident Response

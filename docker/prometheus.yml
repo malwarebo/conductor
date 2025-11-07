@@ -5,9 +5,9 @@ global:
 rule_files:
 
 scrape_configs:
-  - job_name: 'gopay'
+  - job_name: 'conductor'
     static_configs:
-      - targets: ['gopay:8080']
+      - targets: ['conductor:8080']
     metrics_path: '/api/v1/metrics'
     scrape_interval: 5s
 

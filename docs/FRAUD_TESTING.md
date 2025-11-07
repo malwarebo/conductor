@@ -1,6 +1,6 @@
 # Fraud Detection System - Testing Guide
 
-This document provides examples and testing instructions for the GoPay fraud detection system.
+This document provides examples and testing instructions for the Conductor fraud detection system.
 
 ## Setup
 
@@ -15,7 +15,7 @@ This document provides examples and testing instructions for the GoPay fraud det
 
 2. **Run Database Migration**: Apply the fraud detection table migration:
 ```bash
-psql -h localhost -U gopay_user -d gopay -f db/migrations/001_add_fraud_analysis_table.sql
+psql -h localhost -U conductor_user -d conductor -f db/migrations/001_add_fraud_analysis_table.sql
 ```
 
 3. **Start the Server**:

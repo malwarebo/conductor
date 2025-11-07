@@ -1,8 +1,8 @@
-# GoPay API Reference
+# Conductor API Reference
 
 ## Overview
 
-The GoPay API provides a unified interface for payment processing across multiple providers. This document covers all available endpoints, request/response formats, and authentication requirements.
+The Conductor API provides a unified interface for payment processing across multiple providers. This document covers all available endpoints, request/response formats, and authentication requirements.
 
 ## Base URL
 
@@ -12,7 +12,7 @@ http://localhost:8080/api/v1
 
 ## Authentication
 
-GoPay uses JWT-based authentication. Include the JWT token in the Authorization header:
+Conductor uses JWT-based authentication. Include the JWT token in the Authorization header:
 
 ```
 Authorization: Bearer <your-jwt-token>
@@ -36,7 +36,7 @@ Or programmatically in your application:
 
 ```go
 // Example: Generate a JWT token programmatically
-jwtManager := security.CreateJWTManager("your-jwt-secret", "gopay", "gopay-api")
+jwtManager := security.CreateJWTManager("your-jwt-secret", "conductor", "conductor-api")
 token, err := jwtManager.GenerateToken("user123", "test@example.com", []string{"admin"}, "api-key-123", 24*time.Hour)
 ```
 
@@ -573,7 +573,7 @@ Get optimization recommendations.
 
 ## Webhooks
 
-GoPay sends webhooks for important events. Configure webhook endpoints in your provider settings.
+Conductor sends webhooks for important events. Configure webhook endpoints in your provider settings.
 
 ### Webhook Events
 
@@ -590,7 +590,7 @@ GoPay sends webhooks for important events. Configure webhook endpoints in your p
 All webhooks include a signature header for verification:
 
 ```
-X-GoPay-Signature: sha256=abc123...
+X-Conductor-Signature: sha256=abc123...
 ```
 
-Verify the signature using your webhook secret to ensure the webhook is from GoPay.
+Verify the signature using your webhook secret to ensure the webhook is from Conductor.

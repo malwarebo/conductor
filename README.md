@@ -1,26 +1,26 @@
-# gopay - Payments made better
+# Conductor - Payment Orchestration Platform
 
-[![go build](https://github.com/malwarebo/gopay/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/gopay/actions/workflows/go-build.yml)
-[![docker build](https://github.com/malwarebo/gopay/actions/workflows/docker-image.yml/badge.svg)](https://github.com/malwarebo/gopay/actions/workflows/docker-image.yml)
+[![go build](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml)
+[![docker build](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml)
 
 <div align="center">
-  <img src="assets/gopay-logo.png" alt="gopay Logo" width="200" height="200">
+  <img src="assets/conductor-logo.png" alt="Conductor Logo" width="200" height="200">
 </div>
 
-`gopay` is an open-source payment switch that makes handling multiple payment providers a breeze. It supports Stripe and Xendit out of the box, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
+`Conductor` is an open-source payment orchestration platform that makes handling multiple payment providers a breeze. It supports Stripe and Xendit out of the box, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
 
 The system includes intelligent fraud detection powered by AI that analyzes transactions in real-time before processing payments. It uses OpenAI's advanced models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates seamlessly into your payment flow, automatically blocking high-risk transactions while allowing legitimate ones to proceed smoothly.
 
 > [!NOTE]
-> Want to know why I built this? Check out the story here: <https://github.com/malwarebo/gopay/blob/master/docs/PROBLEM.md>
+> Want to know why I built this? Check out the story here: <https://github.com/malwarebo/conductor/blob/master/docs/PROBLEM.md>
 
 ## Architecture
 
-Curious about how it all works under the hood? Check out the architecture docs: <https://github.com/malwarebo/gopay/blob/master/docs/ARCHITECTURE.md>
+Curious about how it all works under the hood? Check out the architecture docs: <https://github.com/malwarebo/conductor/blob/master/docs/ARCHITECTURE.md>
 
 ## API reference
 
-API docs are available here: <https://github.com/malwarebo/gopay/blob/master/docs/API_REFERENCE.md>
+API docs are available here: <https://github.com/malwarebo/conductor/blob/master/docs/API_REFERENCE.md>
 
 ## Quick Start
 
@@ -37,15 +37,15 @@ go mod download
 psql -U postgres
 
 # Create database and user
-CREATE DATABASE gopay;
-CREATE USER gopay_user WITH PASSWORD 'your_password_here';
-GRANT ALL PRIVILEGES ON DATABASE gopay TO gopay_user;
+CREATE DATABASE conductor;
+CREATE USER conductor_user WITH PASSWORD 'your_password_here';
+GRANT ALL PRIVILEGES ON DATABASE conductor TO conductor_user;
 
 # Exit psql
 \q
 
 # Run the schema migration
-psql -U gopay_user -d gopay -f db/schema.sql
+psql -U conductor_user -d conductor -f db/schema.sql
 ```
 
 ### 3. Configure the app
@@ -91,8 +91,8 @@ Want to automate the database setup? Here's a handy script:
 #!/bin/bash
 # Save as setup_db.sh
 
-DB_NAME="gopay"
-DB_USER="gopay_user"
+DB_NAME="conductor"
+DB_USER="conductor_user"
 DB_PASSWORD="your_password_here"
 
 # Create database and user
@@ -160,7 +160,7 @@ docker-compose down
 ### Development with Docker
 
 - Rebuild the image: `docker-compose build`
-- Run tests in Docker: `docker-compose run --rm gopay go test ./...`
+- Run tests in Docker: `docker-compose run --rm conductor go test ./...`
 
 ### Accessing the App
 
@@ -438,7 +438,7 @@ Your customer IDs should match what's in your provider's system.
 
 ## Redis Cache Configuration
 
-GoPay uses Redis for caching to make things faster and reduce load on payment providers. You can customize the Redis setup through environment variables.
+Conductor uses Redis for caching to make things faster and reduce load on payment providers. You can customize the Redis setup through environment variables.
 
 ### Configuration Options
 

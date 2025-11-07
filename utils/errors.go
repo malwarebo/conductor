@@ -163,7 +163,7 @@ func CreateLogError(ctx context.Context, err error, message string, fields map[s
 	fields["error"] = err.Error()
 	fields["message"] = message
 
-	CreateLogger("gopay").Error(ctx, message, fields)
+	CreateLogger("conductor").Error(ctx, message, fields)
 }
 
 func CreateLogAPIError(ctx context.Context, err *APIError, message string, fields map[string]interface{}) {
@@ -176,5 +176,5 @@ func CreateLogAPIError(ctx context.Context, err *APIError, message string, field
 	fields["error_details"] = err.Details
 	fields["message"] = message
 
-	CreateLogger("gopay").Error(ctx, message, fields)
+	CreateLogger("conductor").Error(ctx, message, fields)
 }

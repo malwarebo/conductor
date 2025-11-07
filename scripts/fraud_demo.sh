@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# GoPay Fraud Detection Demo Script
+# Conductor Fraud Detection Demo Script
 # This script demonstrates the fraud detection functionality
 
-echo "GoPay Fraud Detection Demo"
+echo "Conductor Fraud Detection Demo"
 echo "=================================="
 
 BASE_URL="http://localhost:8080/api/v1"

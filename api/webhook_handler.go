@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/malwarebo/gopay/providers"
+	"github.com/malwarebo/conductor/providers"
 )
 
 type WebhookHandler struct {

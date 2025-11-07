@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/malwarebo/gopay/models"
-	"github.com/malwarebo/gopay/services"
+	"github.com/malwarebo/conductor/models"
+	"github.com/malwarebo/conductor/services"
 )
 
 type FraudHandler struct {

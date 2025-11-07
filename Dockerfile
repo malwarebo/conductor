@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o gopay .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o conductor .
 
 # Start a new stage from scratch
 FROM alpine:latest
@@ -25,10 +25,10 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 
 # Copy the pre-built binary file from the previous stage
-COPY --from=builder /app/gopay .
+COPY --from=builder /app/conductor .
 
 # Expose port 8080 (adjust if your app uses a different port)
 EXPOSE 8080
 
 # Command to run the executable
-CMD ["./gopay"]
+CMD ["./conductor"]

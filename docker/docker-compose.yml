@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  gopay:
+  conductor:
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -11,9 +11,9 @@ services:
       - ENVIRONMENT=production
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
-      - DATABASE_USER=gopay_user
+      - DATABASE_USER=conductor_user
       - DATABASE_PASSWORD=password
-      - DATABASE_NAME=gopay
+      - DATABASE_NAME=conductor
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
@@ -24,8 +24,8 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_DB=gopay
-      - POSTGRES_USER=gopay_user
+      - POSTGRES_DB=conductor
+      - POSTGRES_USER=conductor_user
       - POSTGRES_PASSWORD=password
     volumes:
       - postgres_data:/var/lib/postgresql/data

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/malwarebo/gopay/models"
+	"github.com/malwarebo/conductor/models"
 )
 
 func MockChargeRequest() *models.ChargeRequest {

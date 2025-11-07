@@ -45,7 +45,7 @@ clean:
 
 build:
 	@echo "Building application..."
-	go build -o gopay .
+	go build -o conductor .
 
 run:
 	@echo "Running application..."

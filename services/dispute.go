@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/malwarebo/gopay/models"
-	"github.com/malwarebo/gopay/providers"
-	"github.com/malwarebo/gopay/stores"
+	"github.com/malwarebo/conductor/models"
+	"github.com/malwarebo/conductor/providers"
+	"github.com/malwarebo/conductor/stores"
 )
 
 var (

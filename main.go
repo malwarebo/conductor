@@ -10,19 +10,19 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/malwarebo/gopay/analytics"
-	"github.com/malwarebo/gopay/api"
-	"github.com/malwarebo/gopay/cache"
-	"github.com/malwarebo/gopay/config"
-	"github.com/malwarebo/gopay/db"
-	"github.com/malwarebo/gopay/middleware"
-	"github.com/malwarebo/gopay/monitoring"
-	"github.com/malwarebo/gopay/observability"
-	"github.com/malwarebo/gopay/providers"
-	"github.com/malwarebo/gopay/stores"
-	"github.com/malwarebo/gopay/security"
-	"github.com/malwarebo/gopay/services"
-	"github.com/malwarebo/gopay/webhooks"
+	"github.com/malwarebo/conductor/analytics"
+	"github.com/malwarebo/conductor/api"
+	"github.com/malwarebo/conductor/cache"
+	"github.com/malwarebo/conductor/config"
+	"github.com/malwarebo/conductor/db"
+	"github.com/malwarebo/conductor/middleware"
+	"github.com/malwarebo/conductor/monitoring"
+	"github.com/malwarebo/conductor/observability"
+	"github.com/malwarebo/conductor/providers"
+	"github.com/malwarebo/conductor/stores"
+	"github.com/malwarebo/conductor/security"
+	"github.com/malwarebo/conductor/services"
+	"github.com/malwarebo/conductor/webhooks"
 )
 
 const (
@@ -40,7 +40,7 @@ func printBanner() {
 	fmt.Printf("%s%s", colorCyan, colorBold)
 	fmt.Println("╔══════════════════════════════════════════════════════════════╗")
 	fmt.Println("║                                                              ║")
-	fmt.Println("║  GoPay Payment Orchestration System                      ║")
+	fmt.Println("║  Conductor - Payment Orchestration Platform              ║")
 	fmt.Println("║                                                              ║")
 	fmt.Println("║  Multi-provider payment processing made simple              ║")
 	fmt.Println("║                                                              ║")
@@ -154,7 +154,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	jwtManager := security.CreateJWTManager(cfg.Security.JWTSecret, "gopay", "gopay-api")
+	jwtManager := security.CreateJWTManager(cfg.Security.JWTSecret, "conductor", "conductor-api")
 	_ = security.CreateAPIKeyManager()
 	_ = security.CreateAuditLogger()
 	_ = security.CreateValidator()
@@ -322,7 +322,7 @@ func main() {
 	printSuccess("HTTP server configured")
 
 	fmt.Println()
-	fmt.Printf("%s%s GoPay is ready!%s\n", colorGreen, colorBold, colorReset)
+	fmt.Printf("%s%s Conductor is ready!%s\n", colorGreen, colorBold, colorReset)
 	fmt.Println()
 	fmt.Printf("%s%sAPI Endpoints:%s\n", colorPurple, colorBold, colorReset)
 	fmt.Printf("  %s•%s Health Check: %shttp://localhost:%s/api/v1/health%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
@@ -358,7 +358,7 @@ func main() {
 	<-quit
 
 	fmt.Println()
-	printWarning("Shutting down GoPay server...")
+	printWarning("Shutting down Conductor server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -371,7 +371,7 @@ func main() {
 	alertManager.Close()
 	rateLimiter.Close()
 
-	printSuccess("GoPay server stopped gracefully")
+	printSuccess("Conductor server stopped gracefully")
 	fmt.Println()
-	fmt.Printf("%s%s👋 Thanks for using GoPay!%s\n", colorCyan, colorBold, colorReset)
+	fmt.Printf("%s%s👋 Thanks for using Conductor!%s\n", colorCyan, colorBold, colorReset)
 }

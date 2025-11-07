@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/malwarebo/gopay/models"
-	"github.com/malwarebo/gopay/utils"
+	"github.com/malwarebo/conductor/models"
+	"github.com/malwarebo/conductor/utils"
 )
 
 const (
@@ -89,7 +89,7 @@ func (s *routingService) SelectOptimalProvider(ctx context.Context, request *mod
 		request.TransactionType)
 
 	if cached, exists := s.cache[cacheKey]; exists {
-		utils.CreateLogger("gopay").Info(ctx, "Using cached routing decision", map[string]interface{}{
+		utils.CreateLogger("conductor").Info(ctx, "Using cached routing decision", map[string]interface{}{
 			"cache_key": cacheKey,
 			"provider":  cached.RecommendedProvider,
 		})

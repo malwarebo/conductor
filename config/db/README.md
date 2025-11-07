@@ -1,6 +1,6 @@
 # Database Setup Instructions
 
-This document explains how to set up the PostgreSQL database for the Gopay payment orchestration system. We use GORM as our ORM for database operations.
+This document explains how to set up the PostgreSQL database for the Conductor payment orchestration system. We use GORM as our ORM for database operations.
 
 ## Prerequisites
 
@@ -17,26 +17,26 @@ This document explains how to set up the PostgreSQL database for the Gopay payme
 psql -U postgres
 
 -- Create a new database
-CREATE DATABASE gopay;
+CREATE DATABASE conductor;
 
 -- Create a new user
-CREATE USER gopay_user WITH PASSWORD 'your_password_here';
+CREATE USER conductor_user WITH PASSWORD 'your_password_here';
 
 -- Grant privileges to the user
-GRANT ALL PRIVILEGES ON DATABASE gopay TO gopay_user;
+GRANT ALL PRIVILEGES ON DATABASE conductor TO conductor_user;
 ```
 
 2. Connect to the new database:
 
 ```bash
-psql -U gopay_user -d gopay
+psql -U conductor_user -d conductor
 ```
 
 3. Run the schema migration:
 
 ```bash
 # From the project root directory
-psql -U gopay_user -d gopay -f db/schema.sql
+psql -U conductor_user -d conductor -f db/schema.sql
 ```
 
 ## Environment Configuration
@@ -46,9 +46,9 @@ Set up the following environment variables or update the `config/config.json` fi
 ```bash
 export DB_HOST=localhost
 export DB_PORT=5432
-export DB_USER=gopay_user
+export DB_USER=conductor_user
 export DB_PASSWORD=your_password_here
-export DB_NAME=gopay
+export DB_NAME=conductor
 export DB_SSLMODE=disable
 ```
 
@@ -59,9 +59,9 @@ Or update `config/config.json`:
   "database": {
     "host": "localhost",
     "port": 5432,
-    "user": "gopay_user",
+    "user": "conductor_user",
     "password": "your_password_here",
-    "dbname": "gopay",
+    "dbname": "conductor",
     "sslmode": "disable"
   }
 }
@@ -152,7 +152,7 @@ To verify the setup:
 
 1. Connect to the database:
 ```bash
-psql -U gopay_user -d gopay
+psql -U conductor_user -d conductor
 ```
 
 2. List all tables:
@@ -194,20 +194,20 @@ You should see the following tables:
 
 1. **Backup the database**:
 ```bash
-pg_dump -U gopay_user -d gopay > backup.sql
+pg_dump -U conductor_user -d conductor > backup.sql
 ```
 
 2. **Restore from backup**:
 ```bash
-psql -U gopay_user -d gopay < backup.sql
+psql -U conductor_user -d conductor < backup.sql
 ```
 
 3. **Reset the database**:
 ```bash
 # Drop and recreate the database
-dropdb -U postgres gopay
-createdb -U postgres gopay
-psql -U gopay_user -d gopay -f db/schema.sql
+dropdb -U postgres conductor
+createdb -U postgres conductor
+psql -U conductor_user -d conductor -f db/schema.sql
 ```
 
 ## Schema Updates

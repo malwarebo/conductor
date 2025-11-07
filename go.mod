@@ -1,4 +1,4 @@
-module github.com/malwarebo/gopay
+module github.com/malwarebo/conductor
 
 go 1.24.0
 

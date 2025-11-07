@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/malwarebo/gopay/utils"
+	"github.com/malwarebo/conductor/utils"
 	"golang.org/x/time/rate"
 )
 
@@ -38,7 +38,7 @@ func CreateLoggingMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(rw, r)
 
 		duration := time.Since(start)
-		utils.CreateLogger("gopay").Info(ctx, "HTTP request completed", map[string]interface{}{
+		utils.CreateLogger("conductor").Info(ctx, "HTTP request completed", map[string]interface{}{
 			"method":      r.Method,
 			"path":        r.URL.Path,
 			"status":      rw.statusCode,
@@ -90,7 +90,7 @@ func CreateRecoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				utils.CreateLogger("gopay").Error(r.Context(), "Panic recovered", map[string]interface{}{
+				utils.CreateLogger("conductor").Error(r.Context(), "Panic recovered", map[string]interface{}{
 					"error": err,
 					"stack": string(debug.Stack()),
 				})

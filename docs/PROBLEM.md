@@ -1,4 +1,4 @@
-# gopay
+# Conductor
 
 ## Problem Statement
 
@@ -18,9 +18,9 @@ Modern businesses face significant challenges when scaling payment operations ac
 
 ## Solution
 
-GoPay addresses these challenges by providing an intelligent, open-source payment orchestration platform that acts as a unified layer between your business application and multiple payment providers. The system combines the simplicity of a single API with the power of AI-driven decision making.
+Conductor addresses these challenges by providing an intelligent, open-source payment orchestration platform that acts as a unified layer between your business application and multiple payment providers. The system combines the simplicity of a single API with the power of AI-driven decision making.
 
-**Unified Payment Interface:** GoPay provides a single, consistent API that abstracts away the complexity of multiple payment providers. Developers can integrate once and access all supported providers through standardized endpoints for payments, refunds, subscriptions, and disputes.
+**Unified Payment Interface:** Conductor provides a single, consistent API that abstracts away the complexity of multiple payment providers. Developers can integrate once and access all supported providers through standardized endpoints for payments, refunds, subscriptions, and disputes.
 
 **AI-Powered Intelligent Routing:** The system uses OpenAI GPT-4 to analyze transaction context, historical performance data, and real-time provider metrics to automatically select the optimal payment provider. This intelligent routing considers factors like success rates, processing costs, regional expertise, and transaction characteristics to maximize success rates while minimizing costs.
 
@@ -34,6 +34,6 @@ GoPay addresses these challenges by providing an intelligent, open-source paymen
 
 **Cost Optimization:** By analyzing historical data and real-time performance metrics, the system automatically routes transactions to the most cost-effective provider for each specific use case, potentially reducing processing costs by 10-15% while improving success rates by 3-5%.
 
-**Developer-Friendly:** Built with Go and designed for simplicity, GoPay is easy to understand, modify, and extend. The system includes comprehensive documentation, clear APIs, and straightforward deployment options that don't require enterprise-level infrastructure.
+**Developer-Friendly:** Built with Go and designed for simplicity, Conductor is easy to understand, modify, and extend. The system includes comprehensive documentation, clear APIs, and straightforward deployment options that don't require enterprise-level infrastructure.
 
-By providing intelligent payment orchestration with AI-driven decision making, GoPay transforms complex multi-provider payment management into a streamlined, cost-effective, and highly performant system that scales with your business needs.
+By providing intelligent payment orchestration with AI-driven decision making, Conductor transforms complex multi-provider payment management into a streamlined, cost-effective, and highly performant system that scales with your business needs.

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/malwarebo/gopay/models"
+	"github.com/malwarebo/conductor/models"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/dispute"
 	"github.com/stripe/stripe-go/v82/paymentintent"

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/malwarebo/gopay/models"
-	"github.com/malwarebo/gopay/utils"
+	"github.com/malwarebo/conductor/models"
+	"github.com/malwarebo/conductor/utils"
 )
 
 // PaymentProvider defines the interface for payment gateway providers
