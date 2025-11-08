@@ -10,6 +10,7 @@ import (
 
 	"github.com/malwarebo/conductor/models"
 	xendit "github.com/xendit/xendit-go/v6"
+	"github.com/xendit/xendit-go/v6/customer"
 	paymentrequest "github.com/xendit/xendit-go/v6/payment_request"
 	refund "github.com/xendit/xendit-go/v6/refund"
 )
@@ -115,7 +116,7 @@ func (p *XenditProvider) getCurrency(currency string) (paymentrequest.PaymentReq
 	case "PHP":
 		return paymentrequest.PAYMENTREQUESTCURRENCY_PHP, nil
 	default:
-		return paymentrequest.PAYMENTREQUESTCURRENCY_IDR, nil
+		return paymentrequest.PAYMENTREQUESTCURRENCY_IDR, fmt.Errorf("unsupported currency: %s (Xendit Go SDK limited to IDR and PHP)", currency)
 	}
 }
 
@@ -453,6 +454,118 @@ func (p *XenditProvider) ValidateWebhookSignature(payload []byte, signature stri
 	}
 
 	return nil
+}
+
+func (p *XenditProvider) CreateCustomer(ctx context.Context, req *models.CreateCustomerRequest) (string, error) {
+	customerReq := *customer.NewCustomerRequest(req.ExternalID)
+	customerReq.SetEmail(req.Email)
+	
+	if req.Phone != "" {
+		customerReq.SetMobileNumber(req.Phone)
+	}
+	
+	if req.Metadata != nil {
+		customerReq.SetMetadata(req.Metadata)
+	}
+	
+	cust, _, err := p.client.CustomerApi.CreateCustomer(ctx).CustomerRequest(customerReq).Execute()
+	if err != nil {
+		return "", fmt.Errorf("xendit customer creation failed: %w", err)
+	}
+	
+	return cust.GetId(), nil
+}
+
+func (p *XenditProvider) UpdateCustomer(ctx context.Context, customerID string, req *models.UpdateCustomerRequest) error {
+	updateReq := customer.NewPatchCustomer()
+	
+	if req.Email != "" {
+		updateReq.SetEmail(req.Email)
+	}
+	
+	if req.Phone != "" {
+		updateReq.SetMobileNumber(req.Phone)
+	}
+	
+	if req.Metadata != nil {
+		updateReq.SetMetadata(req.Metadata)
+	}
+	
+	_, _, err := p.client.CustomerApi.UpdateCustomer(ctx, customerID).PatchCustomer(*updateReq).Execute()
+	return err
+}
+
+func (p *XenditProvider) GetCustomer(ctx context.Context, customerID string) (*models.Customer, error) {
+	cust, _, err := p.client.CustomerApi.GetCustomer(ctx, customerID).Execute()
+	if err != nil {
+		return nil, err
+	}
+	
+	metadata := make(map[string]interface{})
+	if custMetadata := cust.GetMetadata(); custMetadata != nil {
+		metadata = custMetadata
+	}
+	
+	result := &models.Customer{
+		ExternalID: cust.GetReferenceId(),
+		Email:      cust.GetEmail(),
+		Metadata:   metadata,
+		CreatedAt:  cust.GetCreated(),
+	}
+	
+	if cust.MobileNumber.IsSet() {
+		if phonePtr := cust.MobileNumber.Get(); phonePtr != nil {
+			result.Phone = *phonePtr
+		}
+	}
+	
+	return result, nil
+}
+
+func (p *XenditProvider) DeleteCustomer(ctx context.Context, customerID string) error {
+	return fmt.Errorf("xendit does not support customer deletion via API")
+}
+
+func (p *XenditProvider) CreatePaymentMethod(ctx context.Context, req *models.CreatePaymentMethodRequest) (*models.PaymentMethod, error) {
+	metadata := make(map[string]interface{})
+	if req.Metadata != nil {
+		for k, v := range req.Metadata {
+			metadata[k] = v
+		}
+	}
+	
+	result := &models.PaymentMethod{
+		CustomerID:              req.CustomerID,
+		ProviderName:            "xendit",
+		ProviderPaymentMethodID: req.PaymentMethodID,
+		Type:                    req.Type,
+		IsDefault:               req.IsDefault,
+		Metadata:                metadata,
+		CreatedAt:               time.Now(),
+	}
+	
+	return result, nil
+}
+
+func (p *XenditProvider) GetPaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error) {
+	return &models.PaymentMethod{
+		ProviderName:            "xendit",
+		ProviderPaymentMethodID: paymentMethodID,
+		Type:                    "card",
+		CreatedAt:               time.Now(),
+	}, nil
+}
+
+func (p *XenditProvider) ListPaymentMethods(ctx context.Context, customerID string) ([]*models.PaymentMethod, error) {
+	return []*models.PaymentMethod{}, nil
+}
+
+func (p *XenditProvider) AttachPaymentMethod(ctx context.Context, paymentMethodID, customerID string) error {
+	return fmt.Errorf("xendit payment methods are automatically attached on creation")
+}
+
+func (p *XenditProvider) DetachPaymentMethod(ctx context.Context, paymentMethodID string) error {
+	return fmt.Errorf("xendit does not support payment method expiration via standard API")
 }
 
 func (p *XenditProvider) IsAvailable(ctx context.Context) bool {

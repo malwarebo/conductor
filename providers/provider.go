@@ -33,6 +33,17 @@ type PaymentProvider interface {
 	ListDisputes(ctx context.Context, customerID string) ([]*models.Dispute, error)
 	GetDisputeStats(ctx context.Context) (*models.DisputeStats, error)
 
+	CreateCustomer(ctx context.Context, req *models.CreateCustomerRequest) (string, error)
+	UpdateCustomer(ctx context.Context, customerID string, req *models.UpdateCustomerRequest) error
+	GetCustomer(ctx context.Context, customerID string) (*models.Customer, error)
+	DeleteCustomer(ctx context.Context, customerID string) error
+
+	CreatePaymentMethod(ctx context.Context, req *models.CreatePaymentMethodRequest) (*models.PaymentMethod, error)
+	GetPaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error)
+	ListPaymentMethods(ctx context.Context, customerID string) ([]*models.PaymentMethod, error)
+	AttachPaymentMethod(ctx context.Context, paymentMethodID, customerID string) error
+	DetachPaymentMethod(ctx context.Context, paymentMethodID string) error
+
 	IsAvailable(ctx context.Context) bool
 }
 
@@ -276,6 +287,80 @@ func (ep *ProviderWrapper) GetDisputeStats(ctx context.Context) (*models.Dispute
 		return err
 	})
 	return resp, err
+}
+
+func (ep *ProviderWrapper) CreateCustomer(ctx context.Context, req *models.CreateCustomerRequest) (string, error) {
+	var id string
+	err := ep.circuitBreaker.Execute(ctx, func() error {
+		var err error
+		id, err = ep.provider.CreateCustomer(ctx, req)
+		return err
+	})
+	return id, err
+}
+
+func (ep *ProviderWrapper) UpdateCustomer(ctx context.Context, customerID string, req *models.UpdateCustomerRequest) error {
+	return ep.circuitBreaker.Execute(ctx, func() error {
+		return ep.provider.UpdateCustomer(ctx, customerID, req)
+	})
+}
+
+func (ep *ProviderWrapper) GetCustomer(ctx context.Context, customerID string) (*models.Customer, error) {
+	var resp *models.Customer
+	err := ep.circuitBreaker.Execute(ctx, func() error {
+		var err error
+		resp, err = ep.provider.GetCustomer(ctx, customerID)
+		return err
+	})
+	return resp, err
+}
+
+func (ep *ProviderWrapper) DeleteCustomer(ctx context.Context, customerID string) error {
+	return ep.circuitBreaker.Execute(ctx, func() error {
+		return ep.provider.DeleteCustomer(ctx, customerID)
+	})
+}
+
+func (ep *ProviderWrapper) CreatePaymentMethod(ctx context.Context, req *models.CreatePaymentMethodRequest) (*models.PaymentMethod, error) {
+	var resp *models.PaymentMethod
+	err := ep.circuitBreaker.Execute(ctx, func() error {
+		var err error
+		resp, err = ep.provider.CreatePaymentMethod(ctx, req)
+		return err
+	})
+	return resp, err
+}
+
+func (ep *ProviderWrapper) GetPaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error) {
+	var resp *models.PaymentMethod
+	err := ep.circuitBreaker.Execute(ctx, func() error {
+		var err error
+		resp, err = ep.provider.GetPaymentMethod(ctx, paymentMethodID)
+		return err
+	})
+	return resp, err
+}
+
+func (ep *ProviderWrapper) ListPaymentMethods(ctx context.Context, customerID string) ([]*models.PaymentMethod, error) {
+	var resp []*models.PaymentMethod
+	err := ep.circuitBreaker.Execute(ctx, func() error {
+		var err error
+		resp, err = ep.provider.ListPaymentMethods(ctx, customerID)
+		return err
+	})
+	return resp, err
+}
+
+func (ep *ProviderWrapper) AttachPaymentMethod(ctx context.Context, paymentMethodID, customerID string) error {
+	return ep.circuitBreaker.Execute(ctx, func() error {
+		return ep.provider.AttachPaymentMethod(ctx, paymentMethodID, customerID)
+	})
+}
+
+func (ep *ProviderWrapper) DetachPaymentMethod(ctx context.Context, paymentMethodID string) error {
+	return ep.circuitBreaker.Execute(ctx, func() error {
+		return ep.provider.DetachPaymentMethod(ctx, paymentMethodID)
+	})
 }
 
 func (ep *ProviderWrapper) IsAvailable(ctx context.Context) bool {

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/malwarebo/conductor/models"
+	"github.com/malwarebo/conductor/stores"
 )
 
 type MultiProviderSelector struct {
@@ -17,9 +18,10 @@ type MultiProviderSelector struct {
 	disputeProviderMap      map[string]PaymentProvider
 
 	providerPreferences map[string]int
+	mappingStore        *stores.ProviderMappingStore
 }
 
-func CreateMultiProviderSelector(providers []PaymentProvider) *MultiProviderSelector {
+func CreateMultiProviderSelector(providers []PaymentProvider, mappingStore *stores.ProviderMappingStore) *MultiProviderSelector {
 	preferences := make(map[string]int)
 	for i, provider := range providers {
 		switch provider.(type) {
@@ -36,15 +38,42 @@ func CreateMultiProviderSelector(providers []PaymentProvider) *MultiProviderSele
 		subscriptionProviderMap: make(map[string]PaymentProvider),
 		disputeProviderMap:      make(map[string]PaymentProvider),
 		providerPreferences:     preferences,
+		mappingStore:            mappingStore,
 	}
 }
 
-func getProviderFromMap(m map[string]PaymentProvider, id string) (PaymentProvider, error) {
-	provider, ok := m[id]
-	if !ok {
-		return nil, fmt.Errorf("no provider found for id: %s", id)
+func (m *MultiProviderSelector) getProviderFromDB(ctx context.Context, entityID, entityType string) (PaymentProvider, error) {
+	mapping, err := m.mappingStore.GetByEntity(ctx, entityID, entityType)
+	if err != nil {
+		return nil, fmt.Errorf("no provider mapping found for %s: %s", entityType, entityID)
 	}
-	return provider, nil
+
+	if idx, ok := m.providerPreferences[mapping.ProviderName]; ok && idx < len(m.Providers) {
+		return m.Providers[idx], nil
+	}
+
+	return nil, fmt.Errorf("provider %s not available", mapping.ProviderName)
+}
+
+func (m *MultiProviderSelector) saveProviderMapping(ctx context.Context, entityID, entityType, providerName, providerEntityID string) error {
+	mapping := &models.ProviderMapping{
+		EntityID:         entityID,
+		EntityType:       entityType,
+		ProviderName:     providerName,
+		ProviderEntityID: providerEntityID,
+	}
+	return m.mappingStore.Create(ctx, mapping)
+}
+
+func (m *MultiProviderSelector) getProviderName(provider PaymentProvider) string {
+	switch provider.(type) {
+	case *StripeProvider:
+		return "stripe"
+	case *XenditProvider:
+		return "xendit"
+	default:
+		return "unknown"
+	}
 }
 
 func (m *MultiProviderSelector) selectAvailableProvider(ctx context.Context, preferredProvider string) (PaymentProvider, error) {
@@ -90,15 +119,26 @@ func (m *MultiProviderSelector) Charge(ctx context.Context, req *models.ChargeRe
 		m.mu.Lock()
 		m.paymentProviderMap[resp.ID] = provider
 		m.mu.Unlock()
+		
+		providerName := m.getProviderName(provider)
+		m.saveProviderMapping(ctx, resp.ID, "payment", providerName, resp.ProviderChargeID)
 	}
 	return resp, err
 }
 
 func (m *MultiProviderSelector) Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
-	provider, err := getProviderFromMap(m.paymentProviderMap, req.PaymentID)
-	if err != nil {
-		return nil, err
+	m.mu.RLock()
+	provider, ok := m.paymentProviderMap[req.PaymentID]
+	m.mu.RUnlock()
+	
+	if !ok {
+		var err error
+		provider, err = m.getProviderFromDB(ctx, req.PaymentID, "payment")
+		if err != nil {
+			return nil, err
+		}
 	}
+	
 	return provider.Refund(ctx, req)
 }
 
@@ -113,31 +153,58 @@ func (m *MultiProviderSelector) CreateSubscription(ctx context.Context, req *mod
 		m.mu.Lock()
 		m.subscriptionProviderMap[sub.ID] = provider
 		m.mu.Unlock()
+		
+		providerName := m.getProviderName(provider)
+		m.saveProviderMapping(ctx, sub.ID, "subscription", providerName, sub.ID)
 	}
 	return sub, err
 }
 
 func (m *MultiProviderSelector) UpdateSubscription(ctx context.Context, subscriptionID string, req *models.UpdateSubscriptionRequest) (*models.Subscription, error) {
-	provider, err := getProviderFromMap(m.subscriptionProviderMap, subscriptionID)
-	if err != nil {
-		return nil, err
+	m.mu.RLock()
+	provider, ok := m.subscriptionProviderMap[subscriptionID]
+	m.mu.RUnlock()
+	
+	if !ok {
+		var err error
+		provider, err = m.getProviderFromDB(ctx, subscriptionID, "subscription")
+		if err != nil {
+			return nil, err
+		}
 	}
+	
 	return provider.UpdateSubscription(ctx, subscriptionID, req)
 }
 
 func (m *MultiProviderSelector) CancelSubscription(ctx context.Context, subscriptionID string, req *models.CancelSubscriptionRequest) (*models.Subscription, error) {
-	provider, err := getProviderFromMap(m.subscriptionProviderMap, subscriptionID)
-	if err != nil {
-		return nil, err
+	m.mu.RLock()
+	provider, ok := m.subscriptionProviderMap[subscriptionID]
+	m.mu.RUnlock()
+	
+	if !ok {
+		var err error
+		provider, err = m.getProviderFromDB(ctx, subscriptionID, "subscription")
+		if err != nil {
+			return nil, err
+		}
 	}
+	
 	return provider.CancelSubscription(ctx, subscriptionID, req)
 }
 
 func (m *MultiProviderSelector) GetSubscription(ctx context.Context, subscriptionID string) (*models.Subscription, error) {
-	provider, err := getProviderFromMap(m.subscriptionProviderMap, subscriptionID)
-	if err != nil {
-		return nil, err
+	m.mu.RLock()
+	provider, ok := m.subscriptionProviderMap[subscriptionID]
+	m.mu.RUnlock()
+	
+	if !ok {
+		var err error
+		provider, err = m.getProviderFromDB(ctx, subscriptionID, "subscription")
+		if err != nil {
+			return nil, err
+		}
 	}
+	
 	return provider.GetSubscription(ctx, subscriptionID)
 }
 
@@ -211,31 +278,58 @@ func (m *MultiProviderSelector) CreateDispute(ctx context.Context, req *models.C
 		m.mu.Lock()
 		m.disputeProviderMap[dispute.ID] = provider
 		m.mu.Unlock()
+		
+		providerName := m.getProviderName(provider)
+		m.saveProviderMapping(ctx, dispute.ID, "dispute", providerName, dispute.ID)
 	}
 	return dispute, err
 }
 
 func (m *MultiProviderSelector) UpdateDispute(ctx context.Context, disputeID string, req *models.UpdateDisputeRequest) (*models.Dispute, error) {
-	provider, err := getProviderFromMap(m.disputeProviderMap, disputeID)
-	if err != nil {
-		return nil, err
+	m.mu.RLock()
+	provider, ok := m.disputeProviderMap[disputeID]
+	m.mu.RUnlock()
+	
+	if !ok {
+		var err error
+		provider, err = m.getProviderFromDB(ctx, disputeID, "dispute")
+		if err != nil {
+			return nil, err
+		}
 	}
+	
 	return provider.UpdateDispute(ctx, disputeID, req)
 }
 
 func (m *MultiProviderSelector) SubmitDisputeEvidence(ctx context.Context, disputeID string, req *models.SubmitEvidenceRequest) (*models.Evidence, error) {
-	provider, err := getProviderFromMap(m.disputeProviderMap, disputeID)
-	if err != nil {
-		return nil, err
+	m.mu.RLock()
+	provider, ok := m.disputeProviderMap[disputeID]
+	m.mu.RUnlock()
+	
+	if !ok {
+		var err error
+		provider, err = m.getProviderFromDB(ctx, disputeID, "dispute")
+		if err != nil {
+			return nil, err
+		}
 	}
+	
 	return provider.SubmitDisputeEvidence(ctx, disputeID, req)
 }
 
 func (m *MultiProviderSelector) GetDispute(ctx context.Context, disputeID string) (*models.Dispute, error) {
-	provider, err := getProviderFromMap(m.disputeProviderMap, disputeID)
-	if err != nil {
-		return nil, err
+	m.mu.RLock()
+	provider, ok := m.disputeProviderMap[disputeID]
+	m.mu.RUnlock()
+	
+	if !ok {
+		var err error
+		provider, err = m.getProviderFromDB(ctx, disputeID, "dispute")
+		if err != nil {
+			return nil, err
+		}
 	}
+	
 	return provider.GetDispute(ctx, disputeID)
 }
 
@@ -264,6 +358,82 @@ func (m *MultiProviderSelector) GetDisputeStats(ctx context.Context) (*models.Di
 		return nil, err
 	}
 	return provider.GetDisputeStats(ctx)
+}
+
+func (m *MultiProviderSelector) CreateCustomer(ctx context.Context, req *models.CreateCustomerRequest) (string, error) {
+	provider, err := m.selectAvailableProvider(ctx, "stripe")
+	if err != nil {
+		return "", err
+	}
+	return provider.CreateCustomer(ctx, req)
+}
+
+func (m *MultiProviderSelector) UpdateCustomer(ctx context.Context, customerID string, req *models.UpdateCustomerRequest) error {
+	provider, err := m.selectAvailableProvider(ctx, "stripe")
+	if err != nil {
+		return err
+	}
+	return provider.UpdateCustomer(ctx, customerID, req)
+}
+
+func (m *MultiProviderSelector) GetCustomer(ctx context.Context, customerID string) (*models.Customer, error) {
+	provider, err := m.selectAvailableProvider(ctx, "stripe")
+	if err != nil {
+		return nil, err
+	}
+	return provider.GetCustomer(ctx, customerID)
+}
+
+func (m *MultiProviderSelector) DeleteCustomer(ctx context.Context, customerID string) error {
+	provider, err := m.selectAvailableProvider(ctx, "stripe")
+	if err != nil {
+		return err
+	}
+	return provider.DeleteCustomer(ctx, customerID)
+}
+
+func (m *MultiProviderSelector) CreatePaymentMethod(ctx context.Context, req *models.CreatePaymentMethodRequest) (*models.PaymentMethod, error) {
+	if idx, ok := m.providerPreferences[req.ProviderName]; ok && idx < len(m.Providers) {
+		return m.Providers[idx].CreatePaymentMethod(ctx, req)
+	}
+	return nil, fmt.Errorf("provider %s not available", req.ProviderName)
+}
+
+func (m *MultiProviderSelector) GetPaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error) {
+	provider, err := m.selectAvailableProvider(ctx, "stripe")
+	if err != nil {
+		return nil, err
+	}
+	return provider.GetPaymentMethod(ctx, paymentMethodID)
+}
+
+func (m *MultiProviderSelector) ListPaymentMethods(ctx context.Context, customerID string) ([]*models.PaymentMethod, error) {
+	var allMethods []*models.PaymentMethod
+	for _, provider := range m.Providers {
+		if provider.IsAvailable(ctx) {
+			methods, err := provider.ListPaymentMethods(ctx, customerID)
+			if err == nil {
+				allMethods = append(allMethods, methods...)
+			}
+		}
+	}
+	return allMethods, nil
+}
+
+func (m *MultiProviderSelector) AttachPaymentMethod(ctx context.Context, paymentMethodID, customerID string) error {
+	provider, err := m.selectAvailableProvider(ctx, "stripe")
+	if err != nil {
+		return err
+	}
+	return provider.AttachPaymentMethod(ctx, paymentMethodID, customerID)
+}
+
+func (m *MultiProviderSelector) DetachPaymentMethod(ctx context.Context, paymentMethodID string) error {
+	provider, err := m.selectAvailableProvider(ctx, "stripe")
+	if err != nil {
+		return err
+	}
+	return provider.DetachPaymentMethod(ctx, paymentMethodID)
 }
 
 func (m *MultiProviderSelector) IsAvailable(ctx context.Context) bool {
