@@ -7,8 +7,10 @@ import (
 
 	"github.com/malwarebo/conductor/models"
 	"github.com/stripe/stripe-go/v82"
+	"github.com/stripe/stripe-go/v82/customer"
 	"github.com/stripe/stripe-go/v82/dispute"
 	"github.com/stripe/stripe-go/v82/paymentintent"
+	"github.com/stripe/stripe-go/v82/paymentmethod"
 	"github.com/stripe/stripe-go/v82/plan"
 	"github.com/stripe/stripe-go/v82/refund"
 	"github.com/stripe/stripe-go/v82/subscription"
@@ -779,6 +781,201 @@ func (p *StripeProvider) GetDisputeStats(ctx context.Context) (*models.DisputeSt
 	}
 
 	return stats, nil
+}
+
+func (p *StripeProvider) CreateCustomer(ctx context.Context, req *models.CreateCustomerRequest) (string, error) {
+	params := &stripe.CustomerParams{
+		Email: stripe.String(req.Email),
+	}
+
+	if req.Name != "" {
+		params.Name = stripe.String(req.Name)
+	}
+
+	if req.Phone != "" {
+		params.Phone = stripe.String(req.Phone)
+	}
+
+	if req.Metadata != nil {
+		params.Metadata = make(map[string]string)
+		for k, v := range req.Metadata {
+			if str, ok := v.(string); ok {
+				params.Metadata[k] = str
+			} else {
+				params.Metadata[k] = fmt.Sprintf("%v", v)
+			}
+		}
+	}
+
+	cust, err := customer.New(params)
+	if err != nil {
+		return "", fmt.Errorf("stripe customer creation failed: %w", err)
+	}
+
+	return cust.ID, nil
+}
+
+func (p *StripeProvider) UpdateCustomer(ctx context.Context, customerID string, req *models.UpdateCustomerRequest) error {
+	params := &stripe.CustomerParams{}
+
+	if req.Email != "" {
+		params.Email = stripe.String(req.Email)
+	}
+
+	if req.Name != "" {
+		params.Name = stripe.String(req.Name)
+	}
+
+	if req.Phone != "" {
+		params.Phone = stripe.String(req.Phone)
+	}
+
+	if req.Metadata != nil {
+		params.Metadata = make(map[string]string)
+		for k, v := range req.Metadata {
+			if str, ok := v.(string); ok {
+				params.Metadata[k] = str
+			} else {
+				params.Metadata[k] = fmt.Sprintf("%v", v)
+			}
+		}
+	}
+
+	_, err := customer.Update(customerID, params)
+	return err
+}
+
+func (p *StripeProvider) GetCustomer(ctx context.Context, customerID string) (*models.Customer, error) {
+	cust, err := customer.Get(customerID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	metadata := make(map[string]interface{})
+	for k, v := range cust.Metadata {
+		metadata[k] = v
+	}
+
+	return &models.Customer{
+		ExternalID: cust.ID,
+		Email:      cust.Email,
+		Name:       cust.Name,
+		Phone:      cust.Phone,
+		Metadata:   metadata,
+		CreatedAt:  time.Unix(cust.Created, 0),
+	}, nil
+}
+
+func (p *StripeProvider) DeleteCustomer(ctx context.Context, customerID string) error {
+	_, err := customer.Del(customerID, nil)
+	return err
+}
+
+func (p *StripeProvider) CreatePaymentMethod(ctx context.Context, req *models.CreatePaymentMethodRequest) (*models.PaymentMethod, error) {
+	pm, err := paymentmethod.Get(req.PaymentMethodID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("stripe payment method get failed: %w", err)
+	}
+
+	metadata := make(map[string]interface{})
+	if req.Metadata != nil {
+		for k, v := range req.Metadata {
+			metadata[k] = v
+		}
+	}
+
+	result := &models.PaymentMethod{
+		CustomerID:              req.CustomerID,
+		ProviderName:            "stripe",
+		ProviderPaymentMethodID: pm.ID,
+		Type:                    string(pm.Type),
+		IsDefault:               req.IsDefault,
+		Metadata:                metadata,
+		CreatedAt:               time.Unix(pm.Created, 0),
+	}
+
+	if pm.Card != nil {
+		result.Last4 = pm.Card.Last4
+		result.Brand = string(pm.Card.Brand)
+		result.ExpMonth = int(pm.Card.ExpMonth)
+		result.ExpYear = int(pm.Card.ExpYear)
+	}
+
+	return result, nil
+}
+
+func (p *StripeProvider) GetPaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error) {
+	pm, err := paymentmethod.Get(paymentMethodID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	customerID := ""
+	if pm.Customer != nil {
+		customerID = pm.Customer.ID
+	}
+
+	result := &models.PaymentMethod{
+		CustomerID:              customerID,
+		ProviderName:            "stripe",
+		ProviderPaymentMethodID: pm.ID,
+		Type:                    string(pm.Type),
+		CreatedAt:               time.Unix(pm.Created, 0),
+	}
+
+	if pm.Card != nil {
+		result.Last4 = pm.Card.Last4
+		result.Brand = string(pm.Card.Brand)
+		result.ExpMonth = int(pm.Card.ExpMonth)
+		result.ExpYear = int(pm.Card.ExpYear)
+	}
+
+	return result, nil
+}
+
+func (p *StripeProvider) ListPaymentMethods(ctx context.Context, customerID string) ([]*models.PaymentMethod, error) {
+	params := &stripe.PaymentMethodListParams{
+		Customer: stripe.String(customerID),
+		Type:     stripe.String("card"),
+	}
+
+	i := paymentmethod.List(params)
+	var paymentMethods []*models.PaymentMethod
+
+	for i.Next() {
+		pm := i.PaymentMethod()
+		result := &models.PaymentMethod{
+			CustomerID:              customerID,
+			ProviderName:            "stripe",
+			ProviderPaymentMethodID: pm.ID,
+			Type:                    string(pm.Type),
+			CreatedAt:               time.Unix(pm.Created, 0),
+		}
+
+		if pm.Card != nil {
+			result.Last4 = pm.Card.Last4
+			result.Brand = string(pm.Card.Brand)
+			result.ExpMonth = int(pm.Card.ExpMonth)
+			result.ExpYear = int(pm.Card.ExpYear)
+		}
+
+		paymentMethods = append(paymentMethods, result)
+	}
+
+	return paymentMethods, nil
+}
+
+func (p *StripeProvider) AttachPaymentMethod(ctx context.Context, paymentMethodID, customerID string) error {
+	params := &stripe.PaymentMethodAttachParams{
+		Customer: stripe.String(customerID),
+	}
+	_, err := paymentmethod.Attach(paymentMethodID, params)
+	return err
+}
+
+func (p *StripeProvider) DetachPaymentMethod(ctx context.Context, paymentMethodID string) error {
+	_, err := paymentmethod.Detach(paymentMethodID, nil)
+	return err
 }
 
 // TODO: need to add a better way to check if the provider is available

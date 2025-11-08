@@ -210,22 +210,27 @@ func main() {
 
 	printSuccess("Monitoring and alerting initialized")
 
-	printStep("7/10", "Initializing payment providers...")
-	stripeProvider := providers.CreateStripeProvider(cfg.Stripe.Secret)
-	xenditProvider := providers.CreateXenditProvider(cfg.Xendit.Secret)
-
-	providerSelector := providers.CreateMultiProviderSelector([]providers.PaymentProvider{stripeProvider, xenditProvider})
-	printSuccess("Payment providers initialized")
-	printInfo("  • Stripe: Ready for USD, EUR, GBP")
-	printInfo("  • Xendit: Ready for IDR, SGD, MYR, PHP, THB, VND")
-
-	printStep("8/10", "Initializing stores...")
+	printStep("7/10", "Initializing stores...")
 	paymentRepo := stores.CreatePaymentRepository(database)
 	planRepo := stores.CreatePlanRepository(database)
 	subscriptionRepo := stores.CreateSubscriptionRepository(database)
 	disputeRepo := stores.CreateDisputeRepository(database)
 	fraudRepo := stores.CreateFraudRepository(database)
+	customerStore := stores.CreateCustomerStore(database)
+	paymentMethodStore := stores.CreatePaymentMethodStore(database)
+	providerMappingStore := stores.CreateProviderMappingStore(database)
 	printSuccess("Stores initialized")
+
+	printStep("8/10", "Initializing payment providers...")
+	stripeProvider := providers.CreateStripeProvider(cfg.Stripe.Secret)
+	xenditProvider := providers.CreateXenditProvider(cfg.Xendit.Secret)
+
+	providerSelector := providers.CreateMultiProviderSelector([]providers.PaymentProvider{stripeProvider, xenditProvider}, providerMappingStore)
+	printSuccess("Payment providers initialized")
+	printInfo("  • Stripe: Ready for USD, EUR, GBP")
+	printInfo("  • Xendit: Ready for IDR, SGD, MYR, PHP, THB, VND")
+	_ = customerStore
+	_ = paymentMethodStore
 
 	printStep("9/10", "Initializing services...")
 	paymentService := services.CreatePaymentService(paymentRepo, providerSelector)
