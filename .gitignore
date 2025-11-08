@@ -1,1 +1,14 @@
-.golangci.yml
+conductor
+
+/vendor/
+go.work
+
+.env
+.env.local
+
+config/secure.json
+
+*.log
+*.tmp
+
+.DS_Store
