@@ -41,7 +41,7 @@ GRANT ALL PRIVILEGES ON DATABASE conductor TO conductor_user;
 \q
 
 # Run the schema migration
-psql -U conductor_user -d conductor -f db/schema.sql
+psql -U conductor_user -d conductor -f config/db/schema.sql
 ```
 
 ### 3. Configure the app
@@ -81,28 +81,44 @@ cp config/config.example.json config/config.json
 
 ## Database Setup Script
 
-Want to automate the database setup? Here's a handy script:
+Want to automate the database setup? Here's a handy script in `/scripts`:
 
 ```bash
 #!/bin/bash
-# Save as setup_db.sh
+
+set -e
 
 DB_NAME="conductor"
 DB_USER="conductor_user"
 DB_PASSWORD="your_password_here"
 
-# Create database and user
 echo "Creating database and user..."
-sudo -u postgres psql << EOF
+if sudo -u postgres psql << EOF
 CREATE DATABASE $DB_NAME;
 CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
 GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
 EOF
+then
+    echo "Database and user created successfully"
+else
+    echo "Failed to create database and user"
+    exit 1
+fi
 
-# Run the schema migration
+echo ""
 echo "Running schema migration..."
-psql -U $DB_USER -d $DB_NAME -f db/schema.sql
+if psql -U $DB_USER -d $DB_NAME -f config/db/schema.sql 2>&1 | tee /tmp/schema_output.log | grep -q "ERROR"; then
+    echo ""
+    echo "Schema migration failed with errors:"
+    grep "ERROR" /tmp/schema_output.log
+    rm -f /tmp/schema_output.log
+    exit 1
+else
+    echo "Schema migration completed successfully"
+    rm -f /tmp/schema_output.log
+fi
 
+echo ""
 echo "Database setup complete!"
 ```
 
@@ -125,11 +141,6 @@ Your API will be live at `http://localhost:8080`
 
 ## Docker Deployment
 
-### What you need
-
-- Docker
-- Docker Compose
-
 ### Environment Variables (optional)
 
 Create a `.env` file in the project root:
@@ -147,12 +158,6 @@ Build and start everything:
 docker-compose up --build
 ```
 
-Stop the services:
-
-```bash
-docker-compose down
-```
-
 ### Development with Docker
 
 - Rebuild the image: `docker-compose build`
@@ -166,40 +171,40 @@ The app will be available at `http://localhost:8080`
 
 ### Payments
 
-- `POST /api/v1/charges` - Create a new charge
-- `POST /api/v1/refunds` - Create a refund
+- `POST /v1/charges` - Create a new charge
+- `POST /v1/refunds` - Create a refund
 
 ### Subscriptions
 
-- `POST /api/v1/plans` - Create a subscription plan
-- `GET /api/v1/plans` - List all plans
-- `GET /api/v1/plans/:id` - Get plan details
-- `PUT /api/v1/plans/:id` - Update plan
-- `DELETE /api/v1/plans/:id` - Delete plan
-- `POST /api/v1/subscriptions` - Create a subscription
-- `GET /api/v1/subscriptions` - List subscriptions (requires customer_id parameter)
-- `GET /api/v1/subscriptions/:id` - Get subscription details
-- `PUT /api/v1/subscriptions/:id` - Update subscription
-- `DELETE /api/v1/subscriptions/:id` - Cancel subscription
+- `POST /v1/plans` - Create a subscription plan
+- `GET /v1/plans` - List all plans
+- `GET /v1/plans/:id` - Get plan details
+- `PUT /v1/plans/:id` - Update plan
+- `DELETE /v1/plans/:id` - Delete plan
+- `POST /v1/subscriptions` - Create a subscription
+- `GET /v1/subscriptions` - List subscriptions (requires customer_id parameter)
+- `GET /v1/subscriptions/:id` - Get subscription details
+- `PUT /v1/subscriptions/:id` - Update subscription
+- `DELETE /v1/subscriptions/:id` - Cancel subscription
 
 ### Disputes
 
-- `POST /api/v1/disputes` - Create a dispute
-- `GET /api/v1/disputes` - List disputes (requires customer_id parameter)
-- `GET /api/v1/disputes/:id` - Get dispute details
-- `PUT /api/v1/disputes/:id` - Update dispute
-- `POST /api/v1/disputes/:id/evidence` - Submit evidence
-- `GET /api/v1/disputes/stats` - Get dispute statistics
+- `POST /v1/disputes` - Create a dispute
+- `GET /v1/disputes` - List disputes (requires customer_id parameter)
+- `GET /v1/disputes/:id` - Get dispute details
+- `PUT /v1/disputes/:id` - Update dispute
+- `POST /v1/disputes/:id/evidence` - Submit evidence
+- `GET /v1/disputes/stats` - Get dispute statistics
 
 ### Fraud Detection
 
-- `POST /api/v1/fraud/analyze` - Analyze transaction for fraud risk
-- `GET /api/v1/fraud/stats` - Get fraud detection statistics
+- `POST /v1/fraud/analyze` - Analyze transaction for fraud risk
+- `GET /v1/fraud/stats` - Get fraud detection statistics
 
 ### System
 
-- `GET /api/v1/health` - Health check
-- `GET /api/v1/metrics` - System metrics
+- `GET /v1/health` - Health check
+- `GET /v1/metrics` - System metrics
 
 ## Authentication
 
@@ -208,13 +213,13 @@ All API endpoints (except health check and metrics) require authentication using
 1. **X-API-Key header** (recommended):
 
    ```bash
-   curl -H "X-API-Key: your_api_key_here" http://localhost:8080/api/v1/charges
+   curl -H "X-API-Key: your_api_key_here" http://localhost:8080/v1/charges
    ```
 
 2. **Authorization Bearer header**:
 
    ```bash
-   curl -H "Authorization: Bearer your_api_key_here" http://localhost:8080/api/v1/charges
+   curl -H "Authorization: Bearer your_api_key_here" http://localhost:8080/v1/charges
    ```
 
 **Note**: Replace `your_api_key_here` with your actual API key. For development, you can use any string with at least 10 characters.
@@ -228,7 +233,7 @@ Here are some real examples of how to use the API. The system automatically rout
 #### Basic charge with Stripe (USD)
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/charges \
+curl -X POST http://localhost:8080/v1/charges \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_api_key_here" \
   -d '{
@@ -243,7 +248,7 @@ curl -X POST http://localhost:8080/api/v1/charges \
 #### Charge with metadata using Xendit (IDR)
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/charges \
+curl -X POST http://localhost:8080/v1/charges \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_api_key_here" \
   -d '{
@@ -264,7 +269,7 @@ curl -X POST http://localhost:8080/api/v1/charges \
 #### High-value charge with Stripe (EUR)
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/charges \
+curl -X POST http://localhost:8080/v1/charges \
   -H "Content-Type: application/json" \
   -d '{
     "customer_id": "cus_europe_789",
@@ -286,7 +291,7 @@ curl -X POST http://localhost:8080/api/v1/charges \
 #### Simple refund
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/refunds \
+curl -X POST http://localhost:8080/v1/refunds \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_api_key_here" \
   -d '{
@@ -300,7 +305,7 @@ curl -X POST http://localhost:8080/api/v1/refunds \
 #### Partial refund with metadata
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/refunds \
+curl -X POST http://localhost:8080/v1/refunds \
   -H "Content-Type: application/json" \
   -d '{
     "payment_id": "ch_123456789",
@@ -320,7 +325,7 @@ curl -X POST http://localhost:8080/api/v1/refunds \
 #### Create a subscription plan
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/plans \
+curl -X POST http://localhost:8080/v1/plans \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Premium Plan",
@@ -337,7 +342,7 @@ curl -X POST http://localhost:8080/api/v1/plans \
 #### Create a subscription
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/subscriptions \
+curl -X POST http://localhost:8080/v1/subscriptions \
   -H "Content-Type: application/json" \
   -d '{
     "customer_id": "cus_123456789",
@@ -357,7 +362,7 @@ curl -X POST http://localhost:8080/api/v1/subscriptions \
 #### Create a dispute
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/disputes \
+curl -X POST http://localhost:8080/v1/disputes \
   -H "Content-Type: application/json" \
   -d '{
     "customer_id": "cus_123456789",
@@ -375,7 +380,7 @@ curl -X POST http://localhost:8080/api/v1/disputes \
 #### Submit evidence for a dispute
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/disputes/disp_123/evidence \
+curl -X POST http://localhost:8080/v1/disputes/disp_123/evidence \
   -H "Content-Type: application/json" \
   -d '{
     "type": "customer_communication",
@@ -393,13 +398,13 @@ curl -X POST http://localhost:8080/api/v1/disputes/disp_123/evidence \
 #### Check if the system is healthy
 
 ```bash
-curl -X GET http://localhost:8080/api/v1/health
+curl -X GET http://localhost:8080/v1/health
 ```
 
 #### Get system metrics
 
 ```bash
-curl -X GET http://localhost:8080/api/v1/metrics
+curl -X GET http://localhost:8080/v1/metrics
 ```
 
 ## How Currency Routing Works
@@ -470,23 +475,19 @@ func NewExampleService(store Store, cache *cache.RedisCache) *ExampleService {
 }
 
 func (s *ExampleService) GetItem(ctx context.Context, id string) (*Item, error) {
-    // Try to get from cache first
     cacheKey := "item:" + id
     if cachedData, err := s.cache.Get(ctx, cacheKey); err == nil {
-        // Item found in cache
         var item Item
         if err := json.Unmarshal([]byte(cachedData), &item); err == nil {
             return &item, nil
         }
     }
     
-    // Not in cache or error deserializing, get from store
     item, err := s.store.GetItem(ctx, id)
     if err != nil {
         return nil, err
     }
     
-    // Store in cache for future requests
     if itemJSON, err := json.Marshal(item); err == nil {
         s.cache.Set(ctx, cacheKey, itemJSON)
     }

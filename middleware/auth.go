@@ -32,7 +32,7 @@ func CreateAuthMiddleware(jwtManager *security.JWTManager, rateLimiter *security
 
 func (am *AuthMiddleware) JWTMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/health" || r.URL.Path == "/api/v1/metrics" {
+		if r.URL.Path == "/v1/health" || r.URL.Path == "/v1/metrics" {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -85,7 +85,7 @@ func (am *AuthMiddleware) RateLimitMiddleware(next http.Handler) http.Handler {
 
 func (am *AuthMiddleware) WebhookMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/api/v1/webhooks/") {
+		if !strings.HasPrefix(r.URL.Path, "/v1/webhooks/") {
 			next.ServeHTTP(w, r)
 			return
 		}

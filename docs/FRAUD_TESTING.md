@@ -28,7 +28,7 @@ go run main.go
 ### 1. Low Risk Transaction (Should Allow)
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/fraud/analyze \
+curl -X POST http://localhost:8080/v1/fraud/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "transaction_id": "txn_low_risk_001",
@@ -52,7 +52,7 @@ Expected Response:
 ### 2. High Risk Transaction - Country Mismatch (Should Deny)
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/fraud/analyze \
+curl -X POST http://localhost:8080/v1/fraud/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "transaction_id": "txn_high_risk_001",
@@ -76,7 +76,7 @@ Expected Response:
 ### 3. Medium Risk Transaction (Edge Case)
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/fraud/analyze \
+curl -X POST http://localhost:8080/v1/fraud/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "transaction_id": "txn_medium_risk_001",
@@ -92,7 +92,7 @@ curl -X POST http://localhost:8080/api/v1/fraud/analyze \
 ### 4. Very High Amount Transaction (Should Deny)
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/fraud/analyze \
+curl -X POST http://localhost:8080/v1/fraud/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "transaction_id": "txn_very_high_001",
@@ -110,7 +110,7 @@ curl -X POST http://localhost:8080/api/v1/fraud/analyze \
 After running several fraud analyses, test the statistics endpoint:
 
 ```bash
-curl "http://localhost:8080/api/v1/fraud/stats?start_date=2025-08-10T00:00:00Z&end_date=2025-08-10T23:59:59Z"
+curl "http://localhost:8080/v1/fraud/stats?start_date=2025-08-10T00:00:00Z&end_date=2025-08-10T23:59:59Z"
 ```
 
 Expected Response:
@@ -128,7 +128,7 @@ Expected Response:
 Test the fraud-integrated payment flow using the enhanced handler:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/charges/enhanced \
+curl -X POST http://localhost:8080/v1/charges/enhanced \
   -H "Content-Type: application/json" \
   -d '{
     "customer_id": "cust_12345",
@@ -163,7 +163,7 @@ for i in {1..20}; do
     # Mix of low and high risk transactions
     if [ $((i % 3)) -eq 0 ]; then
         # High risk transaction
-        curl -s -X POST http://localhost:8080/api/v1/fraud/analyze \
+        curl -s -X POST http://localhost:8080/v1/fraud/analyze \
           -H "Content-Type: application/json" \
           -d "{
             \"transaction_id\": \"txn_load_test_$i\",
@@ -176,7 +176,7 @@ for i in {1..20}; do
           }" > /dev/null
     else
         # Low risk transaction
-        curl -s -X POST http://localhost:8080/api/v1/fraud/analyze \
+        curl -s -X POST http://localhost:8080/v1/fraud/analyze \
           -H "Content-Type: application/json" \
           -d "{
             \"transaction_id\": \"txn_load_test_$i\",
@@ -192,7 +192,7 @@ for i in {1..20}; do
 done
 
 echo "Load test complete. Checking statistics..."
-curl "http://localhost:8080/api/v1/fraud/stats?start_date=$(date -u +%Y-%m-%dT00:00:00Z)&end_date=$(date -u +%Y-%m-%dT23:59:59Z)"
+curl "http://localhost:8080/v1/fraud/stats?start_date=$(date -u +%Y-%m-%dT00:00:00Z)&end_date=$(date -u +%Y-%m-%dT23:59:59Z)"
 ```
 
 ## Error Scenarios
@@ -200,7 +200,7 @@ curl "http://localhost:8080/api/v1/fraud/stats?start_date=$(date -u +%Y-%m-%dT00
 ### 1. Invalid Request Data
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/fraud/analyze \
+curl -X POST http://localhost:8080/v1/fraud/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "transaction_id": "",
@@ -227,7 +227,7 @@ The system should fall back to rule-based detection and still provide results.
 ### 3. Invalid Date Range for Statistics
 
 ```bash
-curl "http://localhost:8080/api/v1/fraud/stats?start_date=invalid&end_date=2025-08-10T23:59:59Z"
+curl "http://localhost:8080/v1/fraud/stats?start_date=invalid&end_date=2025-08-10T23:59:59Z"
 ```
 
 Expected: `400 Bad Request` with date format error

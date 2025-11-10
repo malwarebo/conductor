@@ -36,7 +36,7 @@ psql -U conductor_user -d conductor
 
 ```bash
 # From the project root directory
-psql -U conductor_user -d conductor -f db/schema.sql
+psql -U conductor_user -d conductor -f config/db/schema.sql
 ```
 
 ## Environment Configuration
@@ -207,7 +207,7 @@ psql -U conductor_user -d conductor < backup.sql
 # Drop and recreate the database
 dropdb -U postgres conductor
 createdb -U postgres conductor
-psql -U conductor_user -d conductor -f db/schema.sql
+psql -U conductor_user -d conductor -f config/db/schema.sql
 ```
 
 ## Schema Updates

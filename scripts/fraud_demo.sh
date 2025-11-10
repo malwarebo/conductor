@@ -6,17 +6,17 @@
 echo "Conductor Fraud Detection Demo"
 echo "=================================="
 
-BASE_URL="http://localhost:8080/api/v1"
+BASE_URL="http://localhost:8080/v1"
 DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 START_DATE="2025-08-10T00:00:00Z"
 END_DATE="2025-08-10T23:59:59Z"
 
 echo
-echo "📊 Testing Fraud Detection System..."
+echo "Testing Fraud Detection System..."
 echo
 
 # Test 1: Low Risk Transaction
-echo "1️⃣ Testing Low Risk Transaction..."
+echo "1. Testing Low Risk Transaction..."
 RESPONSE1=$(curl -s -X POST $BASE_URL/fraud/analyze \
   -H "Content-Type: application/json" \
   -d '{
@@ -33,7 +33,7 @@ echo "Response: $RESPONSE1"
 echo
 
 # Test 2: High Risk Transaction
-echo "2️⃣ Testing High Risk Transaction..."
+echo "2. Testing High Risk Transaction..."
 RESPONSE2=$(curl -s -X POST $BASE_URL/fraud/analyze \
   -H "Content-Type: application/json" \
   -d '{
@@ -50,7 +50,7 @@ echo "Response: $RESPONSE2"
 echo
 
 # Test 3: Medium Risk Transaction
-echo "3️⃣ Testing Medium Risk Transaction..."
+echo "3. Testing Medium Risk Transaction..."
 RESPONSE3=$(curl -s -X POST $BASE_URL/fraud/analyze \
   -H "Content-Type: application/json" \
   -d '{
@@ -70,19 +70,19 @@ echo
 sleep 2
 
 # Test Statistics
-echo "📈 Testing Statistics Endpoint..."
+echo "Testing Statistics Endpoint..."
 STATS_RESPONSE=$(curl -s "$BASE_URL/fraud/stats?start_date=$START_DATE&end_date=$END_DATE")
 echo "Statistics Response: $STATS_RESPONSE"
 echo
 
-echo "✅ Demo Complete!"
+echo "Demo Complete!"
 echo
-echo "🔍 Summary:"
+echo "Summary:"
 echo "- Tested 3 different risk levels of transactions"
 echo "- Retrieved fraud statistics for the day"
 echo "- All responses logged to database for analysis"
 echo
-echo "💡 Next Steps:"
+echo "Next Steps:"
 echo "- Check the fraud_analysis_results table in your database"
 echo "- Monitor the fraud detection rates over time"
 echo "- Adjust thresholds based on your business requirements"
