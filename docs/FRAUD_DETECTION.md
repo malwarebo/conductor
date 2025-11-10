@@ -17,7 +17,7 @@ The fraud detection layer provides intelligent fraud analysis for payment transa
 Analyzes a transaction for fraud risk and returns an allow/deny decision.
 
 ```
-POST /api/v1/fraud/analyze
+POST /v1/fraud/analyze
 ```
 
 **Request Body:**
@@ -43,7 +43,7 @@ POST /api/v1/fraud/analyze
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8080/api/v1/fraud/analyze \
+curl -X POST http://localhost:8080/v1/fraud/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "transaction_id": "txn_123456789",
@@ -61,7 +61,7 @@ curl -X POST http://localhost:8080/api/v1/fraud/analyze \
 Returns aggregated fraud statistics for a date range.
 
 ```
-GET /api/v1/fraud/stats?start_date={ISO8601}&end_date={ISO8601}
+GET /v1/fraud/stats?start_date={ISO8601}&end_date={ISO8601}
 ```
 
 **Query Parameters:**
@@ -80,7 +80,7 @@ GET /api/v1/fraud/stats?start_date={ISO8601}&end_date={ISO8601}
 
 **Example:**
 ```bash
-curl "http://localhost:8080/api/v1/fraud/stats?start_date=2025-08-01T00:00:00Z&end_date=2025-08-10T23:59:59Z"
+curl "http://localhost:8080/v1/fraud/stats?start_date=2025-08-01T00:00:00Z&end_date=2025-08-10T23:59:59Z"
 ```
 
 ## Configuration

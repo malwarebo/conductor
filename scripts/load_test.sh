@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_URL="http://localhost:8080/api/v1"
+BASE_URL="http://localhost:8080/v1"
 CONCURRENCY=${1:-10}
 DURATION=${2:-60}
 TARGET_RPS=${3:-100}

@@ -7,7 +7,7 @@ Conductor includes AI-powered intelligent routing that uses OpenAI to make optim
 ### 1. Smart Provider Selection
 
 ```
-POST /api/v1/routing/select
+POST /v1/routing/select
 ```
 
 **Request Body:**
@@ -46,7 +46,7 @@ POST /api/v1/routing/select
 ### 2. Provider Statistics
 
 ```
-GET /api/v1/routing/stats
+GET /v1/routing/stats
 ```
 
 **Response:**
@@ -74,7 +74,7 @@ GET /api/v1/routing/stats
 ### 3. Routing Metrics
 
 ```
-GET /api/v1/routing/metrics?start_date=2024-01-01T00:00:00Z&end_date=2024-01-15T23:59:59Z
+GET /v1/routing/metrics?start_date=2024-01-01T00:00:00Z&end_date=2024-01-15T23:59:59Z
 ```
 
 **Response:**
@@ -96,8 +96,8 @@ GET /api/v1/routing/metrics?start_date=2024-01-01T00:00:00Z&end_date=2024-01-15T
 ### 4. Routing Configuration
 
 ```
-GET /api/v1/routing/config
-PUT /api/v1/routing/config
+GET /v1/routing/config
+PUT /v1/routing/config
 ```
 
 **Configuration:**
@@ -117,7 +117,7 @@ PUT /api/v1/routing/config
 ### Basic Routing Request
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/routing/select \
+curl -X POST http://localhost:8080/v1/routing/select \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_api_key_here" \
   -d '{
@@ -132,7 +132,7 @@ curl -X POST http://localhost:8080/api/v1/routing/select \
 ### High-Value Transaction
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/routing/select \
+curl -X POST http://localhost:8080/v1/routing/select \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_api_key_here" \
   -d '{
@@ -151,7 +151,7 @@ curl -X POST http://localhost:8080/api/v1/routing/select \
 ### Southeast Asian Transaction
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/routing/select \
+curl -X POST http://localhost:8080/v1/routing/select \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_api_key_here" \
   -d '{
@@ -248,7 +248,7 @@ ROUTING_FALLBACK_PROVIDER=stripe
 
 ### Runtime Configuration
 
-Use the `/api/v1/routing/config` endpoint to adjust settings:
+Use the `/v1/routing/config` endpoint to adjust settings:
 
 - **Enable/Disable AI Routing**: Toggle AI-powered decisions
 - **Cache TTL**: Adjust caching duration
@@ -290,8 +290,8 @@ Enable detailed logging to troubleshoot routing decisions:
 
 ```bash
 # Check routing logs
-curl -X GET http://localhost:8080/api/v1/routing/metrics
+curl -X GET http://localhost:8080/v1/routing/metrics
 
 # Monitor provider stats
-curl -X GET http://localhost:8080/api/v1/routing/stats
+curl -X GET http://localhost:8080/v1/routing/stats
 ```

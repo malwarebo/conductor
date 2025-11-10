@@ -7,7 +7,7 @@ The Conductor API provides a unified interface for payment processing across mul
 ## Base URL
 
 ```
-http://localhost:8080/api/v1
+http://localhost:8080/v1
 ```
 
 ## Authentication
@@ -24,7 +24,7 @@ For development and testing, you can generate JWT tokens using the application's
 
 ```bash
 # Using curl to get a token (if you have a token endpoint)
-curl -X POST http://localhost:8080/api/v1/auth/token \
+curl -X POST http://localhost:8080/v1/auth/token \
   -H "Content-Type: application/json" \
   -d '{
     "email": "test@example.com",
@@ -454,7 +454,7 @@ Run load tests.
   "duration": "30s",
   "ramp_up_duration": "5s",
   "target_rps": 50,
-  "endpoint": "http://localhost:8080/api/v1/health"
+  "endpoint": "http://localhost:8080/v1/health"
 }
 ```
 
