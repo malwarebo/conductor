@@ -160,11 +160,11 @@ The fraud detection layer integrates with the payment orchestrator:
 2. Fraud analysis performed (synchronously)
 3. If denied, payment is rejected immediately
 4. If allowed, payment proceeds to provider
-5. All decisions are logged for monitoring
+5. All decisions are logged
 
-## Monitoring and Alerts
+## Statistics and Tracking
 
-Use the statistics endpoint to build monitoring dashboards tracking:
+Track fraud detection performance with the statistics endpoint:
 
 - Fraud detection rates over time
 - Average fraud scores

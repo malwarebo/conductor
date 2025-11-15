@@ -24,7 +24,7 @@ Conductor addresses these challenges by providing an intelligent, open-source pa
 
 **AI-Powered Intelligent Routing:** The system uses OpenAI GPT-4 to analyze transaction context, historical performance data, and real-time provider metrics to automatically select the optimal payment provider. This intelligent routing considers factors like success rates, processing costs, regional expertise, and transaction characteristics to maximize success rates while minimizing costs.
 
-**Centralized Operations:** All payment data flows through a single system, providing unified reporting, analytics, and monitoring. Business teams can track performance across all providers, identify optimization opportunities, and make data-driven decisions from a single dashboard.
+**Centralized Operations:** All payment data flows through a single system, providing unified reporting and analytics. Business teams can track performance across all providers, identify optimization opportunities, and make data-driven decisions from a single dashboard.
 
 **Advanced Fraud Detection:** Integrated AI-powered fraud analysis evaluates transactions in real-time, using anonymized data to identify suspicious patterns while maintaining privacy. The system automatically blocks high-risk transactions while allowing legitimate ones to proceed smoothly.
 

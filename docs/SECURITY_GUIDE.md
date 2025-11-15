@@ -12,9 +12,8 @@ This guide outlines security best practices for deploying and operating Conducto
 4. [API Security](#api-security)
 5. [Database Security](#database-security)
 6. [Infrastructure Security](#infrastructure-security)
-7. [Monitoring and Incident Response](#monitoring-and-incident-response)
-8. [Compliance and Auditing](#compliance-and-auditing)
-9. [Security Checklist](#security-checklist)
+7. [Compliance and Auditing](#compliance-and-auditing)
+8. [Security Checklist](#security-checklist)
 
 ## Authentication and Authorization
 
@@ -690,98 +689,6 @@ Resources:
       Tags:
         - Key: Name
           Value: Conductor-Private-Subnet
-```
-
-## Monitoring and Incident Response
-
-### Security Monitoring
-
-#### Log Analysis
-```go
-// Monitor security events
-func (m *SecurityMonitor) LogSecurityEvent(event string, details map[string]interface{}) {
-    m.logger.Warn("Security event", map[string]interface{}{
-        "event":   event,
-        "details": details,
-        "timestamp": time.Now(),
-        "ip":     details["ip"],
-        "user_id": details["user_id"],
-    })
-    
-    // Send alert for critical events
-    if m.isCriticalEvent(event) {
-        m.sendAlert(event, details)
-    }
-}
-```
-
-#### Intrusion Detection
-```go
-// Detect suspicious activity
-func (m *SecurityMonitor) DetectIntrusion(ip string, userID string) bool {
-    // Check for multiple failed login attempts
-    failedAttempts := m.getFailedAttempts(ip, userID)
-    if failedAttempts > 5 {
-        m.LogSecurityEvent("multiple_failed_logins", map[string]interface{}{
-            "ip": ip,
-            "user_id": userID,
-            "attempts": failedAttempts,
-        })
-        return true
-    }
-    
-    // Check for unusual request patterns
-    if m.isUnusualPattern(ip, userID) {
-        m.LogSecurityEvent("unusual_pattern", map[string]interface{}{
-            "ip": ip,
-            "user_id": userID,
-        })
-        return true
-    }
-    
-    return false
-}
-```
-
-### Incident Response
-
-#### Automated Response
-```go
-// Automatically respond to security incidents
-func (m *SecurityMonitor) HandleSecurityIncident(event string, details map[string]interface{}) {
-    switch event {
-    case "multiple_failed_logins":
-        // Block IP temporarily
-        m.blockIP(details["ip"].(string), 15*time.Minute)
-        
-    case "suspicious_activity":
-        // Require additional authentication
-        m.requireMFA(details["user_id"].(string))
-        
-    case "data_breach":
-        // Immediate response
-        m.notifySecurityTeam(event, details)
-        m.rotateSecrets()
-    }
-}
-```
-
-#### Alerting
-```go
-// Send security alerts
-func (m *SecurityMonitor) sendAlert(event string, details map[string]interface{}) {
-    alert := &SecurityAlert{
-        Event:     event,
-        Details:   details,
-        Timestamp: time.Now(),
-        Severity:  m.getSeverity(event),
-    }
-    
-    // Send to multiple channels
-    m.sendEmailAlert(alert)
-    m.sendSlackAlert(alert)
-    m.sendPagerDutyAlert(alert)
-}
 ```
 
 ## Compliance and Auditing
