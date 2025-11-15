@@ -81,7 +81,7 @@ func CreateRoutingService(openAIKey string) RoutingService {
 }
 
 func (s *routingService) SelectOptimalProvider(ctx context.Context, request *models.RoutingRequest) (*models.RoutingResponse, error) {
-	cacheKey := fmt.Sprintf("%s_%s_%s_%s_%s",
+	cacheKey := fmt.Sprintf("%s_%.2f_%s_%s_%s",
 		request.Currency,
 		request.Amount,
 		request.Country,

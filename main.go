@@ -16,9 +16,9 @@ import (
 	"github.com/malwarebo/conductor/db"
 	"github.com/malwarebo/conductor/middleware"
 	"github.com/malwarebo/conductor/providers"
-	"github.com/malwarebo/conductor/stores"
 	"github.com/malwarebo/conductor/security"
 	"github.com/malwarebo/conductor/services"
+	"github.com/malwarebo/conductor/stores"
 )
 
 const (
@@ -36,9 +36,9 @@ func printBanner() {
 	fmt.Printf("%s%s", colorCyan, colorBold)
 	fmt.Println("╔══════════════════════════════════════════════════════════════╗")
 	fmt.Println("║                                                              ║")
-	fmt.Println("║  Conductor - Payment Orchestration Platform              ║")
+	fmt.Println("║  Conductor - Payment Orchestration Platform                  ║")
 	fmt.Println("║                                                              ║")
-	fmt.Println("║  Multi-provider payment processing made simple              ║")
+	fmt.Println("║  Multi-provider payment processing                           ║")
 	fmt.Println("║                                                              ║")
 	fmt.Println("╚══════════════════════════════════════════════════════════════╝")
 	fmt.Printf("%s", colorReset)
@@ -49,19 +49,19 @@ func printStep(step, message string) {
 }
 
 func printSuccess(message string) {
-	fmt.Printf("%s✓%s %s\n", colorGreen, colorReset, message)
+	fmt.Printf("%s%s %s\n", colorGreen, colorReset, message)
 }
 
 func printWarning(message string) {
-	fmt.Printf("%s⚠%s %s\n", colorYellow, colorReset, message)
+	fmt.Printf("%s%s %s\n", colorYellow, colorReset, message)
 }
 
 func printError(message string) {
-	fmt.Printf("%s✗%s %s\n", colorRed, colorReset, message)
+	fmt.Printf("%s%s %s\n", colorRed, colorReset, message)
 }
 
 func printInfo(message string) {
-	fmt.Printf("%sℹ%s %s\n", colorCyan, colorReset, message)
+	fmt.Printf("%s%s %s\n", colorCyan, colorReset, message)
 }
 
 func main() {
@@ -257,12 +257,12 @@ func main() {
 	fmt.Printf("%s%s Conductor is ready!%s\n", colorGreen, colorBold, colorReset)
 	fmt.Println()
 	fmt.Printf("%s%sAPI Endpoints:%s\n", colorPurple, colorBold, colorReset)
-	fmt.Printf("  %s•%s Health Check: %shttp://localhost:%s/v1/health%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
-	fmt.Printf("  %s•%s Payments:     %shttp://localhost:%s/v1/charges%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
-	fmt.Printf("  %s•%s Subscriptions: %shttp://localhost:%s/v1/subscriptions%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
-	fmt.Printf("  %s•%s Disputes:     %shttp://localhost:%s/v1/disputes%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
-	fmt.Printf("  %s•%s Fraud Detection: %shttp://localhost:%s/v1/fraud/analyze%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
-	fmt.Printf("  %s•%s AI Routing:     %shttp://localhost:%s/v1/routing/select%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
+	fmt.Printf("  %s-%s Health Check: %shttp://localhost:%s/v1/health%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
+	fmt.Printf("  %s-%s Payments:     %shttp://localhost:%s/v1/charges%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
+	fmt.Printf("  %s-%s Subscriptions: %shttp://localhost:%s/v1/subscriptions%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
+	fmt.Printf("  %s-%s Disputes:     %shttp://localhost:%s/v1/disputes%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
+	fmt.Printf("  %s-%s Fraud Detection: %shttp://localhost:%s/v1/fraud/analyze%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
+	fmt.Printf("  %s-%s AI Routing:     %shttp://localhost:%s/v1/routing/select%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Println()
 	fmt.Printf("%s%sEnvironment:%s %s%s%s\n", colorPurple, colorBold, colorReset, colorYellow, cfg.Environment, colorReset)
 	fmt.Printf("%s%sServer Port:%s %s%s%s\n", colorPurple, colorBold, colorReset, colorYellow, cfg.Server.Port, colorReset)
@@ -270,8 +270,7 @@ func main() {
 	if redisCache != nil {
 		fmt.Printf("%s%sRedis:%s %s%s:%d%s\n", colorPurple, colorBold, colorReset, colorYellow, cfg.Redis.Host, cfg.Redis.Port, colorReset)
 	}
-	fmt.Printf("%s%sSecurity:%s %sJWT + Encryption + Rate Limiting%s\n", colorPurple, colorBold, colorReset, colorYellow, "", colorReset)
-	fmt.Printf("%s%sMonitoring:%s %sAlerts + Metrics + Health Checks%s\n", colorPurple, colorBold, colorReset, colorYellow, "", colorReset)
+	fmt.Printf("%s%sSecurity:%s %sJWT + Encryption + Rate Limiting%s\n", colorPurple, colorBold, colorReset, colorYellow, colorReset)
 	fmt.Println()
 	fmt.Printf("%s%sPress Ctrl+C to stop the server%s\n", colorYellow, colorBold, colorReset)
 	fmt.Println()
@@ -303,5 +302,5 @@ func main() {
 
 	printSuccess("Conductor server stopped gracefully")
 	fmt.Println()
-	fmt.Printf("%s%s👋 Thanks for using Conductor!%s\n", colorCyan, colorBold, colorReset)
+	fmt.Printf("%s%sThanks for using Conductor!%s\n", colorCyan, colorBold, colorReset)
 }
