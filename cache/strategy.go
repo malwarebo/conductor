@@ -1,3 +1,11 @@
+/**
+* This is entirely my thought process and not any proven and effective strategy.
+* I was just trying to think of a good strategy for the cache and this is what I came up with.
+* If you are going to use it for real, please make sure you know what this does.
+* There are some common principles used here but there is no proof that this works effectively.
+* This is just a starting point for you to build on or just remove or change it however you want.
+ */
+
 package cache
 
 import (
