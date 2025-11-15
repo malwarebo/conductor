@@ -106,8 +106,6 @@ func (s *routingService) SelectOptimalProvider(ctx context.Context, request *mod
 
 	s.cache[cacheKey] = response
 
-	utils.CreateRecordRoutingMetrics(ctx, response.RecommendedProvider, response.ConfidenceScore, response.EstimatedSuccessRate)
-
 	return response, nil
 }
 

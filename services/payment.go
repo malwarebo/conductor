@@ -9,33 +9,21 @@ import (
 	"time"
 
 	"github.com/malwarebo/conductor/models"
-	"github.com/malwarebo/conductor/monitoring"
 	"github.com/malwarebo/conductor/providers"
 	"github.com/malwarebo/conductor/stores"
 	"github.com/malwarebo/conductor/security"
-	"github.com/malwarebo/conductor/utils"
 )
 
 type PaymentService struct {
-	paymentRepo  *stores.PaymentRepository
-	provider     providers.PaymentProvider
-	encryption   *security.EncryptionManager
-	alertManager *monitoring.AlertManager
+	paymentRepo *stores.PaymentRepository
+	provider    providers.PaymentProvider
+	encryption  *security.EncryptionManager
 }
 
 func CreatePaymentService(paymentRepo *stores.PaymentRepository, provider providers.PaymentProvider) *PaymentService {
 	return &PaymentService{
 		paymentRepo: paymentRepo,
 		provider:    provider,
-	}
-}
-
-func CreatePaymentServiceWithMonitoring(paymentRepo *stores.PaymentRepository, provider providers.PaymentProvider, encryption *security.EncryptionManager, alertManager *monitoring.AlertManager) *PaymentService {
-	return &PaymentService{
-		paymentRepo:  paymentRepo,
-		provider:     provider,
-		encryption:   encryption,
-		alertManager: alertManager,
 	}
 }
 
@@ -61,15 +49,7 @@ func (s *PaymentService) CreateCharge(ctx context.Context, req *models.ChargeReq
 	var chargeResp *models.ChargeResponse
 
 	err = s.paymentRepo.WithTransaction(ctx, func(txCtx context.Context) error {
-		retryConfig := utils.CreateDefaultRetryConfig()
-		retryConfig.MaxAttempts = 5
-		retryConfig.BaseDelay = 200 * time.Millisecond
-		retryConfig.MaxDelay = 10 * time.Second
-
-		err := utils.CreateRetry(txCtx, retryConfig, func() error {
-			chargeResp, err = s.provider.Charge(txCtx, req)
-			return err
-		})
+		chargeResp, err = s.provider.Charge(txCtx, req)
 		if err != nil {
 			return fmt.Errorf("failed to create charge with provider: %w", err)
 		}
@@ -115,14 +95,7 @@ func (s *PaymentService) CreateRefund(ctx context.Context, req *models.RefundReq
 	var refundResp *models.RefundResponse
 
 	err = s.paymentRepo.WithTransaction(ctx, func(txCtx context.Context) error {
-		retryConfig := utils.CreateDefaultRetryConfig()
-		retryConfig.MaxAttempts = 3
-		retryConfig.BaseDelay = 500 * time.Millisecond
-
-		err := utils.CreateRetry(txCtx, retryConfig, func() error {
-			refundResp, err = s.provider.Refund(txCtx, req)
-			return err
-		})
+		refundResp, err = s.provider.Refund(txCtx, req)
 		if err != nil {
 			return fmt.Errorf("failed to create refund with provider: %w", err)
 		}

@@ -10,19 +10,15 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/malwarebo/conductor/analytics"
 	"github.com/malwarebo/conductor/api"
 	"github.com/malwarebo/conductor/cache"
 	"github.com/malwarebo/conductor/config"
 	"github.com/malwarebo/conductor/db"
 	"github.com/malwarebo/conductor/middleware"
-	"github.com/malwarebo/conductor/monitoring"
-	"github.com/malwarebo/conductor/observability"
 	"github.com/malwarebo/conductor/providers"
 	"github.com/malwarebo/conductor/stores"
 	"github.com/malwarebo/conductor/security"
 	"github.com/malwarebo/conductor/services"
-	"github.com/malwarebo/conductor/webhooks"
 )
 
 const (
@@ -166,51 +162,7 @@ func main() {
 	})
 	printSuccess("Security components initialized")
 
-	printStep("6/10", "Initializing monitoring and alerting...")
-	alertManager := monitoring.CreateAlertManager()
-	_ = monitoring.CreateMetricsCollector()
-	healthService := monitoring.CreateHealthService("1.0.0")
-
-	alertManager.AddRule(&monitoring.AlertRule{
-		ID:   "high_error_rate",
-		Name: "High Error Rate",
-		Condition: func(metrics map[string]float64) bool {
-			return metrics["error_rate"] > 0.05
-		},
-		Level:    monitoring.Critical,
-		Cooldown: 5 * time.Minute,
-		Enabled:  true,
-	})
-
-	alertManager.AddRule(&monitoring.AlertRule{
-		ID:   "high_response_time",
-		Name: "High Response Time",
-		Condition: func(metrics map[string]float64) bool {
-			return metrics["response_time"] > 2000
-		},
-		Level:    monitoring.Warning,
-		Cooldown: 2 * time.Minute,
-		Enabled:  true,
-	})
-
-	healthService.AddCheck("database", func(ctx context.Context) error {
-		sqlDB, err := database.DB()
-		if err != nil {
-			return err
-		}
-		return sqlDB.PingContext(ctx)
-	})
-
-	healthService.AddCheck("redis", func(ctx context.Context) error {
-		if redisCache == nil {
-			return fmt.Errorf("redis not available")
-		}
-		return nil
-	})
-
-	printSuccess("Monitoring and alerting initialized")
-
-	printStep("7/10", "Initializing stores...")
+	printStep("6/8", "Initializing stores...")
 	paymentRepo := stores.CreatePaymentRepository(database)
 	planRepo := stores.CreatePlanRepository(database)
 	subscriptionRepo := stores.CreateSubscriptionRepository(database)
@@ -221,7 +173,7 @@ func main() {
 	providerMappingStore := stores.CreateProviderMappingStore(database)
 	printSuccess("Stores initialized")
 
-	printStep("8/10", "Initializing payment providers...")
+	printStep("7/8", "Initializing payment providers...")
 	stripeProvider := providers.CreateStripeProvider(cfg.Stripe.Secret)
 	xenditProvider := providers.CreateXenditProvider(cfg.Xendit.Secret)
 
@@ -232,39 +184,16 @@ func main() {
 	_ = customerStore
 	_ = paymentMethodStore
 
-	printStep("9/10", "Initializing services...")
+	printStep("8/8", "Initializing services...")
 	paymentService := services.CreatePaymentService(paymentRepo, providerSelector)
 	subscriptionService := services.CreateSubscriptionService(planRepo, subscriptionRepo, providerSelector)
 	disputeService := services.CreateDisputeService(disputeRepo, providerSelector)
 	fraudService := services.CreateFraudService(fraudRepo, cfg.OpenAI.APIKey)
 	routingService := services.CreateRoutingService(cfg.OpenAI.APIKey)
 
-	_ = webhooks.CreateWebhookManager()
-	_ = analytics.CreateAnalyticsReporter()
-
 	printSuccess("Services initialized")
 
-	printStep("10/10", "Initializing observability...")
-	healthChecker := observability.CreateHealthChecker()
-
-	healthChecker.AddCheck("database", func(ctx context.Context) error {
-		sqlDB, err := database.DB()
-		if err != nil {
-			return err
-		}
-		return sqlDB.PingContext(ctx)
-	})
-
-	healthChecker.AddCheck("redis", func(ctx context.Context) error {
-		if redisCache == nil {
-			return fmt.Errorf("redis not available")
-		}
-		return nil
-	})
-
-	printSuccess("Observability initialized")
-
-	printStep("11/11", "Setting up HTTP server...")
+	printStep("8/8", "Setting up HTTP server...")
 	paymentHandler := api.CreatePaymentHandler(paymentService)
 	subscriptionHandler := api.CreateSubscriptionHandler(subscriptionService)
 	disputeHandler := api.CreateDisputeHandler(disputeService)
@@ -287,7 +216,6 @@ func main() {
 	apiRouter.Use(authMiddleware.EncryptionMiddleware)
 
 	apiRouter.HandleFunc("/health", api.CreateHealthCheckHandler).Methods("GET")
-	apiRouter.HandleFunc("/metrics", api.CreateMetricsHandler).Methods("GET")
 
 	apiRouter.HandleFunc("/charges", paymentHandler.HandleCharge).Methods("POST")
 	apiRouter.HandleFunc("/refunds", paymentHandler.HandleRefund).Methods("POST")
@@ -307,7 +235,6 @@ func main() {
 
 	apiRouter.HandleFunc("/routing/select", routingHandler.HandleRouting).Methods("POST")
 	apiRouter.HandleFunc("/routing/stats", routingHandler.HandleProviderStats).Methods("GET")
-	apiRouter.HandleFunc("/routing/metrics", routingHandler.HandleRoutingMetrics).Methods("GET")
 	apiRouter.HandleFunc("/routing/config", routingHandler.HandleRoutingConfig).Methods("GET", "PUT")
 
 	webhookRouter := router.PathPrefix("/v1/webhooks").Subrouter()
@@ -331,7 +258,6 @@ func main() {
 	fmt.Println()
 	fmt.Printf("%s%sAPI Endpoints:%s\n", colorPurple, colorBold, colorReset)
 	fmt.Printf("  %s•%s Health Check: %shttp://localhost:%s/v1/health%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
-	fmt.Printf("  %s•%s Metrics:      %shttp://localhost:%s/v1/metrics%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Printf("  %s•%s Payments:     %shttp://localhost:%s/v1/charges%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Printf("  %s•%s Subscriptions: %shttp://localhost:%s/v1/subscriptions%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Printf("  %s•%s Disputes:     %shttp://localhost:%s/v1/disputes%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
@@ -373,7 +299,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	alertManager.Close()
 	rateLimiter.Close()
 
 	printSuccess("Conductor server stopped gracefully")

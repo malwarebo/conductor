@@ -135,8 +135,6 @@ func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.F
 
 	s.cache[cacheKey] = result
 
-	utils.CreateRecordFraudMetrics(ctx, assessment.IsFraudulent, assessment.FraudScore, assessment.Reason)
-
 	response := &models.FraudAnalysisResponse{
 		Allow:  allow,
 		Reason: assessment.Reason,
