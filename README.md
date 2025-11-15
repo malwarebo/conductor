@@ -204,11 +204,10 @@ The app will be available at `http://localhost:8080`
 ### System
 
 - `GET /v1/health` - Health check
-- `GET /v1/metrics` - System metrics
 
 ## Authentication
 
-All API endpoints (except health check and metrics) require authentication using an API key. You can provide the API key in two ways:
+All API endpoints (except health check) require authentication using an API key. You can provide the API key in two ways:
 
 1. **X-API-Key header** (recommended):
 
@@ -393,18 +392,12 @@ curl -X POST http://localhost:8080/v1/disputes/disp_123/evidence \
   }'
 ```
 
-### System Health & Metrics
+### System Health
 
 #### Check if the system is healthy
 
 ```bash
 curl -X GET http://localhost:8080/v1/health
-```
-
-#### Get system metrics
-
-```bash
-curl -X GET http://localhost:8080/v1/metrics
 ```
 
 ## How Currency Routing Works
