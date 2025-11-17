@@ -1,4 +1,4 @@
-# Conductor - A smart payment switch
+# Conductor - a smart payment switch
 
 [![go build](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml)
 [![docker build](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml)
@@ -7,18 +7,14 @@
 
 The system includes an `experimental` fraud detection with AI that analyzes transactions in real-time before processing payments. It uses OpenAI's LLM models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates easily into your payment flow, automatically trying to block high-risk transactions while allowing legitimate ones to proceed smoothly.
 
-> [!NOTE]
-> Want to know why I built this? Check out the story here: <https://github.com/malwarebo/conductor/blob/master/docs/PROBLEM.md>
+> [!TIP]
+> Why I'm building this? Read: <https://github.com/malwarebo/conductor/blob/master/docs/PROBLEM.md>
+> 
+> Architecture diagram: <https://github.com/malwarebo/conductor/blob/master/docs/ARCHITECTURE.md>
+>
+> API docs: <https://github.com/malwarebo/conductor/blob/master/docs/API_REFERENCE.md>
 
-## Architecture
-
-Curious about how it all works under the hood? Check out the architecture docs: <https://github.com/malwarebo/conductor/blob/master/docs/ARCHITECTURE.md>
-
-## API reference
-
-API docs are available here: <https://github.com/malwarebo/conductor/blob/master/docs/API_REFERENCE.md>
-
-## Quick Start
+## Setup
 
 ### 1. Get the dependencies
 
