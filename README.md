@@ -1,11 +1,11 @@
-# Conductor - Payment Orchestration Platform
+# Conductor - A smart payment switch
 
 [![go build](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml)
 [![docker build](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml)
 
-`Conductor` is an open-source payment orchestration platform that makes handling multiple payment providers a breeze. It supports Stripe and Xendit out of the box, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
+`Conductor` is an open-source payment switch that simplifies handling multiple payment providers. It supports Stripe and Xendit as of now, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
 
-The system includes intelligent fraud detection powered by AI that analyzes transactions in real-time before processing payments. It uses OpenAI's advanced models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates seamlessly into your payment flow, automatically blocking high-risk transactions while allowing legitimate ones to proceed smoothly.
+The system includes an `experimental` fraud detection with AI that analyzes transactions in real-time before processing payments. It uses OpenAI's LLM models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates easily into your payment flow, automatically trying to block high-risk transactions while allowing legitimate ones to proceed smoothly.
 
 > [!NOTE]
 > Want to know why I built this? Check out the story here: <https://github.com/malwarebo/conductor/blob/master/docs/PROBLEM.md>
@@ -77,7 +77,7 @@ cp config/config.example.json config/config.json
 # - Adjust server settings if needed
 ```
 
-**⚠️ Security Note**: For production deployments, always use environment variables for sensitive data like API keys and database passwords. Never commit actual secrets to version control.
+**⚠️ Security Note**: For production deployments, it is advised to use environment variables for API keys and database passwords.
 
 ## Database Setup Script
 
@@ -139,7 +139,7 @@ go run main.go
 
 Your API will be live at `http://localhost:8080`
 
-## Docker Deployment
+## Docker setup
 
 ### Environment Variables (optional)
 
@@ -168,6 +168,8 @@ docker-compose up --build
 The app will be available at `http://localhost:8080`
 
 ## API Endpoints
+
+Note: This section need to be migrated to it is own separate page.
 
 ### Payments
 
@@ -407,7 +409,7 @@ The system is smart about routing your payments to the right provider:
 - **Stripe**: USD, EUR, GBP (perfect for international payments)
 - **Xendit**: IDR, SGD, MYR, PHP, THB, VND (great for Southeast Asia)
 
-Just specify the currency in your request, and the system automatically picks the best provider!
+Just specify the currency in your request, and the system automatically picks the best provider.
 
 ## Important Notes
 
@@ -430,27 +432,9 @@ Make sure you're using valid payment method IDs from your chosen provider:
 
 Your customer IDs should match what's in your provider's system.
 
-## Redis Cache Configuration
+## Cache support
 
-Conductor uses Redis for caching to make things faster and reduce load on payment providers. You can customize the Redis setup through environment variables.
-
-### Configuration Options
-
-| Environment Variable | Description | Default Value |
-|----------------------|-------------|---------------|
-| `REDIS_HOST` | Redis server hostname | `localhost` |
-| `REDIS_PORT` | Redis server port | `6379` |
-| `REDIS_PASSWORD` | Redis password (leave empty for no password) | `""` |
-| `REDIS_DB` | Redis database index | `0` |
-| `REDIS_TTL` | Default TTL for cache entries (in seconds) | `86400` (24 hours) |
-
-### Usage
-
-The Redis cache is ready to go and can be used to cache things like payment methods, customer info, and subscription details. This cuts down on API calls to payment providers and makes everything faster.
-
-Right now, Redis is set up but not actively caching. It's there for when you want to add caching to improve performance.
-
-### Example Implementation
+The Redis cache is ready to go and can be used to cache things like payment methods, customer info, and subscription details. Right now, the cache is set up but not actively caching. It's there for when you want to add caching to improve performance.
 
 Here's how you might use the cache in a service:
 
