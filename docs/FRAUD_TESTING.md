@@ -232,16 +232,7 @@ curl "http://localhost:8080/v1/fraud/stats?start_date=invalid&end_date=2025-08-1
 
 Expected: `400 Bad Request` with date format error
 
-## Monitoring Checklist
-
-- [ ] All fraud analyses are being logged to the database
-- [ ] Statistics endpoint returns accurate aggregations
-- [ ] OpenAI integration is working (check logs for API calls)
-- [ ] Fallback logic activates when OpenAI is unavailable
-- [ ] Payment flow integration prevents fraudulent transactions
-- [ ] Performance is acceptable (fraud check <2 seconds)
-
-## Production Considerations
+## Considerations
 
 1. **Rate Limiting**: Implement rate limiting for fraud analysis endpoints
 2. **Caching**: Cache fraud scores for repeated transaction patterns

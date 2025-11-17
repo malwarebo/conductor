@@ -1,6 +1,6 @@
 # Smart Routing
 
-Conductor includes AI-powered intelligent routing that uses OpenAI to make optimal provider selection decisions based on transaction context, historical performance, and cost optimization.
+Conductor also includes AI-powered smart routing that uses OpenAI to make optimal provider selection decisions based on transaction context, historical performance, and cost optimization.
 
 ## API Endpoints
 
