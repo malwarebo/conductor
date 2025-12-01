@@ -56,21 +56,12 @@ func (p *XenditProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 	}
 
 	if req.Metadata != nil {
-		metadata := make(map[string]interface{})
-		for k, v := range req.Metadata {
-			metadata[k] = v
-		}
-		paymentReq.SetMetadata(metadata)
+		paymentReq.SetMetadata(req.Metadata)
 	}
 
 	pr, _, err := p.client.PaymentRequestApi.CreatePaymentRequest(ctx).PaymentRequestParameters(*paymentReq).Execute()
 	if err != nil {
 		return nil, fmt.Errorf("xendit payment request creation failed: %w", err)
-	}
-
-	metadata := make(map[string]interface{})
-	if req.Metadata != nil {
-		metadata = req.Metadata
 	}
 
 	status := models.PaymentStatusPending
@@ -92,7 +83,7 @@ func (p *XenditProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 		Description:      req.Description,
 		ProviderName:     "xendit",
 		ProviderChargeID: pr.GetId(),
-		Metadata:         metadata,
+		Metadata:         req.Metadata,
 		CreatedAt:        time.Now(),
 	}
 
@@ -128,21 +119,12 @@ func (p *XenditProvider) Refund(ctx context.Context, req *models.RefundRequest) 
 	refundData.SetReason(req.Reason)
 
 	if req.Metadata != nil {
-		metadata := make(map[string]interface{})
-		for k, v := range req.Metadata {
-			metadata[k] = v
-		}
-		refundData.SetMetadata(metadata)
+		refundData.SetMetadata(req.Metadata)
 	}
 
 	ref, _, err := p.client.RefundApi.CreateRefund(ctx).CreateRefund(*refundData).Execute()
 	if err != nil {
 		return nil, err
-	}
-
-	metadata := make(map[string]interface{})
-	if req.Metadata != nil {
-		metadata = req.Metadata
 	}
 
 	return &models.RefundResponse{
@@ -154,7 +136,7 @@ func (p *XenditProvider) Refund(ctx context.Context, req *models.RefundRequest) 
 		Reason:           req.Reason,
 		ProviderName:     "xendit",
 		ProviderRefundID: ref.GetId(),
-		Metadata:         metadata,
+		Metadata:         req.Metadata,
 		CreatedAt:        time.Now(),
 	}, nil
 }
@@ -166,13 +148,9 @@ func (p *XenditProvider) CreateSubscription(ctx context.Context, req *models.Cre
 	paymentReq.SetReferenceId(req.CustomerID)
 
 	if req.Metadata != nil {
-		metadata := make(map[string]interface{})
 		if metadataMap, ok := req.Metadata.(map[string]interface{}); ok {
-			for k, v := range metadataMap {
-				metadata[k] = v
-			}
+			paymentReq.SetMetadata(metadataMap)
 		}
-		paymentReq.SetMetadata(metadata)
 	}
 
 	pr, _, err := p.client.PaymentRequestApi.CreatePaymentRequest(ctx).PaymentRequestParameters(*paymentReq).Execute()
@@ -203,13 +181,9 @@ func (p *XenditProvider) UpdateSubscription(ctx context.Context, subscriptionID 
 	}
 
 	if req.Metadata != nil {
-		metadata := make(map[string]interface{})
 		if metadataMap, ok := req.Metadata.(map[string]interface{}); ok {
-			for k, v := range metadataMap {
-				metadata[k] = v
-			}
+			paymentReq.SetMetadata(metadataMap)
 		}
-		paymentReq.SetMetadata(metadata)
 	}
 
 	pr, _, err := p.client.PaymentRequestApi.CreatePaymentRequest(ctx).PaymentRequestParameters(*paymentReq).Execute()
@@ -527,24 +501,15 @@ func (p *XenditProvider) DeleteCustomer(ctx context.Context, customerID string) 
 }
 
 func (p *XenditProvider) CreatePaymentMethod(ctx context.Context, req *models.CreatePaymentMethodRequest) (*models.PaymentMethod, error) {
-	metadata := make(map[string]interface{})
-	if req.Metadata != nil {
-		for k, v := range req.Metadata {
-			metadata[k] = v
-		}
-	}
-	
-	result := &models.PaymentMethod{
+	return &models.PaymentMethod{
 		CustomerID:              req.CustomerID,
 		ProviderName:            "xendit",
 		ProviderPaymentMethodID: req.PaymentMethodID,
 		Type:                    req.Type,
 		IsDefault:               req.IsDefault,
-		Metadata:                metadata,
+		Metadata:                req.Metadata,
 		CreatedAt:               time.Now(),
-	}
-	
-	return result, nil
+	}, nil
 }
 
 func (p *XenditProvider) GetPaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error) {

@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/malwarebo/conductor/models"
 )
@@ -80,4 +81,40 @@ type RefundResponse struct {
 	ProviderName  string
 	CreatedAt     int64
 	Metadata      map[string]string
+}
+
+func ConvertMetadataToStringMap(m map[string]interface{}) map[string]string {
+	if m == nil {
+		return nil
+	}
+	result := make(map[string]string)
+	for k, v := range m {
+		if str, ok := v.(string); ok {
+			result[k] = str
+		} else {
+			result[k] = fmt.Sprintf("%v", v)
+		}
+	}
+	return result
+}
+
+func ConvertInterfaceMetadataToStringMap(m interface{}) map[string]string {
+	if m == nil {
+		return nil
+	}
+	if metadataMap, ok := m.(map[string]interface{}); ok {
+		return ConvertMetadataToStringMap(metadataMap)
+	}
+	return nil
+}
+
+func ConvertStringMapToMetadata(m map[string]string) map[string]interface{} {
+	if m == nil {
+		return nil
+	}
+	result := make(map[string]interface{})
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
 }
