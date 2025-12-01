@@ -55,12 +55,7 @@ func (p *StripeProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 	}
 
 	if req.Metadata != nil {
-		params.Metadata = make(map[string]string)
-		for k, v := range req.Metadata {
-			if str, ok := v.(string); ok {
-				params.Metadata[k] = str
-			}
-		}
+		params.Metadata = ConvertMetadataToStringMap(req.Metadata)
 	}
 
 	pi, err := paymentintent.New(params)
@@ -68,10 +63,7 @@ func (p *StripeProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 		return nil, fmt.Errorf("stripe payment intent creation failed: %w", err)
 	}
 
-	metadata := make(map[string]interface{})
-	for k, v := range pi.Metadata {
-		metadata[k] = v
-	}
+	metadata := ConvertStringMapToMetadata(pi.Metadata)
 
 	status := models.PaymentStatusPending
 	if pi.Status == stripe.PaymentIntentStatusSucceeded {
@@ -120,12 +112,7 @@ func (p *StripeProvider) Refund(ctx context.Context, req *models.RefundRequest) 
 	}
 
 	if req.Metadata != nil {
-		params.Metadata = make(map[string]string)
-		for k, v := range req.Metadata {
-			if str, ok := v.(string); ok {
-				params.Metadata[k] = str
-			}
-		}
+		params.Metadata = ConvertMetadataToStringMap(req.Metadata)
 	}
 
 	ref, err := refund.New(params)
@@ -133,10 +120,7 @@ func (p *StripeProvider) Refund(ctx context.Context, req *models.RefundRequest) 
 		return nil, err
 	}
 
-	metadata := make(map[string]interface{})
-	for k, v := range ref.Metadata {
-		metadata[k] = v
-	}
+	metadata := ConvertStringMapToMetadata(ref.Metadata)
 
 	return &models.RefundResponse{
 		ID:               ref.ID,
@@ -186,16 +170,7 @@ func (p *StripeProvider) CreateSubscription(ctx context.Context, req *models.Cre
 	}
 
 	if req.Metadata != nil {
-		params.Metadata = make(map[string]string)
-		if metadataMap, ok := req.Metadata.(map[string]interface{}); ok {
-			for k, v := range metadataMap {
-				if str, ok := v.(string); ok {
-					params.Metadata[k] = str
-				} else {
-					params.Metadata[k] = fmt.Sprintf("%v", v)
-				}
-			}
-		}
+		params.Metadata = ConvertInterfaceMetadataToStringMap(req.Metadata)
 	}
 
 	sub, err := subscription.New(params)
@@ -252,16 +227,7 @@ func (p *StripeProvider) UpdateSubscription(ctx context.Context, subscriptionID 
 	}
 
 	if req.Metadata != nil {
-		params.Metadata = make(map[string]string)
-		if metadataMap, ok := req.Metadata.(map[string]interface{}); ok {
-			for k, v := range metadataMap {
-				if str, ok := v.(string); ok {
-					params.Metadata[k] = str
-				} else {
-					params.Metadata[k] = fmt.Sprintf("%v", v)
-				}
-			}
-		}
+		params.Metadata = ConvertInterfaceMetadataToStringMap(req.Metadata)
 	}
 
 	sub, err := subscription.Update(subscriptionID, params)
@@ -420,16 +386,7 @@ func (p *StripeProvider) CreatePlan(ctx context.Context, planReq *models.Plan) (
 	}
 
 	if planReq.Metadata != nil {
-		params.Metadata = make(map[string]string)
-		if metadataMap, ok := planReq.Metadata.(map[string]interface{}); ok {
-			for k, v := range metadataMap {
-				if str, ok := v.(string); ok {
-					params.Metadata[k] = str
-				} else {
-					params.Metadata[k] = fmt.Sprintf("%v", v)
-				}
-			}
-		}
+		params.Metadata = ConvertInterfaceMetadataToStringMap(planReq.Metadata)
 	}
 
 	stripePlan, err := plan.New(params)
@@ -465,16 +422,7 @@ func (p *StripeProvider) UpdatePlan(ctx context.Context, planID string, planReq 
 	}
 
 	if planReq.Metadata != nil {
-		params.Metadata = make(map[string]string)
-		if metadataMap, ok := planReq.Metadata.(map[string]interface{}); ok {
-			for k, v := range metadataMap {
-				if str, ok := v.(string); ok {
-					params.Metadata[k] = str
-				} else {
-					params.Metadata[k] = fmt.Sprintf("%v", v)
-				}
-			}
-		}
+		params.Metadata = ConvertInterfaceMetadataToStringMap(planReq.Metadata)
 	}
 
 	stripePlan, err := plan.Update(planID, params)
@@ -526,11 +474,7 @@ func (p *StripeProvider) GetPlan(ctx context.Context, planID string) (*models.Pl
 	}
 
 	if stripePlan.Metadata != nil {
-		metadata := make(map[string]interface{})
-		for k, v := range stripePlan.Metadata {
-			metadata[k] = v
-		}
-		result.Metadata = metadata
+		result.Metadata = ConvertStringMapToMetadata(stripePlan.Metadata)
 	}
 
 	return result, nil
@@ -559,11 +503,7 @@ func (p *StripeProvider) ListPlans(ctx context.Context) ([]*models.Plan, error) 
 		}
 
 		if stripePlan.Metadata != nil {
-			metadata := make(map[string]interface{})
-			for k, v := range stripePlan.Metadata {
-				metadata[k] = v
-			}
-			result.Metadata = metadata
+			result.Metadata = ConvertStringMapToMetadata(stripePlan.Metadata)
 		}
 
 		plans = append(plans, result)
@@ -580,14 +520,7 @@ func (p *StripeProvider) UpdateDispute(ctx context.Context, disputeID string, re
 	params := &stripe.DisputeParams{}
 
 	if req.Metadata != nil {
-		params.Metadata = make(map[string]string)
-		for k, v := range req.Metadata {
-			if str, ok := v.(string); ok {
-				params.Metadata[k] = str
-			} else {
-				params.Metadata[k] = fmt.Sprintf("%v", v)
-			}
-		}
+		params.Metadata = ConvertMetadataToStringMap(req.Metadata)
 	}
 
 	stripeDispute, err := dispute.Update(disputeID, params)
@@ -704,11 +637,7 @@ func (p *StripeProvider) GetDispute(ctx context.Context, disputeID string) (*mod
 	}
 
 	if stripeDispute.Metadata != nil {
-		metadata := make(map[string]interface{})
-		for k, v := range stripeDispute.Metadata {
-			metadata[k] = v
-		}
-		result.Metadata = metadata
+		result.Metadata = ConvertStringMapToMetadata(stripeDispute.Metadata)
 	}
 
 	return result, nil
@@ -735,11 +664,7 @@ func (p *StripeProvider) ListDisputes(ctx context.Context, customerID string) ([
 		}
 
 		if stripeDispute.Metadata != nil {
-			metadata := make(map[string]interface{})
-			for k, v := range stripeDispute.Metadata {
-				metadata[k] = v
-			}
-			result.Metadata = metadata
+			result.Metadata = ConvertStringMapToMetadata(stripeDispute.Metadata)
 		}
 
 		disputes = append(disputes, result)
@@ -797,14 +722,7 @@ func (p *StripeProvider) CreateCustomer(ctx context.Context, req *models.CreateC
 	}
 
 	if req.Metadata != nil {
-		params.Metadata = make(map[string]string)
-		for k, v := range req.Metadata {
-			if str, ok := v.(string); ok {
-				params.Metadata[k] = str
-			} else {
-				params.Metadata[k] = fmt.Sprintf("%v", v)
-			}
-		}
+		params.Metadata = ConvertMetadataToStringMap(req.Metadata)
 	}
 
 	cust, err := customer.New(params)
@@ -831,14 +749,7 @@ func (p *StripeProvider) UpdateCustomer(ctx context.Context, customerID string, 
 	}
 
 	if req.Metadata != nil {
-		params.Metadata = make(map[string]string)
-		for k, v := range req.Metadata {
-			if str, ok := v.(string); ok {
-				params.Metadata[k] = str
-			} else {
-				params.Metadata[k] = fmt.Sprintf("%v", v)
-			}
-		}
+		params.Metadata = ConvertMetadataToStringMap(req.Metadata)
 	}
 
 	_, err := customer.Update(customerID, params)
@@ -851,17 +762,12 @@ func (p *StripeProvider) GetCustomer(ctx context.Context, customerID string) (*m
 		return nil, err
 	}
 
-	metadata := make(map[string]interface{})
-	for k, v := range cust.Metadata {
-		metadata[k] = v
-	}
-
 	return &models.Customer{
 		ExternalID: cust.ID,
 		Email:      cust.Email,
 		Name:       cust.Name,
 		Phone:      cust.Phone,
-		Metadata:   metadata,
+		Metadata:   ConvertStringMapToMetadata(cust.Metadata),
 		CreatedAt:  time.Unix(cust.Created, 0),
 	}, nil
 }
@@ -877,20 +783,13 @@ func (p *StripeProvider) CreatePaymentMethod(ctx context.Context, req *models.Cr
 		return nil, fmt.Errorf("stripe payment method get failed: %w", err)
 	}
 
-	metadata := make(map[string]interface{})
-	if req.Metadata != nil {
-		for k, v := range req.Metadata {
-			metadata[k] = v
-		}
-	}
-
 	result := &models.PaymentMethod{
 		CustomerID:              req.CustomerID,
 		ProviderName:            "stripe",
 		ProviderPaymentMethodID: pm.ID,
 		Type:                    string(pm.Type),
 		IsDefault:               req.IsDefault,
-		Metadata:                metadata,
+		Metadata:                req.Metadata,
 		CreatedAt:               time.Unix(pm.Created, 0),
 	}
 
