@@ -130,13 +130,6 @@ func main() {
 		printSuccess(fmt.Sprintf("Connected to Redis at %s:%d", cfg.Redis.Host, cfg.Redis.Port))
 	}
 
-	_ = cache.CacheConfig{
-		Strategy:       cache.WriteThrough,
-		TTL:            cfg.Redis.TTL,
-		MaxSize:        1000,
-		EvictionPolicy: "lru",
-	}
-
 	printStep("5/10", "Initializing security components...")
 	encryptionKey, err := security.CreateGenerateEncryptionKey()
 	if err != nil {
@@ -151,9 +144,6 @@ func main() {
 	}
 
 	jwtManager := security.CreateJWTManager(cfg.Security.JWTSecret, "conductor", "conductor-api")
-	_ = security.CreateAPIKeyManager()
-	_ = security.CreateAuditLogger()
-	_ = security.CreateValidator()
 
 	rateLimiter := security.CreateTieredRateLimiter(map[string]security.RateLimitConfig{
 		"default":  {RequestsPerSecond: 10, Burst: 20, Window: time.Minute},
@@ -168,8 +158,6 @@ func main() {
 	subscriptionRepo := stores.CreateSubscriptionRepository(database)
 	disputeRepo := stores.CreateDisputeRepository(database)
 	fraudRepo := stores.CreateFraudRepository(database)
-	customerStore := stores.CreateCustomerStore(database)
-	paymentMethodStore := stores.CreatePaymentMethodStore(database)
 	providerMappingStore := stores.CreateProviderMappingStore(database)
 	printSuccess("Stores initialized")
 
@@ -181,8 +169,6 @@ func main() {
 	printSuccess("Payment providers initialized")
 	printInfo("  • Stripe: Ready for USD, EUR, GBP")
 	printInfo("  • Xendit: Ready for IDR, SGD, MYR, PHP, THB, VND")
-	_ = customerStore
-	_ = paymentMethodStore
 
 	printStep("8/8", "Initializing services...")
 	paymentService := services.CreatePaymentService(paymentRepo, providerSelector)
