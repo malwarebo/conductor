@@ -6,13 +6,12 @@ toolchain go1.24.5
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/redis/go-redis/v9 v9.16.0
+	github.com/redis/go-redis/v9 v9.17.2
 	github.com/stripe/stripe-go/v82 v82.5.1
 	github.com/xendit/xendit-go/v6 v6.4.0
 	golang.org/x/time v0.14.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
-	gorm.io/plugin/dbresolver v1.6.2
 )
 
 require (
