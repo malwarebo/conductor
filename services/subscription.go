@@ -12,8 +12,7 @@ import (
 )
 
 var (
-	ErrPlanNotFound        = errors.New("plan not found")
-	ErrNoAvailableProvider = errors.New("no available payment provider")
+	ErrPlanNotFound = errors.New("plan not found")
 )
 
 type SubscriptionService struct {

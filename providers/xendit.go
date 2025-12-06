@@ -55,6 +55,12 @@ func (p *XenditProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 		paymentReq.SetPaymentMethodId(req.PaymentMethod)
 	}
 
+	captureMethod := models.CaptureMethodAutomatic
+	if req.CaptureMethod == models.CaptureMethodManual || (req.Capture != nil && !*req.Capture) {
+		captureMethod = models.CaptureMethodManual
+		paymentReq.SetCaptureMethod(paymentrequest.PAYMENTREQUESTCAPTUREMETHOD_MANUAL)
+	}
+
 	if req.Metadata != nil {
 		paymentReq.SetMetadata(req.Metadata)
 	}
@@ -64,14 +70,7 @@ func (p *XenditProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 		return nil, fmt.Errorf("xendit payment request creation failed: %w", err)
 	}
 
-	status := models.PaymentStatusPending
-	if pr.GetStatus() == "SUCCEEDED" {
-		status = models.PaymentStatusSuccess
-	} else if pr.GetStatus() == "FAILED" {
-		status = models.PaymentStatusFailed
-	} else if pr.GetStatus() == "PENDING" {
-		status = models.PaymentStatusPending
-	}
+	status := p.mapPaymentStatus(string(pr.GetStatus()))
 
 	response := &models.ChargeResponse{
 		ID:               pr.GetId(),
@@ -83,21 +82,52 @@ func (p *XenditProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 		Description:      req.Description,
 		ProviderName:     "xendit",
 		ProviderChargeID: pr.GetId(),
+		CaptureMethod:    captureMethod,
 		Metadata:         req.Metadata,
 		CreatedAt:        time.Now(),
 	}
 
 	if actions := pr.GetActions(); len(actions) > 0 {
-		response.Metadata["requires_action"] = true
+		response.RequiresAction = true
 		for _, action := range actions {
 			if action.GetAction() == "AUTH" {
-				response.Metadata["auth_url"] = action.GetUrl()
-				response.Metadata["auth_method"] = action.GetMethod()
+				response.NextActionType = "redirect_to_url"
+				response.NextActionURL = action.GetUrl()
 			}
 		}
 	}
 
 	return response, nil
+}
+
+func (p *XenditProvider) mapPaymentStatus(status string) models.PaymentStatus {
+	switch status {
+	case "SUCCEEDED":
+		return models.PaymentStatusSuccess
+	case "FAILED":
+		return models.PaymentStatusFailed
+	case "PENDING":
+		return models.PaymentStatusPending
+	case "AWAITING_CAPTURE":
+		return models.PaymentStatusRequiresCapture
+	case "REQUIRES_ACTION":
+		return models.PaymentStatusRequiresAction
+	default:
+		return models.PaymentStatusPending
+	}
+}
+
+func (p *XenditProvider) CapturePayment(ctx context.Context, paymentID string, amount int64) error {
+	captureParams := paymentrequest.NewCaptureParameters(float64(amount))
+	_, _, err := p.client.PaymentRequestApi.CapturePaymentRequest(ctx, paymentID).CaptureParameters(*captureParams).Execute()
+	if err != nil {
+		return fmt.Errorf("xendit capture failed: %w", err)
+	}
+	return nil
+}
+
+func (p *XenditProvider) VoidPayment(ctx context.Context, paymentID string) error {
+	return fmt.Errorf("xendit does not support voiding payments directly, use refund instead")
 }
 
 func (p *XenditProvider) getCurrency(currency string) (paymentrequest.PaymentRequestCurrency, error) {

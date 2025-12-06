@@ -7,7 +7,6 @@ import (
 	"github.com/malwarebo/conductor/models"
 )
 
-// PaymentProvider defines the interface for payment gateway providers
 type PaymentProvider interface {
 	Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error)
 	Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error)
@@ -43,6 +42,34 @@ type PaymentProvider interface {
 	DetachPaymentMethod(ctx context.Context, paymentMethodID string) error
 
 	IsAvailable(ctx context.Context) bool
+}
+
+type CaptureProvider interface {
+	CapturePayment(ctx context.Context, paymentID string, amount int64) error
+}
+
+type VoidProvider interface {
+	VoidPayment(ctx context.Context, paymentID string) error
+}
+
+type ThreeDSecureProvider interface {
+	Create3DSSession(ctx context.Context, paymentID string, returnURL string) (*ThreeDSecureSession, error)
+	Confirm3DSPayment(ctx context.Context, paymentID string) (*models.ChargeResponse, error)
+}
+
+type ThreeDSecureSession struct {
+	PaymentID    string `json:"payment_id"`
+	ClientSecret string `json:"client_secret"`
+	RedirectURL  string `json:"redirect_url"`
+	Status       string `json:"status"`
+}
+
+type PaymentIntentProvider interface {
+	CreatePaymentIntent(ctx context.Context, req *models.CreatePaymentIntentRequest) (*models.PaymentIntent, error)
+	GetPaymentIntent(ctx context.Context, paymentIntentID string) (*models.PaymentIntent, error)
+	UpdatePaymentIntent(ctx context.Context, paymentIntentID string, req *models.UpdatePaymentIntentRequest) (*models.PaymentIntent, error)
+	ConfirmPaymentIntent(ctx context.Context, paymentIntentID string, req *models.ConfirmPaymentIntentRequest) (*models.PaymentIntent, error)
+	ListPaymentIntents(ctx context.Context, req *models.ListPaymentIntentsRequest) ([]*models.PaymentIntent, error)
 }
 
 type ChargeRequest struct {

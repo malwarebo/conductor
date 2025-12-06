@@ -50,8 +50,17 @@ func (p *StripeProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 		params.Confirm = stripe.Bool(true)
 	}
 
+	if req.CaptureMethod == models.CaptureMethodManual || (req.Capture != nil && !*req.Capture) {
+		params.CaptureMethod = stripe.String("manual")
+	}
+
+	if req.ReturnURL != "" {
+		params.ReturnURL = stripe.String(req.ReturnURL)
+	}
+
 	params.AutomaticPaymentMethods = &stripe.PaymentIntentAutomaticPaymentMethodsParams{
-		Enabled: stripe.Bool(true),
+		Enabled:        stripe.Bool(true),
+		AllowRedirects: stripe.String("always"),
 	}
 
 	if req.Metadata != nil {
@@ -65,13 +74,10 @@ func (p *StripeProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 
 	metadata := ConvertStringMapToMetadata(pi.Metadata)
 
-	status := models.PaymentStatusPending
-	if pi.Status == stripe.PaymentIntentStatusSucceeded {
-		status = models.PaymentStatusSuccess
-	} else if pi.Status == stripe.PaymentIntentStatusRequiresAction {
-		status = models.PaymentStatusPending
-	} else if pi.Status == stripe.PaymentIntentStatusCanceled {
-		status = models.PaymentStatusFailed
+	status := p.mapPaymentIntentStatus(pi.Status)
+	captureMethod := models.CaptureMethodAutomatic
+	if pi.CaptureMethod == stripe.PaymentIntentCaptureMethodManual {
+		captureMethod = models.CaptureMethodManual
 	}
 
 	paymentMethodID := ""
@@ -89,19 +95,287 @@ func (p *StripeProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 		Description:      req.Description,
 		ProviderName:     "stripe",
 		ProviderChargeID: pi.ID,
+		CaptureMethod:    captureMethod,
+		CapturedAmount:   pi.AmountReceived,
+		ClientSecret:     pi.ClientSecret,
 		Metadata:         metadata,
 		CreatedAt:        time.Unix(pi.Created, 0),
 	}
 
-	if pi.NextAction != nil && pi.NextAction.Type == "redirect_to_url" {
-		response.Metadata["requires_action"] = true
-		response.Metadata["next_action_type"] = string(pi.NextAction.Type)
+	if pi.NextAction != nil {
+		response.RequiresAction = true
+		response.NextActionType = string(pi.NextAction.Type)
 		if pi.NextAction.RedirectToURL != nil {
-			response.Metadata["redirect_url"] = pi.NextAction.RedirectToURL.URL
+			response.NextActionURL = pi.NextAction.RedirectToURL.URL
+		}
+		if pi.NextAction.UseStripeSDK != nil {
+			response.NextActionType = "use_stripe_sdk"
 		}
 	}
 
 	return response, nil
+}
+
+func (p *StripeProvider) mapPaymentIntentStatus(status stripe.PaymentIntentStatus) models.PaymentStatus {
+	switch status {
+	case stripe.PaymentIntentStatusSucceeded:
+		return models.PaymentStatusSuccess
+	case stripe.PaymentIntentStatusRequiresAction:
+		return models.PaymentStatusRequiresAction
+	case stripe.PaymentIntentStatusRequiresCapture:
+		return models.PaymentStatusRequiresCapture
+	case stripe.PaymentIntentStatusProcessing:
+		return models.PaymentStatusProcessing
+	case stripe.PaymentIntentStatusCanceled:
+		return models.PaymentStatusCanceled
+	case stripe.PaymentIntentStatusRequiresPaymentMethod:
+		return models.PaymentStatusFailed
+	default:
+		return models.PaymentStatusPending
+	}
+}
+
+func (p *StripeProvider) CapturePayment(ctx context.Context, paymentID string, amount int64) error {
+	params := &stripe.PaymentIntentCaptureParams{}
+	if amount > 0 {
+		params.AmountToCapture = stripe.Int64(amount)
+	}
+
+	_, err := paymentintent.Capture(paymentID, params)
+	if err != nil {
+		return fmt.Errorf("stripe capture failed: %w", err)
+	}
+	return nil
+}
+
+func (p *StripeProvider) VoidPayment(ctx context.Context, paymentID string) error {
+	params := &stripe.PaymentIntentCancelParams{
+		CancellationReason: stripe.String("requested_by_customer"),
+	}
+
+	_, err := paymentintent.Cancel(paymentID, params)
+	if err != nil {
+		return fmt.Errorf("stripe void/cancel failed: %w", err)
+	}
+	return nil
+}
+
+func (p *StripeProvider) Create3DSSession(ctx context.Context, paymentID string, returnURL string) (*ThreeDSecureSession, error) {
+	pi, err := paymentintent.Get(paymentID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("stripe get payment intent failed: %w", err)
+	}
+
+	session := &ThreeDSecureSession{
+		PaymentID:    pi.ID,
+		ClientSecret: pi.ClientSecret,
+		Status:       string(pi.Status),
+	}
+
+	if pi.NextAction != nil && pi.NextAction.RedirectToURL != nil {
+		session.RedirectURL = pi.NextAction.RedirectToURL.URL
+	}
+
+	return session, nil
+}
+
+func (p *StripeProvider) Confirm3DSPayment(ctx context.Context, paymentID string) (*models.ChargeResponse, error) {
+	pi, err := paymentintent.Get(paymentID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("stripe get payment intent failed: %w", err)
+	}
+
+	status := p.mapPaymentIntentStatus(pi.Status)
+	captureMethod := models.CaptureMethodAutomatic
+	if pi.CaptureMethod == stripe.PaymentIntentCaptureMethodManual {
+		captureMethod = models.CaptureMethodManual
+	}
+
+	paymentMethodID := ""
+	if pi.PaymentMethod != nil {
+		paymentMethodID = pi.PaymentMethod.ID
+	}
+
+	return &models.ChargeResponse{
+		ID:               pi.ID,
+		CustomerID:       pi.Customer.ID,
+		Amount:           pi.Amount,
+		Currency:         string(pi.Currency),
+		Status:           status,
+		PaymentMethod:    paymentMethodID,
+		ProviderName:     "stripe",
+		ProviderChargeID: pi.ID,
+		CaptureMethod:    captureMethod,
+		CapturedAmount:   pi.AmountReceived,
+		ClientSecret:     pi.ClientSecret,
+		CreatedAt:        time.Unix(pi.Created, 0),
+	}, nil
+}
+
+func (p *StripeProvider) CreatePaymentIntent(ctx context.Context, req *models.CreatePaymentIntentRequest) (*models.PaymentIntent, error) {
+	params := &stripe.PaymentIntentParams{
+		Amount:   stripe.Int64(req.Amount),
+		Currency: stripe.String(req.Currency),
+	}
+
+	if req.CustomerID != "" {
+		params.Customer = stripe.String(req.CustomerID)
+	}
+
+	if req.Description != "" {
+		params.Description = stripe.String(req.Description)
+	}
+
+	if req.PaymentMethod != "" {
+		params.PaymentMethod = stripe.String(req.PaymentMethod)
+	}
+
+	if req.CaptureMethod == models.CaptureMethodManual {
+		params.CaptureMethod = stripe.String("manual")
+	}
+
+	if req.SetupFutureUsage != "" {
+		params.SetupFutureUsage = stripe.String(req.SetupFutureUsage)
+	}
+
+	if req.ReturnURL != "" {
+		params.ReturnURL = stripe.String(req.ReturnURL)
+	}
+
+	params.AutomaticPaymentMethods = &stripe.PaymentIntentAutomaticPaymentMethodsParams{
+		Enabled: stripe.Bool(true),
+	}
+
+	if req.Metadata != nil {
+		params.Metadata = ConvertMetadataToStringMap(req.Metadata)
+	}
+
+	pi, err := paymentintent.New(params)
+	if err != nil {
+		return nil, fmt.Errorf("stripe create payment intent failed: %w", err)
+	}
+
+	return p.mapPaymentIntent(pi), nil
+}
+
+func (p *StripeProvider) GetPaymentIntent(ctx context.Context, paymentIntentID string) (*models.PaymentIntent, error) {
+	pi, err := paymentintent.Get(paymentIntentID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("stripe get payment intent failed: %w", err)
+	}
+
+	return p.mapPaymentIntent(pi), nil
+}
+
+func (p *StripeProvider) UpdatePaymentIntent(ctx context.Context, paymentIntentID string, req *models.UpdatePaymentIntentRequest) (*models.PaymentIntent, error) {
+	params := &stripe.PaymentIntentParams{}
+
+	if req.Amount != nil {
+		params.Amount = stripe.Int64(*req.Amount)
+	}
+
+	if req.Currency != nil {
+		params.Currency = stripe.String(*req.Currency)
+	}
+
+	if req.Description != nil {
+		params.Description = stripe.String(*req.Description)
+	}
+
+	if req.PaymentMethod != nil {
+		params.PaymentMethod = stripe.String(*req.PaymentMethod)
+	}
+
+	if req.Metadata != nil {
+		params.Metadata = ConvertMetadataToStringMap(req.Metadata)
+	}
+
+	pi, err := paymentintent.Update(paymentIntentID, params)
+	if err != nil {
+		return nil, fmt.Errorf("stripe update payment intent failed: %w", err)
+	}
+
+	return p.mapPaymentIntent(pi), nil
+}
+
+func (p *StripeProvider) ConfirmPaymentIntent(ctx context.Context, paymentIntentID string, req *models.ConfirmPaymentIntentRequest) (*models.PaymentIntent, error) {
+	params := &stripe.PaymentIntentConfirmParams{}
+
+	if req.PaymentMethod != "" {
+		params.PaymentMethod = stripe.String(req.PaymentMethod)
+	}
+
+	if req.ReturnURL != "" {
+		params.ReturnURL = stripe.String(req.ReturnURL)
+	}
+
+	pi, err := paymentintent.Confirm(paymentIntentID, params)
+	if err != nil {
+		return nil, fmt.Errorf("stripe confirm payment intent failed: %w", err)
+	}
+
+	return p.mapPaymentIntent(pi), nil
+}
+
+func (p *StripeProvider) ListPaymentIntents(ctx context.Context, req *models.ListPaymentIntentsRequest) ([]*models.PaymentIntent, error) {
+	params := &stripe.PaymentIntentListParams{}
+
+	if req.CustomerID != "" {
+		params.Customer = stripe.String(req.CustomerID)
+	}
+
+	if req.Limit > 0 {
+		params.Limit = stripe.Int64(int64(req.Limit))
+	}
+
+	i := paymentintent.List(params)
+	var intents []*models.PaymentIntent
+
+	for i.Next() {
+		intents = append(intents, p.mapPaymentIntent(i.PaymentIntent()))
+	}
+
+	return intents, nil
+}
+
+func (p *StripeProvider) mapPaymentIntent(pi *stripe.PaymentIntent) *models.PaymentIntent {
+	intent := &models.PaymentIntent{
+		ID:             pi.ID,
+		Amount:         pi.Amount,
+		Currency:       string(pi.Currency),
+		Status:         string(pi.Status),
+		ClientSecret:   pi.ClientSecret,
+		CaptureMethod:  string(pi.CaptureMethod),
+		CapturedAmount: pi.AmountReceived,
+		ProviderName:   "stripe",
+		CreatedAt:      time.Unix(pi.Created, 0),
+	}
+
+	if pi.Customer != nil {
+		intent.CustomerID = pi.Customer.ID
+	}
+
+	if pi.PaymentMethod != nil {
+		intent.PaymentMethod = pi.PaymentMethod.ID
+	}
+
+	if pi.Description != "" {
+		intent.Description = pi.Description
+	}
+
+	if pi.NextAction != nil {
+		intent.RequiresAction = true
+		intent.NextActionType = string(pi.NextAction.Type)
+		if pi.NextAction.RedirectToURL != nil {
+			intent.NextActionURL = pi.NextAction.RedirectToURL.URL
+		}
+	}
+
+	if pi.Metadata != nil {
+		intent.Metadata = ConvertStringMapToMetadata(pi.Metadata)
+	}
+
+	return intent
 }
 
 func (p *StripeProvider) Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
