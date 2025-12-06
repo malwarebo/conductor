@@ -159,6 +159,10 @@ func main() {
 	disputeRepo := stores.CreateDisputeRepository(database)
 	fraudRepo := stores.CreateFraudRepository(database)
 	providerMappingStore := stores.CreateProviderMappingStore(database)
+	idempotencyStore := stores.CreateIdempotencyStore(database)
+	auditStore := stores.CreateAuditStore(database)
+	tenantStore := stores.CreateTenantStore(database)
+	webhookStore := stores.CreateWebhookStore(database)
 	printSuccess("Stores initialized")
 
 	printStep("7/8", "Initializing payment providers...")
@@ -171,24 +175,30 @@ func main() {
 	printInfo("  • Xendit: Ready for IDR, SGD, MYR, PHP, THB, VND")
 
 	printStep("8/8", "Initializing services...")
-	paymentService := services.CreatePaymentService(paymentRepo, providerSelector)
+	paymentService := services.CreatePaymentServiceFull(paymentRepo, idempotencyStore, auditStore, providerSelector)
 	subscriptionService := services.CreateSubscriptionService(planRepo, subscriptionRepo, providerSelector)
 	disputeService := services.CreateDisputeService(disputeRepo, providerSelector)
 	fraudService := services.CreateFraudService(fraudRepo, cfg.OpenAI.APIKey)
 	routingService := services.CreateRoutingService(cfg.OpenAI.APIKey)
+	auditService := services.CreateAuditService(auditStore)
+	tenantService := services.CreateTenantService(tenantStore)
+	webhookService := services.CreateWebhookService(webhookStore, paymentRepo, tenantStore, auditStore)
 
 	printSuccess("Services initialized")
 
 	printStep("8/8", "Setting up HTTP server...")
-	paymentHandler := api.CreatePaymentHandler(paymentService)
+	paymentHandler := api.CreatePaymentHandlerWithWebhook(paymentService, webhookService)
 	subscriptionHandler := api.CreateSubscriptionHandler(subscriptionService)
 	disputeHandler := api.CreateDisputeHandler(disputeService)
 	fraudHandler := api.CreateFraudHandler(fraudService)
 	routingHandler := api.CreateRoutingHandler(routingService)
+	tenantHandler := api.CreateTenantHandler(tenantService)
+	auditHandler := api.CreateAuditHandler(auditService)
 
 	router := mux.NewRouter()
 
 	authMiddleware := middleware.CreateAuthMiddleware(jwtManager, rateLimiter, encryption, cfg.Security.WebhookSecret)
+	tenantMiddleware := middleware.CreateTenantMiddleware(tenantService, auditService)
 
 	router.Use(middleware.CreateLoggingMiddleware)
 	router.Use(authMiddleware.HeadersMiddleware)
@@ -199,12 +209,27 @@ func main() {
 	apiRouter := router.PathPrefix("/v1").Subrouter()
 	apiRouter.Use(authMiddleware.RateLimitMiddleware)
 	apiRouter.Use(authMiddleware.JWTMiddleware)
+	apiRouter.Use(tenantMiddleware.TenantContextMiddleware)
+	apiRouter.Use(tenantMiddleware.IdempotencyMiddleware)
+	apiRouter.Use(tenantMiddleware.AuditMiddleware)
 	apiRouter.Use(authMiddleware.EncryptionMiddleware)
 
 	apiRouter.HandleFunc("/health", api.CreateHealthCheckHandler).Methods("GET")
 
 	apiRouter.HandleFunc("/charges", paymentHandler.HandleCharge).Methods("POST")
+	apiRouter.HandleFunc("/authorize", paymentHandler.HandleAuthorize).Methods("POST")
+	apiRouter.HandleFunc("/payments/{id}", paymentHandler.HandleGetPayment).Methods("GET")
+	apiRouter.HandleFunc("/payments/{id}/capture", paymentHandler.HandleCapture).Methods("POST")
+	apiRouter.HandleFunc("/payments/{id}/void", paymentHandler.HandleVoid).Methods("POST")
+	apiRouter.HandleFunc("/payments/{id}/confirm", paymentHandler.HandleConfirm3DS).Methods("POST")
 	apiRouter.HandleFunc("/refunds", paymentHandler.HandleRefund).Methods("POST")
+
+	apiRouter.HandleFunc("/payment-intents", paymentHandler.HandleCreatePaymentIntent).Methods("POST")
+	apiRouter.HandleFunc("/payment-intents", paymentHandler.HandleListPaymentIntents).Methods("GET")
+	apiRouter.HandleFunc("/payment-intents/{id}", paymentHandler.HandleGetPaymentIntent).Methods("GET")
+	apiRouter.HandleFunc("/payment-intents/{id}", paymentHandler.HandleUpdatePaymentIntent).Methods("PATCH")
+	apiRouter.HandleFunc("/payment-intents/{id}/confirm", paymentHandler.HandleConfirmPaymentIntent).Methods("POST")
+
 	apiRouter.HandleFunc("/plans", subscriptionHandler.HandlePlans).Methods("POST", "GET")
 	apiRouter.HandleFunc("/plans/{id}", subscriptionHandler.HandlePlans).Methods("GET", "PUT", "DELETE")
 
@@ -222,6 +247,17 @@ func main() {
 	apiRouter.HandleFunc("/routing/select", routingHandler.HandleRouting).Methods("POST")
 	apiRouter.HandleFunc("/routing/stats", routingHandler.HandleProviderStats).Methods("GET")
 	apiRouter.HandleFunc("/routing/config", routingHandler.HandleRoutingConfig).Methods("GET", "PUT")
+
+	apiRouter.HandleFunc("/tenants", tenantHandler.HandleCreate).Methods("POST")
+	apiRouter.HandleFunc("/tenants", tenantHandler.HandleList).Methods("GET")
+	apiRouter.HandleFunc("/tenants/{id}", tenantHandler.HandleGet).Methods("GET")
+	apiRouter.HandleFunc("/tenants/{id}", tenantHandler.HandleUpdate).Methods("PUT")
+	apiRouter.HandleFunc("/tenants/{id}", tenantHandler.HandleDelete).Methods("DELETE")
+	apiRouter.HandleFunc("/tenants/{id}/deactivate", tenantHandler.HandleDeactivate).Methods("POST")
+	apiRouter.HandleFunc("/tenants/{id}/regenerate-secret", tenantHandler.HandleRegenerateSecret).Methods("POST")
+
+	apiRouter.HandleFunc("/audit-logs", auditHandler.HandleList).Methods("GET")
+	apiRouter.HandleFunc("/audit-logs/{resource_type}/{resource_id}", auditHandler.HandleGetResourceHistory).Methods("GET")
 
 	webhookRouter := router.PathPrefix("/v1/webhooks").Subrouter()
 	webhookRouter.Use(authMiddleware.WebhookMiddleware)

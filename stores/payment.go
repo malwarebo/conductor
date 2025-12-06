@@ -58,3 +58,45 @@ func (r *PaymentRepository) ListRefundsByPayment(ctx context.Context, paymentID 
 	}
 	return refunds, nil
 }
+
+func (r *PaymentRepository) GetByProviderChargeID(ctx context.Context, providerChargeID string) (*models.Payment, error) {
+	var payment models.Payment
+	if err := r.GetDB(ctx).Where("provider_charge_id = ?", providerChargeID).First(&payment).Error; err != nil {
+		return nil, err
+	}
+	return &payment, nil
+}
+
+func (r *PaymentRepository) GetByIdempotencyKey(ctx context.Context, idempotencyKey string) (*models.Payment, error) {
+	var payment models.Payment
+	if err := r.GetDB(ctx).Where("idempotency_key = ?", idempotencyKey).First(&payment).Error; err != nil {
+		return nil, err
+	}
+	return &payment, nil
+}
+
+func (r *PaymentRepository) ListByTenant(ctx context.Context, tenantID string, limit, offset int) ([]*models.Payment, error) {
+	var payments []*models.Payment
+	query := r.GetDB(ctx).Where("tenant_id = ?", tenantID).Order("created_at DESC")
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+	if err := query.Find(&payments).Error; err != nil {
+		return nil, err
+	}
+	return payments, nil
+}
+
+func (r *PaymentRepository) UpdateStatus(ctx context.Context, id string, status models.PaymentStatus) error {
+	return r.GetDB(ctx).Model(&models.Payment{}).Where("id = ?", id).Update("status", status).Error
+}
+
+func (r *PaymentRepository) UpdateCapture(ctx context.Context, id string, capturedAmount int64, status models.PaymentStatus) error {
+	return r.GetDB(ctx).Model(&models.Payment{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"captured_amount": capturedAmount,
+		"status":          status,
+	}).Error
+}
