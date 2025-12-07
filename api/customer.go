@@ -67,7 +67,11 @@ func (h *CustomerHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	customer, _ := h.customerService.GetCustomer(r.Context(), customerID)
+	customer, err := h.customerService.GetCustomer(r.Context(), customerID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Customer updated but failed to retrieve"})
+		return
+	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"customer": customer,
@@ -88,4 +92,3 @@ func (h *CustomerHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 		"id":      customerID,
 	})
 }
-
