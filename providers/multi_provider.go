@@ -500,6 +500,366 @@ func (m *MultiProviderSelector) IsAvailable(ctx context.Context) bool {
 	return false
 }
 
+func (m *MultiProviderSelector) CapturePayment(ctx context.Context, paymentID string, amount int64) error {
+	m.mu.RLock()
+	provider, ok := m.paymentProviderMap[paymentID]
+	m.mu.RUnlock()
+
+	if !ok {
+		var err error
+		provider, err = m.getProviderFromDB(ctx, paymentID, "payment")
+		if err != nil {
+			return err
+		}
+	}
+
+	if capturer, ok := provider.(CaptureProvider); ok {
+		return capturer.CapturePayment(ctx, paymentID, amount)
+	}
+	return ErrNotSupported
+}
+
+func (m *MultiProviderSelector) VoidPayment(ctx context.Context, paymentID string) error {
+	m.mu.RLock()
+	provider, ok := m.paymentProviderMap[paymentID]
+	m.mu.RUnlock()
+
+	if !ok {
+		var err error
+		provider, err = m.getProviderFromDB(ctx, paymentID, "payment")
+		if err != nil {
+			return err
+		}
+	}
+
+	if voider, ok := provider.(VoidProvider); ok {
+		return voider.VoidPayment(ctx, paymentID)
+	}
+	return ErrNotSupported
+}
+
+func (m *MultiProviderSelector) CreateInvoice(ctx context.Context, req *models.CreateInvoiceRequest) (*models.Invoice, error) {
+	provider, err := m.selectProviderByCurrency(ctx, req.Currency)
+	if err != nil {
+		return nil, err
+	}
+
+	if invProvider, ok := provider.(InvoiceProvider); ok {
+		inv, err := invProvider.CreateInvoice(ctx, req)
+		if err == nil && inv != nil {
+			providerName := m.getProviderName(provider)
+			m.saveProviderMapping(ctx, inv.ProviderID, "invoice", providerName, inv.ProviderID)
+		}
+		return inv, err
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) GetInvoice(ctx context.Context, invoiceID string) (*models.Invoice, error) {
+	provider, err := m.getProviderFromDB(ctx, invoiceID, "invoice")
+	if err != nil {
+		for _, p := range m.Providers {
+			if p.IsAvailable(ctx) {
+				if invProvider, ok := p.(InvoiceProvider); ok {
+					inv, err := invProvider.GetInvoice(ctx, invoiceID)
+					if err == nil {
+						return inv, nil
+					}
+				}
+			}
+		}
+		return nil, fmt.Errorf("invoice not found")
+	}
+
+	if invProvider, ok := provider.(InvoiceProvider); ok {
+		return invProvider.GetInvoice(ctx, invoiceID)
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) ListInvoices(ctx context.Context, req *models.ListInvoicesRequest) ([]*models.Invoice, error) {
+	var allInvoices []*models.Invoice
+	for _, provider := range m.Providers {
+		if provider.IsAvailable(ctx) {
+			if invProvider, ok := provider.(InvoiceProvider); ok {
+				invoices, err := invProvider.ListInvoices(ctx, req)
+				if err == nil {
+					allInvoices = append(allInvoices, invoices...)
+				}
+			}
+		}
+	}
+	return allInvoices, nil
+}
+
+func (m *MultiProviderSelector) CancelInvoice(ctx context.Context, invoiceID string) (*models.Invoice, error) {
+	provider, err := m.getProviderFromDB(ctx, invoiceID, "invoice")
+	if err != nil {
+		for _, p := range m.Providers {
+			if p.IsAvailable(ctx) {
+				if invProvider, ok := p.(InvoiceProvider); ok {
+					inv, err := invProvider.CancelInvoice(ctx, invoiceID)
+					if err == nil {
+						return inv, nil
+					}
+				}
+			}
+		}
+		return nil, fmt.Errorf("invoice not found")
+	}
+
+	if invProvider, ok := provider.(InvoiceProvider); ok {
+		return invProvider.CancelInvoice(ctx, invoiceID)
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) CreatePayout(ctx context.Context, req *models.CreatePayoutRequest) (*models.Payout, error) {
+	provider, err := m.selectProviderByCurrency(ctx, req.Currency)
+	if err != nil {
+		return nil, err
+	}
+
+	if payoutProvider, ok := provider.(PayoutProvider); ok {
+		payout, err := payoutProvider.CreatePayout(ctx, req)
+		if err == nil && payout != nil {
+			providerName := m.getProviderName(provider)
+			m.saveProviderMapping(ctx, payout.ProviderID, "payout", providerName, payout.ProviderID)
+		}
+		return payout, err
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) GetPayout(ctx context.Context, payoutID string) (*models.Payout, error) {
+	provider, err := m.getProviderFromDB(ctx, payoutID, "payout")
+	if err != nil {
+		for _, p := range m.Providers {
+			if p.IsAvailable(ctx) {
+				if payoutProvider, ok := p.(PayoutProvider); ok {
+					payout, err := payoutProvider.GetPayout(ctx, payoutID)
+					if err == nil {
+						return payout, nil
+					}
+				}
+			}
+		}
+		return nil, fmt.Errorf("payout not found")
+	}
+
+	if payoutProvider, ok := provider.(PayoutProvider); ok {
+		return payoutProvider.GetPayout(ctx, payoutID)
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) ListPayouts(ctx context.Context, req *models.ListPayoutsRequest) ([]*models.Payout, error) {
+	var allPayouts []*models.Payout
+	for _, provider := range m.Providers {
+		if provider.IsAvailable(ctx) {
+			if payoutProvider, ok := provider.(PayoutProvider); ok {
+				payouts, err := payoutProvider.ListPayouts(ctx, req)
+				if err == nil {
+					allPayouts = append(allPayouts, payouts...)
+				}
+			}
+		}
+	}
+	return allPayouts, nil
+}
+
+func (m *MultiProviderSelector) CancelPayout(ctx context.Context, payoutID string) (*models.Payout, error) {
+	provider, err := m.getProviderFromDB(ctx, payoutID, "payout")
+	if err != nil {
+		for _, p := range m.Providers {
+			if p.IsAvailable(ctx) {
+				if payoutProvider, ok := p.(PayoutProvider); ok {
+					payout, err := payoutProvider.CancelPayout(ctx, payoutID)
+					if err == nil {
+						return payout, nil
+					}
+				}
+			}
+		}
+		return nil, fmt.Errorf("payout not found")
+	}
+
+	if payoutProvider, ok := provider.(PayoutProvider); ok {
+		return payoutProvider.CancelPayout(ctx, payoutID)
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) GetPayoutChannels(ctx context.Context, currency string) ([]*models.PayoutChannel, error) {
+	provider, err := m.selectProviderByCurrency(ctx, currency)
+	if err != nil {
+		return nil, err
+	}
+
+	if payoutProvider, ok := provider.(PayoutProvider); ok {
+		return payoutProvider.GetPayoutChannels(ctx, currency)
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) GetBalance(ctx context.Context, currency string) (*models.Balance, error) {
+	provider, err := m.selectProviderByCurrency(ctx, currency)
+	if err != nil {
+		return nil, err
+	}
+
+	if balanceProvider, ok := provider.(BalanceProvider); ok {
+		return balanceProvider.GetBalance(ctx, currency)
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) CreatePaymentSession(ctx context.Context, req *models.CreatePaymentSessionRequest) (*models.PaymentSession, error) {
+	provider, err := m.selectProviderByCurrency(ctx, req.Currency)
+	if err != nil {
+		return nil, err
+	}
+
+	if sessionProvider, ok := provider.(PaymentSessionProvider); ok {
+		session, err := sessionProvider.CreatePaymentSession(ctx, req)
+		if err == nil && session != nil {
+			providerName := m.getProviderName(provider)
+			m.saveProviderMapping(ctx, session.ProviderID, "payment_session", providerName, session.ProviderID)
+		}
+		return session, err
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) GetPaymentSession(ctx context.Context, sessionID string) (*models.PaymentSession, error) {
+	provider, err := m.getProviderFromDB(ctx, sessionID, "payment_session")
+	if err != nil {
+		for _, p := range m.Providers {
+			if p.IsAvailable(ctx) {
+				if sessionProvider, ok := p.(PaymentSessionProvider); ok {
+					session, err := sessionProvider.GetPaymentSession(ctx, sessionID)
+					if err == nil {
+						return session, nil
+					}
+				}
+			}
+		}
+		return nil, fmt.Errorf("payment session not found")
+	}
+
+	if sessionProvider, ok := provider.(PaymentSessionProvider); ok {
+		return sessionProvider.GetPaymentSession(ctx, sessionID)
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) UpdatePaymentSession(ctx context.Context, sessionID string, req *models.UpdatePaymentSessionRequest) (*models.PaymentSession, error) {
+	provider, err := m.getProviderFromDB(ctx, sessionID, "payment_session")
+	if err != nil {
+		return nil, err
+	}
+
+	if sessionProvider, ok := provider.(PaymentSessionProvider); ok {
+		return sessionProvider.UpdatePaymentSession(ctx, sessionID, req)
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) ConfirmPaymentSession(ctx context.Context, sessionID string, req *models.ConfirmPaymentSessionRequest) (*models.PaymentSession, error) {
+	provider, err := m.getProviderFromDB(ctx, sessionID, "payment_session")
+	if err != nil {
+		for _, p := range m.Providers {
+			if p.IsAvailable(ctx) {
+				if sessionProvider, ok := p.(PaymentSessionProvider); ok {
+					session, err := sessionProvider.ConfirmPaymentSession(ctx, sessionID, req)
+					if err == nil {
+						return session, nil
+					}
+				}
+			}
+		}
+		return nil, fmt.Errorf("payment session not found")
+	}
+
+	if sessionProvider, ok := provider.(PaymentSessionProvider); ok {
+		return sessionProvider.ConfirmPaymentSession(ctx, sessionID, req)
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) CapturePaymentSession(ctx context.Context, sessionID string, amount *int64) (*models.PaymentSession, error) {
+	provider, err := m.getProviderFromDB(ctx, sessionID, "payment_session")
+	if err != nil {
+		for _, p := range m.Providers {
+			if p.IsAvailable(ctx) {
+				if sessionProvider, ok := p.(PaymentSessionProvider); ok {
+					session, err := sessionProvider.CapturePaymentSession(ctx, sessionID, amount)
+					if err == nil {
+						return session, nil
+					}
+				}
+			}
+		}
+		return nil, fmt.Errorf("payment session not found")
+	}
+
+	if sessionProvider, ok := provider.(PaymentSessionProvider); ok {
+		return sessionProvider.CapturePaymentSession(ctx, sessionID, amount)
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) CancelPaymentSession(ctx context.Context, sessionID string) (*models.PaymentSession, error) {
+	provider, err := m.getProviderFromDB(ctx, sessionID, "payment_session")
+	if err != nil {
+		for _, p := range m.Providers {
+			if p.IsAvailable(ctx) {
+				if sessionProvider, ok := p.(PaymentSessionProvider); ok {
+					session, err := sessionProvider.CancelPaymentSession(ctx, sessionID)
+					if err == nil {
+						return session, nil
+					}
+				}
+			}
+		}
+		return nil, fmt.Errorf("payment session not found")
+	}
+
+	if sessionProvider, ok := provider.(PaymentSessionProvider); ok {
+		return sessionProvider.CancelPaymentSession(ctx, sessionID)
+	}
+	return nil, ErrNotSupported
+}
+
+func (m *MultiProviderSelector) ListPaymentSessions(ctx context.Context, req *models.ListPaymentSessionsRequest) ([]*models.PaymentSession, error) {
+	var allSessions []*models.PaymentSession
+	for _, provider := range m.Providers {
+		if provider.IsAvailable(ctx) {
+			if sessionProvider, ok := provider.(PaymentSessionProvider); ok {
+				sessions, err := sessionProvider.ListPaymentSessions(ctx, req)
+				if err == nil {
+					allSessions = append(allSessions, sessions...)
+				}
+			}
+		}
+	}
+	return allSessions, nil
+}
+
+func (m *MultiProviderSelector) ExpirePaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error) {
+	for _, provider := range m.Providers {
+		if provider.IsAvailable(ctx) {
+			if pmProvider, ok := provider.(PaymentMethodProvider); ok {
+				pm, err := pmProvider.ExpirePaymentMethod(ctx, paymentMethodID)
+				if err == nil {
+					return pm, nil
+				}
+			}
+		}
+	}
+	return nil, ErrNotSupported
+}
+
 func (m *MultiProviderSelector) GetProviderStats() map[string]interface{} {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

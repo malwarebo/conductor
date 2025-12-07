@@ -149,14 +149,11 @@ func (p *XenditProvider) VoidPayment(ctx context.Context, paymentID string) erro
 }
 
 func (p *XenditProvider) getCurrency(currency string) (paymentrequest.PaymentRequestCurrency, error) {
-	switch currency {
-	case "IDR":
-		return paymentrequest.PAYMENTREQUESTCURRENCY_IDR, nil
-	case "PHP":
-		return paymentrequest.PAYMENTREQUESTCURRENCY_PHP, nil
-	default:
+	curr, err := paymentrequest.NewPaymentRequestCurrencyFromValue(currency)
+	if err != nil {
 		return paymentrequest.PAYMENTREQUESTCURRENCY_IDR, fmt.Errorf("unsupported currency: %s", currency)
 	}
+	return *curr, nil
 }
 
 func (p *XenditProvider) CreatePaymentSession(ctx context.Context, req *models.CreatePaymentSessionRequest) (*models.PaymentSession, error) {
