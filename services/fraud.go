@@ -35,7 +35,6 @@ type fraudService struct {
 	repo       stores.FraudRepository
 	openAIKey  string
 	httpClient *http.Client
-	ipAnalyzer *utils.IPAnalyzer
 	cache      map[string]*models.FraudAnalysisResult
 }
 
@@ -64,8 +63,7 @@ func CreateFraudService(repo stores.FraudRepository, openAIKey string) FraudServ
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		ipAnalyzer: utils.CreateIPAnalyzer(),
-		cache:      make(map[string]*models.FraudAnalysisResult),
+		cache: make(map[string]*models.FraudAnalysisResult),
 	}
 }
 
@@ -83,10 +81,6 @@ func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.F
 		}, nil
 	}
 
-	ipRiskLevel := s.ipAnalyzer.AnalyzeIP(ctx, request.IPAddress)
-	ipRiskScore := s.ipAnalyzer.GetRiskScore(ipRiskLevel)
-	ipRiskDescription := s.ipAnalyzer.GetRiskDescription(ipRiskLevel)
-
 	anonymizedData := map[string]interface{}{
 		"transaction_amount":   request.TransactionAmount,
 		"billing_country":      request.BillingCountry,
@@ -94,9 +88,7 @@ func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.F
 		"transaction_velocity": request.TransactionVelocity,
 		"countries_match":      request.BillingCountry == request.ShippingCountry,
 		"amount_category":      categorizeAmount(request.TransactionAmount),
-		"ip_risk_level":        ipRiskLevel,
-		"ip_risk_score":        ipRiskScore,
-		"ip_risk_description":  ipRiskDescription,
+		"ip_category":          categorizeIPAddress(request.IPAddress),
 	}
 
 	userMessageData, err := json.Marshal(anonymizedData)

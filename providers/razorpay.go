@@ -45,7 +45,7 @@ func (p *RazorpayProvider) Name() string {
 func (p *RazorpayProvider) Capabilities() ProviderCapabilities {
 	return ProviderCapabilities{
 		SupportsInvoices:        true,
-		SupportsPayouts:         true,
+		SupportsPayouts:         true, // set this to false if you don't want to support payouts
 		SupportsPaymentSessions: true,
 		Supports3DS:             true,
 		SupportsManualCapture:   true,
@@ -523,9 +523,9 @@ func (p *RazorpayProvider) GetPayoutChannels(ctx context.Context, currency strin
 
 func (p *RazorpayProvider) CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
 	subData := map[string]interface{}{
-		"plan_id":        req.PlanID,
-		"total_count":    12,
-		"quantity":       req.Quantity,
+		"plan_id":         req.PlanID,
+		"total_count":     12,
+		"quantity":        req.Quantity,
 		"customer_notify": 1,
 	}
 
@@ -959,4 +959,3 @@ func (p *RazorpayProvider) getInt64Value(m map[string]interface{}, key string) i
 	}
 	return 0
 }
-
