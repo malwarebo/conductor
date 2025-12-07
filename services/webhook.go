@@ -116,6 +116,24 @@ func (s *WebhookService) processStripeEvent(ctx context.Context, event *models.W
 		return s.handleChargeRefunded(ctx, object)
 	case "charge.dispute.created":
 		return s.handleDisputeCreated(ctx, object)
+	case "invoice.paid":
+		return s.handleStripeInvoicePaid(ctx, object)
+	case "invoice.payment_failed":
+		return s.handleStripeInvoiceFailed(ctx, object)
+	case "invoice.finalized":
+		return s.handleStripeInvoiceFinalized(ctx, object)
+	case "customer.subscription.created":
+		return s.handleStripeSubscriptionCreated(ctx, object)
+	case "customer.subscription.updated":
+		return s.handleStripeSubscriptionUpdated(ctx, object)
+	case "customer.subscription.deleted":
+		return s.handleStripeSubscriptionDeleted(ctx, object)
+	case "payout.paid":
+		return s.handleStripePayoutPaid(ctx, object)
+	case "payout.failed":
+		return s.handleStripePayoutFailed(ctx, object)
+	case "payout.canceled":
+		return s.handleStripePayoutCanceled(ctx, object)
 	}
 
 	return nil
@@ -133,6 +151,20 @@ func (s *WebhookService) processXenditEvent(ctx context.Context, event *models.W
 		return s.handleXenditPaymentPending(ctx, payload)
 	case "refund.succeeded":
 		return s.handleXenditRefundSucceeded(ctx, payload)
+	case "invoices.paid", "invoice.paid":
+		return s.handleXenditInvoicePaid(ctx, payload)
+	case "invoices.expired", "invoice.expired":
+		return s.handleXenditInvoiceExpired(ctx, payload)
+	case "disbursement.completed", "payout.completed":
+		return s.handleXenditPayoutCompleted(ctx, payload)
+	case "disbursement.failed", "payout.failed":
+		return s.handleXenditPayoutFailed(ctx, payload)
+	case "ewallet.payment.succeeded":
+		return s.handleXenditEWalletSucceeded(ctx, payload)
+	case "virtual_account.paid":
+		return s.handleXenditVAPaymentSucceeded(ctx, payload)
+	case "qr_code.payment.completed":
+		return s.handleXenditQRPaymentSucceeded(ctx, payload)
 	}
 
 	return nil
@@ -328,6 +360,118 @@ func (s *WebhookService) handleXenditRefundSucceeded(ctx context.Context, payloa
 	}
 
 	payment.Status = models.PaymentStatusRefunded
+	return s.paymentStore.Update(ctx, payment)
+}
+
+func (s *WebhookService) handleStripeInvoicePaid(ctx context.Context, object map[string]interface{}) error {
+	subscriptionID, ok := object["subscription"].(string)
+	if !ok || subscriptionID == "" {
+		return nil
+	}
+	return nil
+}
+
+func (s *WebhookService) handleStripeInvoiceFailed(ctx context.Context, object map[string]interface{}) error {
+	subscriptionID, ok := object["subscription"].(string)
+	if !ok || subscriptionID == "" {
+		return nil
+	}
+	return nil
+}
+
+func (s *WebhookService) handleStripeInvoiceFinalized(ctx context.Context, object map[string]interface{}) error {
+	return nil
+}
+
+func (s *WebhookService) handleStripeSubscriptionCreated(ctx context.Context, object map[string]interface{}) error {
+	return nil
+}
+
+func (s *WebhookService) handleStripeSubscriptionUpdated(ctx context.Context, object map[string]interface{}) error {
+	return nil
+}
+
+func (s *WebhookService) handleStripeSubscriptionDeleted(ctx context.Context, object map[string]interface{}) error {
+	return nil
+}
+
+func (s *WebhookService) handleStripePayoutPaid(ctx context.Context, object map[string]interface{}) error {
+	return nil
+}
+
+func (s *WebhookService) handleStripePayoutFailed(ctx context.Context, object map[string]interface{}) error {
+	return nil
+}
+
+func (s *WebhookService) handleStripePayoutCanceled(ctx context.Context, object map[string]interface{}) error {
+	return nil
+}
+
+func (s *WebhookService) handleXenditInvoicePaid(ctx context.Context, payload map[string]interface{}) error {
+	return nil
+}
+
+func (s *WebhookService) handleXenditInvoiceExpired(ctx context.Context, payload map[string]interface{}) error {
+	return nil
+}
+
+func (s *WebhookService) handleXenditPayoutCompleted(ctx context.Context, payload map[string]interface{}) error {
+	return nil
+}
+
+func (s *WebhookService) handleXenditPayoutFailed(ctx context.Context, payload map[string]interface{}) error {
+	return nil
+}
+
+func (s *WebhookService) handleXenditEWalletSucceeded(ctx context.Context, payload map[string]interface{}) error {
+	paymentID, ok := payload["id"].(string)
+	if !ok {
+		return nil
+	}
+
+	payment, err := s.paymentStore.GetByProviderChargeID(ctx, paymentID)
+	if err != nil {
+		return nil
+	}
+
+	payment.Status = models.PaymentStatusSuccess
+	return s.paymentStore.Update(ctx, payment)
+}
+
+func (s *WebhookService) handleXenditVAPaymentSucceeded(ctx context.Context, payload map[string]interface{}) error {
+	paymentID, ok := payload["payment_id"].(string)
+	if !ok {
+		paymentID, ok = payload["external_id"].(string)
+		if !ok {
+			return nil
+		}
+	}
+
+	payment, err := s.paymentStore.GetByProviderChargeID(ctx, paymentID)
+	if err != nil {
+		return nil
+	}
+
+	payment.Status = models.PaymentStatusSuccess
+	if amount, ok := payload["amount"].(float64); ok {
+		payment.CapturedAmount = int64(amount)
+	}
+
+	return s.paymentStore.Update(ctx, payment)
+}
+
+func (s *WebhookService) handleXenditQRPaymentSucceeded(ctx context.Context, payload map[string]interface{}) error {
+	paymentID, ok := payload["id"].(string)
+	if !ok {
+		return nil
+	}
+
+	payment, err := s.paymentStore.GetByProviderChargeID(ctx, paymentID)
+	if err != nil {
+		return nil
+	}
+
+	payment.Status = models.PaymentStatusSuccess
 	return s.paymentStore.Update(ctx, payment)
 }
 

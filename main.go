@@ -163,6 +163,8 @@ func main() {
 	auditStore := stores.CreateAuditStore(database)
 	tenantStore := stores.CreateTenantStore(database)
 	webhookStore := stores.CreateWebhookStore(database)
+	customerStore := stores.CreateCustomerStore(database)
+	paymentMethodStore := stores.CreatePaymentMethodStore(database)
 	printSuccess("Stores initialized")
 
 	printStep("7/8", "Initializing payment providers...")
@@ -183,6 +185,11 @@ func main() {
 	auditService := services.CreateAuditService(auditStore)
 	tenantService := services.CreateTenantService(tenantStore)
 	webhookService := services.CreateWebhookService(webhookStore, paymentRepo, tenantStore, auditStore)
+	invoiceService := services.CreateInvoiceService(providerSelector)
+	payoutService := services.CreatePayoutService(providerSelector)
+	customerService := services.CreateCustomerService(customerStore, providerSelector)
+	paymentMethodService := services.CreatePaymentMethodService(paymentMethodStore, providerSelector)
+	balanceService := services.CreateBalanceService(providerSelector)
 
 	printSuccess("Services initialized")
 
@@ -194,6 +201,11 @@ func main() {
 	routingHandler := api.CreateRoutingHandler(routingService)
 	tenantHandler := api.CreateTenantHandler(tenantService)
 	auditHandler := api.CreateAuditHandler(auditService)
+	invoiceHandler := api.CreateInvoiceHandler(invoiceService)
+	payoutHandler := api.CreatePayoutHandler(payoutService)
+	customerHandler := api.CreateCustomerHandler(customerService)
+	paymentMethodHandler := api.CreatePaymentMethodHandler(paymentMethodService)
+	balanceHandler := api.CreateBalanceHandler(balanceService)
 
 	router := mux.NewRouter()
 
@@ -260,6 +272,31 @@ func main() {
 
 	apiRouter.HandleFunc("/audit-logs", auditHandler.HandleList).Methods("GET")
 	apiRouter.HandleFunc("/audit-logs/{resource_type}/{resource_id}", auditHandler.HandleGetResourceHistory).Methods("GET")
+
+	apiRouter.HandleFunc("/invoices", invoiceHandler.HandleCreate).Methods("POST")
+	apiRouter.HandleFunc("/invoices", invoiceHandler.HandleList).Methods("GET")
+	apiRouter.HandleFunc("/invoices/{id}", invoiceHandler.HandleGet).Methods("GET")
+	apiRouter.HandleFunc("/invoices/{id}/cancel", invoiceHandler.HandleCancel).Methods("POST")
+
+	apiRouter.HandleFunc("/payouts", payoutHandler.HandleCreate).Methods("POST")
+	apiRouter.HandleFunc("/payouts", payoutHandler.HandleList).Methods("GET")
+	apiRouter.HandleFunc("/payouts/{id}", payoutHandler.HandleGet).Methods("GET")
+	apiRouter.HandleFunc("/payouts/{id}/cancel", payoutHandler.HandleCancel).Methods("POST")
+	apiRouter.HandleFunc("/payout-channels", payoutHandler.HandleGetChannels).Methods("GET")
+
+	apiRouter.HandleFunc("/customers", customerHandler.HandleCreate).Methods("POST")
+	apiRouter.HandleFunc("/customers/{id}", customerHandler.HandleGet).Methods("GET")
+	apiRouter.HandleFunc("/customers/{id}", customerHandler.HandleUpdate).Methods("PUT")
+	apiRouter.HandleFunc("/customers/{id}", customerHandler.HandleDelete).Methods("DELETE")
+
+	apiRouter.HandleFunc("/payment-methods", paymentMethodHandler.HandleCreate).Methods("POST")
+	apiRouter.HandleFunc("/payment-methods", paymentMethodHandler.HandleList).Methods("GET")
+	apiRouter.HandleFunc("/payment-methods/{id}", paymentMethodHandler.HandleGet).Methods("GET")
+	apiRouter.HandleFunc("/payment-methods/{id}/attach", paymentMethodHandler.HandleAttach).Methods("POST")
+	apiRouter.HandleFunc("/payment-methods/{id}/detach", paymentMethodHandler.HandleDetach).Methods("POST")
+	apiRouter.HandleFunc("/payment-methods/{id}/expire", paymentMethodHandler.HandleExpire).Methods("POST")
+
+	apiRouter.HandleFunc("/balance", balanceHandler.HandleGet).Methods("GET")
 
 	webhookRouter := router.PathPrefix("/v1/webhooks").Subrouter()
 	webhookRouter.Use(authMiddleware.WebhookMiddleware)
