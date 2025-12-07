@@ -13,6 +13,7 @@ type Config struct {
 	Database    DatabaseConfig   `json:"database"`
 	Stripe      StripeConfig     `json:"stripe"`
 	Xendit      XenditConfig     `json:"xendit"`
+	Razorpay    RazorpayConfig   `json:"razorpay"`
 	Server      ServerConfig     `json:"server"`
 	Redis       RedisConfig      `json:"redis"`
 	OpenAI      OpenAIConfig     `json:"openai"`
@@ -43,6 +44,12 @@ type StripeConfig struct {
 type XenditConfig struct {
 	Secret        string `json:"secret"`
 	Public        string `json:"public"`
+	WebhookSecret string `json:"webhook_secret"`
+}
+
+type RazorpayConfig struct {
+	KeyID         string `json:"key_id"`
+	KeySecret     string `json:"key_secret"`
 	WebhookSecret string `json:"webhook_secret"`
 }
 
@@ -166,6 +173,16 @@ func (c *Config) loadFromEnv() {
 	}
 	if xenditWebhook := os.Getenv("XENDIT_WEBHOOK_SECRET"); xenditWebhook != "" {
 		c.Xendit.WebhookSecret = xenditWebhook
+	}
+
+	if razorpayKeyID := os.Getenv("RAZORPAY_KEY_ID"); razorpayKeyID != "" {
+		c.Razorpay.KeyID = razorpayKeyID
+	}
+	if razorpayKeySecret := os.Getenv("RAZORPAY_KEY_SECRET"); razorpayKeySecret != "" {
+		c.Razorpay.KeySecret = razorpayKeySecret
+	}
+	if razorpayWebhook := os.Getenv("RAZORPAY_WEBHOOK_SECRET"); razorpayWebhook != "" {
+		c.Razorpay.WebhookSecret = razorpayWebhook
 	}
 
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey != "" {

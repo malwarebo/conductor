@@ -21,6 +21,7 @@ Analyze the following transaction data and provider performance metrics to deter
 Available providers:
 - Stripe: Best for USD, EUR, GBP. High success rates, premium pricing
 - Xendit: Best for IDR, SGD, MYR, PHP, THB, VND. Regional expertise, competitive pricing
+- Razorpay: Best for INR. Supports UPI, Netbanking. Dominant in India market with lowest fees for domestic transactions
 
 Consider these factors in your analysis:
 1. Currency optimization (use regional providers for local currencies)
@@ -31,7 +32,7 @@ Consider these factors in your analysis:
 6. Historical performance data
 
 Your response MUST be a valid JSON object with these keys:
-1. "recommended_provider": string (stripe, xendit, or fallback)
+1. "recommended_provider": string (stripe, xendit, razorpay, or fallback)
 2. "confidence_score": integer between 0-100
 3. "reasoning": string explaining your decision
 4. "alternative_provider": string (backup option)
@@ -112,6 +113,7 @@ func (s *routingService) SelectOptimalProvider(ctx context.Context, request *mod
 func (s *routingService) prepareRoutingData(request *models.RoutingRequest) map[string]interface{} {
 	stripeStats := s.getProviderStats("stripe")
 	xenditStats := s.getProviderStats("xendit")
+	razorpayStats := s.getProviderStats("razorpay")
 
 	return map[string]interface{}{
 		"transaction_amount": request.Amount,
@@ -133,6 +135,12 @@ func (s *routingService) prepareRoutingData(request *models.RoutingRequest) map[
 			"avg_response_time":    xenditStats.AvgResponseTime,
 			"cost_per_transaction": xenditStats.CostPerTransaction,
 			"supported_currencies": []string{"IDR", "SGD", "MYR", "PHP", "THB", "VND"},
+		},
+		"razorpay_stats": map[string]interface{}{
+			"success_rate":         razorpayStats.SuccessRate,
+			"avg_response_time":    razorpayStats.AvgResponseTime,
+			"cost_per_transaction": razorpayStats.CostPerTransaction,
+			"supported_currencies": []string{"INR"},
 		},
 
 		"amount_category":  s.categorizeAmount(request.Amount),
@@ -204,20 +212,29 @@ func (s *routingService) callOpenAIRouting(ctx context.Context, routingData map[
 
 func (s *routingService) fallbackRouting(request *models.RoutingRequest) *models.RoutingResponse {
 	var recommendedProvider string
+	var alternativeProvider string
 	var confidenceScore int
 	var reasoning string
 
 	switch request.Currency {
 	case "USD", "EUR", "GBP":
 		recommendedProvider = "stripe"
+		alternativeProvider = "xendit"
 		confidenceScore = 85
 		reasoning = "Currency matches Stripe's primary markets"
 	case "IDR", "SGD", "MYR", "PHP", "THB", "VND":
 		recommendedProvider = "xendit"
+		alternativeProvider = "stripe"
 		confidenceScore = 90
 		reasoning = "Currency matches Xendit's Southeast Asian focus"
+	case "INR":
+		recommendedProvider = "razorpay"
+		alternativeProvider = "stripe"
+		confidenceScore = 95
+		reasoning = "INR transactions optimally handled by Razorpay with UPI and Netbanking support"
 	default:
 		recommendedProvider = "stripe"
+		alternativeProvider = "xendit"
 		confidenceScore = 70
 		reasoning = "Fallback to Stripe for unsupported currency"
 	}
@@ -226,7 +243,7 @@ func (s *routingService) fallbackRouting(request *models.RoutingRequest) *models
 		RecommendedProvider:  recommendedProvider,
 		ConfidenceScore:      confidenceScore,
 		Reasoning:            reasoning,
-		AlternativeProvider:  "xendit",
+		AlternativeProvider:  alternativeProvider,
 		EstimatedSuccessRate: 0.95,
 		EstimatedCost:        s.estimateCost(request.Amount, recommendedProvider),
 	}
@@ -249,8 +266,9 @@ func (s *routingService) getProviderStats(provider string) *models.ProviderStats
 
 func (s *routingService) GetProviderStats(ctx context.Context) (*models.ProviderStatsResponse, error) {
 	return &models.ProviderStatsResponse{
-		Stripe: s.getProviderStats("stripe"),
-		Xendit: s.getProviderStats("xendit"),
+		Stripe:   s.getProviderStats("stripe"),
+		Xendit:   s.getProviderStats("xendit"),
+		Razorpay: s.getProviderStats("razorpay"),
 	}, nil
 }
 
@@ -271,6 +289,8 @@ func (s *routingService) estimateCost(amount float64, provider string) float64 {
 		return amount*0.029 + 0.30 // 2.9% + $0.30
 	case "xendit":
 		return amount*0.025 + 0.20 // 2.5% + $0.20
+	case "razorpay":
+		return amount * 0.02 // 2% for domestic INR transactions
 	default:
 		return amount * 0.030 // 3% fallback
 	}

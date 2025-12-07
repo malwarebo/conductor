@@ -412,6 +412,56 @@ func (h *PaymentHandler) HandleXenditWebhook(w http.ResponseWriter, r *http.Requ
 	})
 }
 
+func (h *PaymentHandler) HandleRazorpayWebhook(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	payload, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Failed to read request body"})
+		return
+	}
+
+	var event map[string]interface{}
+	if err := json.Unmarshal(payload, &event); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid JSON payload"})
+		return
+	}
+
+	eventType, _ := event["event"].(string)
+	eventID := ""
+	if payloadData, ok := event["payload"].(map[string]interface{}); ok {
+		if payment, ok := payloadData["payment"].(map[string]interface{}); ok {
+			if entity, ok := payment["entity"].(map[string]interface{}); ok {
+				eventID, _ = entity["id"].(string)
+			}
+		} else if order, ok := payloadData["order"].(map[string]interface{}); ok {
+			if entity, ok := order["entity"].(map[string]interface{}); ok {
+				eventID, _ = entity["id"].(string)
+			}
+		} else if subscription, ok := payloadData["subscription"].(map[string]interface{}); ok {
+			if entity, ok := subscription["entity"].(map[string]interface{}); ok {
+				eventID, _ = entity["id"].(string)
+			}
+		}
+	}
+
+	if h.webhookService != nil {
+		if err := h.webhookService.ProcessInboundWebhook(r.Context(), "razorpay", eventID, eventType, payload); err != nil {
+			writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to process webhook"})
+			return
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"received":   true,
+		"event_id":   eventID,
+		"event_type": eventType,
+	})
+}
+
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
