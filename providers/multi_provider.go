@@ -42,6 +42,31 @@ func CreateMultiProviderSelector(providers []PaymentProvider, mappingStore *stor
 	}
 }
 
+func (m *MultiProviderSelector) Name() string {
+	return "multi_provider"
+}
+
+func (m *MultiProviderSelector) Capabilities() ProviderCapabilities {
+	caps := ProviderCapabilities{
+		SupportedCurrencies:     []string{},
+		SupportedPaymentMethods: []models.PaymentMethodType{},
+	}
+
+	for _, provider := range m.Providers {
+		providerCaps := provider.Capabilities()
+		caps.SupportsInvoices = caps.SupportsInvoices || providerCaps.SupportsInvoices
+		caps.SupportsPayouts = caps.SupportsPayouts || providerCaps.SupportsPayouts
+		caps.SupportsPaymentSessions = caps.SupportsPaymentSessions || providerCaps.SupportsPaymentSessions
+		caps.Supports3DS = caps.Supports3DS || providerCaps.Supports3DS
+		caps.SupportsManualCapture = caps.SupportsManualCapture || providerCaps.SupportsManualCapture
+		caps.SupportsBalance = caps.SupportsBalance || providerCaps.SupportsBalance
+		caps.SupportedCurrencies = append(caps.SupportedCurrencies, providerCaps.SupportedCurrencies...)
+		caps.SupportedPaymentMethods = append(caps.SupportedPaymentMethods, providerCaps.SupportedPaymentMethods...)
+	}
+
+	return caps
+}
+
 func (m *MultiProviderSelector) getProviderFromDB(ctx context.Context, entityID, entityType string) (PaymentProvider, error) {
 	mapping, err := m.mappingStore.GetByEntity(ctx, entityID, entityType)
 	if err != nil {
@@ -393,27 +418,45 @@ func (m *MultiProviderSelector) DeleteCustomer(ctx context.Context, customerID s
 }
 
 func (m *MultiProviderSelector) CreatePaymentMethod(ctx context.Context, req *models.CreatePaymentMethodRequest) (*models.PaymentMethod, error) {
-	if idx, ok := m.providerPreferences[req.ProviderName]; ok && idx < len(m.Providers) {
-		return m.Providers[idx].CreatePaymentMethod(ctx, req)
+	providerName := req.Provider
+	if providerName == "" {
+		providerName = "stripe"
 	}
-	return nil, fmt.Errorf("provider %s not available", req.ProviderName)
-}
 
-func (m *MultiProviderSelector) GetPaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error) {
-	provider, err := m.selectAvailableProvider(ctx, "stripe")
+	provider, err := m.selectAvailableProvider(ctx, providerName)
 	if err != nil {
 		return nil, err
 	}
-	return provider.GetPaymentMethod(ctx, paymentMethodID)
+
+	if pmProvider, ok := provider.(PaymentMethodProvider); ok {
+		return pmProvider.CreatePaymentMethod(ctx, req)
+	}
+	return nil, ErrNotSupported
 }
 
-func (m *MultiProviderSelector) ListPaymentMethods(ctx context.Context, customerID string) ([]*models.PaymentMethod, error) {
+func (m *MultiProviderSelector) GetPaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error) {
+	for _, provider := range m.Providers {
+		if provider.IsAvailable(ctx) {
+			if pmProvider, ok := provider.(PaymentMethodProvider); ok {
+				pm, err := pmProvider.GetPaymentMethod(ctx, paymentMethodID)
+				if err == nil {
+					return pm, nil
+				}
+			}
+		}
+	}
+	return nil, fmt.Errorf("payment method not found")
+}
+
+func (m *MultiProviderSelector) ListPaymentMethods(ctx context.Context, customerID string, pmType *models.PaymentMethodType) ([]*models.PaymentMethod, error) {
 	var allMethods []*models.PaymentMethod
 	for _, provider := range m.Providers {
 		if provider.IsAvailable(ctx) {
-			methods, err := provider.ListPaymentMethods(ctx, customerID)
-			if err == nil {
-				allMethods = append(allMethods, methods...)
+			if pmProvider, ok := provider.(PaymentMethodProvider); ok {
+				methods, err := pmProvider.ListPaymentMethods(ctx, customerID, pmType)
+				if err == nil {
+					allMethods = append(allMethods, methods...)
+				}
 			}
 		}
 	}
@@ -421,19 +464,31 @@ func (m *MultiProviderSelector) ListPaymentMethods(ctx context.Context, customer
 }
 
 func (m *MultiProviderSelector) AttachPaymentMethod(ctx context.Context, paymentMethodID, customerID string) error {
-	provider, err := m.selectAvailableProvider(ctx, "stripe")
-	if err != nil {
-		return err
+	for _, provider := range m.Providers {
+		if provider.IsAvailable(ctx) {
+			if pmProvider, ok := provider.(PaymentMethodProvider); ok {
+				err := pmProvider.AttachPaymentMethod(ctx, paymentMethodID, customerID)
+				if err == nil {
+					return nil
+				}
+			}
+		}
 	}
-	return provider.AttachPaymentMethod(ctx, paymentMethodID, customerID)
+	return ErrNotSupported
 }
 
 func (m *MultiProviderSelector) DetachPaymentMethod(ctx context.Context, paymentMethodID string) error {
-	provider, err := m.selectAvailableProvider(ctx, "stripe")
-	if err != nil {
-		return err
+	for _, provider := range m.Providers {
+		if provider.IsAvailable(ctx) {
+			if pmProvider, ok := provider.(PaymentMethodProvider); ok {
+				err := pmProvider.DetachPaymentMethod(ctx, paymentMethodID)
+				if err == nil {
+					return nil
+				}
+			}
+		}
 	}
-	return provider.DetachPaymentMethod(ctx, paymentMethodID)
+	return ErrNotSupported
 }
 
 func (m *MultiProviderSelector) IsAvailable(ctx context.Context) bool {

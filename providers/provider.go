@@ -2,12 +2,31 @@ package providers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/malwarebo/conductor/models"
 )
 
+var (
+	ErrNotSupported = errors.New("feature not supported by provider")
+)
+
+type ProviderCapabilities struct {
+	SupportsInvoices        bool
+	SupportsPayouts         bool
+	SupportsPaymentSessions bool
+	Supports3DS             bool
+	SupportsManualCapture   bool
+	SupportsBalance         bool
+	SupportedCurrencies     []string
+	SupportedPaymentMethods []models.PaymentMethodType
+}
+
 type PaymentProvider interface {
+	Name() string
+	Capabilities() ProviderCapabilities
+
 	Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error)
 	Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error)
 
@@ -35,13 +54,45 @@ type PaymentProvider interface {
 	GetCustomer(ctx context.Context, customerID string) (*models.Customer, error)
 	DeleteCustomer(ctx context.Context, customerID string) error
 
+	IsAvailable(ctx context.Context) bool
+}
+
+type InvoiceProvider interface {
+	CreateInvoice(ctx context.Context, req *models.CreateInvoiceRequest) (*models.Invoice, error)
+	GetInvoice(ctx context.Context, invoiceID string) (*models.Invoice, error)
+	ListInvoices(ctx context.Context, req *models.ListInvoicesRequest) ([]*models.Invoice, error)
+	CancelInvoice(ctx context.Context, invoiceID string) (*models.Invoice, error)
+}
+
+type PayoutProvider interface {
+	CreatePayout(ctx context.Context, req *models.CreatePayoutRequest) (*models.Payout, error)
+	GetPayout(ctx context.Context, payoutID string) (*models.Payout, error)
+	ListPayouts(ctx context.Context, req *models.ListPayoutsRequest) ([]*models.Payout, error)
+	CancelPayout(ctx context.Context, payoutID string) (*models.Payout, error)
+	GetPayoutChannels(ctx context.Context, currency string) ([]*models.PayoutChannel, error)
+}
+
+type PaymentSessionProvider interface {
+	CreatePaymentSession(ctx context.Context, req *models.CreatePaymentSessionRequest) (*models.PaymentSession, error)
+	GetPaymentSession(ctx context.Context, sessionID string) (*models.PaymentSession, error)
+	UpdatePaymentSession(ctx context.Context, sessionID string, req *models.UpdatePaymentSessionRequest) (*models.PaymentSession, error)
+	ConfirmPaymentSession(ctx context.Context, sessionID string, req *models.ConfirmPaymentSessionRequest) (*models.PaymentSession, error)
+	CapturePaymentSession(ctx context.Context, sessionID string, amount *int64) (*models.PaymentSession, error)
+	CancelPaymentSession(ctx context.Context, sessionID string) (*models.PaymentSession, error)
+	ListPaymentSessions(ctx context.Context, req *models.ListPaymentSessionsRequest) ([]*models.PaymentSession, error)
+}
+
+type PaymentMethodProvider interface {
 	CreatePaymentMethod(ctx context.Context, req *models.CreatePaymentMethodRequest) (*models.PaymentMethod, error)
 	GetPaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error)
-	ListPaymentMethods(ctx context.Context, customerID string) ([]*models.PaymentMethod, error)
+	ListPaymentMethods(ctx context.Context, customerID string, pmType *models.PaymentMethodType) ([]*models.PaymentMethod, error)
 	AttachPaymentMethod(ctx context.Context, paymentMethodID, customerID string) error
 	DetachPaymentMethod(ctx context.Context, paymentMethodID string) error
+	ExpirePaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error)
+}
 
-	IsAvailable(ctx context.Context) bool
+type BalanceProvider interface {
+	GetBalance(ctx context.Context, currency string) (*models.Balance, error)
 }
 
 type CaptureProvider interface {
@@ -62,14 +113,6 @@ type ThreeDSecureSession struct {
 	ClientSecret string `json:"client_secret"`
 	RedirectURL  string `json:"redirect_url"`
 	Status       string `json:"status"`
-}
-
-type PaymentIntentProvider interface {
-	CreatePaymentIntent(ctx context.Context, req *models.CreatePaymentIntentRequest) (*models.PaymentIntent, error)
-	GetPaymentIntent(ctx context.Context, paymentIntentID string) (*models.PaymentIntent, error)
-	UpdatePaymentIntent(ctx context.Context, paymentIntentID string, req *models.UpdatePaymentIntentRequest) (*models.PaymentIntent, error)
-	ConfirmPaymentIntent(ctx context.Context, paymentIntentID string, req *models.ConfirmPaymentIntentRequest) (*models.PaymentIntent, error)
-	ListPaymentIntents(ctx context.Context, req *models.ListPaymentIntentsRequest) ([]*models.PaymentIntent, error)
 }
 
 type ChargeRequest struct {

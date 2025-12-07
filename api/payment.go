@@ -193,75 +193,109 @@ func (h *PaymentHandler) HandleGetPayment(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, payment)
 }
 
-func (h *PaymentHandler) HandleCreatePaymentIntent(w http.ResponseWriter, r *http.Request) {
-	var req models.CreatePaymentIntentRequest
+func (h *PaymentHandler) HandleCreatePaymentSession(w http.ResponseWriter, r *http.Request) {
+	var req models.CreatePaymentSessionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
 
-	intent, err := h.paymentService.CreatePaymentIntent(r.Context(), &req)
+	session, err := h.paymentService.CreatePaymentSession(r.Context(), &req)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, intent)
+	writeJSON(w, http.StatusOK, session)
 }
 
-func (h *PaymentHandler) HandleGetPaymentIntent(w http.ResponseWriter, r *http.Request) {
+func (h *PaymentHandler) HandleGetPaymentSession(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	intentID := vars["id"]
+	sessionID := vars["id"]
 
-	intent, err := h.paymentService.GetPaymentIntent(r.Context(), intentID)
+	session, err := h.paymentService.GetPaymentSession(r.Context(), sessionID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Payment intent not found"})
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Payment session not found"})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, intent)
+	writeJSON(w, http.StatusOK, session)
 }
 
-func (h *PaymentHandler) HandleUpdatePaymentIntent(w http.ResponseWriter, r *http.Request) {
+func (h *PaymentHandler) HandleUpdatePaymentSession(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	intentID := vars["id"]
+	sessionID := vars["id"]
 
-	var req models.UpdatePaymentIntentRequest
+	var req models.UpdatePaymentSessionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
 
-	intent, err := h.paymentService.UpdatePaymentIntent(r.Context(), intentID, &req)
+	session, err := h.paymentService.UpdatePaymentSession(r.Context(), sessionID, &req)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, intent)
+	writeJSON(w, http.StatusOK, session)
 }
 
-func (h *PaymentHandler) HandleConfirmPaymentIntent(w http.ResponseWriter, r *http.Request) {
+func (h *PaymentHandler) HandleConfirmPaymentSession(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	intentID := vars["id"]
+	sessionID := vars["id"]
 
-	var req models.ConfirmPaymentIntentRequest
+	var req models.ConfirmPaymentSessionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
 
-	intent, err := h.paymentService.ConfirmPaymentIntent(r.Context(), intentID, &req)
+	session, err := h.paymentService.ConfirmPaymentSession(r.Context(), sessionID, &req)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, intent)
+	writeJSON(w, http.StatusOK, session)
 }
 
-func (h *PaymentHandler) HandleListPaymentIntents(w http.ResponseWriter, r *http.Request) {
-	req := &models.ListPaymentIntentsRequest{
+func (h *PaymentHandler) HandleCapturePaymentSession(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sessionID := vars["id"]
+
+	var req struct {
+		Amount *int64 `json:"amount,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
+		return
+	}
+
+	session, err := h.paymentService.CapturePaymentSession(r.Context(), sessionID, req.Amount)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, session)
+}
+
+func (h *PaymentHandler) HandleCancelPaymentSession(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sessionID := vars["id"]
+
+	session, err := h.paymentService.CancelPaymentSession(r.Context(), sessionID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, session)
+}
+
+func (h *PaymentHandler) HandleListPaymentSessions(w http.ResponseWriter, r *http.Request) {
+	req := &models.ListPaymentSessionsRequest{
 		CustomerID: r.URL.Query().Get("customer_id"),
 		Limit:      20,
 	}
@@ -272,14 +306,14 @@ func (h *PaymentHandler) HandleListPaymentIntents(w http.ResponseWriter, r *http
 		}
 	}
 
-	intents, err := h.paymentService.ListPaymentIntents(r.Context(), req)
+	sessions, err := h.paymentService.ListPaymentSessions(r.Context(), req)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"payment_intents": intents,
+		"payment_sessions": sessions,
 	})
 }
 

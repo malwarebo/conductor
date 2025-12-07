@@ -224,11 +224,13 @@ func main() {
 	apiRouter.HandleFunc("/payments/{id}/confirm", paymentHandler.HandleConfirm3DS).Methods("POST")
 	apiRouter.HandleFunc("/refunds", paymentHandler.HandleRefund).Methods("POST")
 
-	apiRouter.HandleFunc("/payment-intents", paymentHandler.HandleCreatePaymentIntent).Methods("POST")
-	apiRouter.HandleFunc("/payment-intents", paymentHandler.HandleListPaymentIntents).Methods("GET")
-	apiRouter.HandleFunc("/payment-intents/{id}", paymentHandler.HandleGetPaymentIntent).Methods("GET")
-	apiRouter.HandleFunc("/payment-intents/{id}", paymentHandler.HandleUpdatePaymentIntent).Methods("PATCH")
-	apiRouter.HandleFunc("/payment-intents/{id}/confirm", paymentHandler.HandleConfirmPaymentIntent).Methods("POST")
+	apiRouter.HandleFunc("/payment-sessions", paymentHandler.HandleCreatePaymentSession).Methods("POST")
+	apiRouter.HandleFunc("/payment-sessions", paymentHandler.HandleListPaymentSessions).Methods("GET")
+	apiRouter.HandleFunc("/payment-sessions/{id}", paymentHandler.HandleGetPaymentSession).Methods("GET")
+	apiRouter.HandleFunc("/payment-sessions/{id}", paymentHandler.HandleUpdatePaymentSession).Methods("PATCH")
+	apiRouter.HandleFunc("/payment-sessions/{id}/confirm", paymentHandler.HandleConfirmPaymentSession).Methods("POST")
+	apiRouter.HandleFunc("/payment-sessions/{id}/capture", paymentHandler.HandleCapturePaymentSession).Methods("POST")
+	apiRouter.HandleFunc("/payment-sessions/{id}/cancel", paymentHandler.HandleCancelPaymentSession).Methods("POST")
 
 	apiRouter.HandleFunc("/plans", subscriptionHandler.HandlePlans).Methods("POST", "GET")
 	apiRouter.HandleFunc("/plans/{id}", subscriptionHandler.HandlePlans).Methods("GET", "PUT", "DELETE")
