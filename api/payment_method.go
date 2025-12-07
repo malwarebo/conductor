@@ -87,7 +87,11 @@ func (h *PaymentMethodHandler) HandleAttach(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	pm, _ := h.paymentMethodService.GetPaymentMethod(r.Context(), paymentMethodID)
+	pm, err := h.paymentMethodService.GetPaymentMethod(r.Context(), paymentMethodID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Payment method attached but failed to retrieve"})
+		return
+	}
 	writeJSON(w, http.StatusOK, models.PaymentMethodResponse{PaymentMethod: pm})
 }
 
