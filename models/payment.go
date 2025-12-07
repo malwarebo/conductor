@@ -70,6 +70,8 @@ type ChargeRequest struct {
 	ReturnURL      string        `json:"return_url,omitempty"`
 	IdempotencyKey string        `json:"idempotency_key,omitempty"`
 	Provider       string        `json:"provider,omitempty"`
+	FraudCheck     *bool         `json:"fraud_check,omitempty"`
+	IPAddress      string        `json:"ip_address,omitempty"`
 	Metadata       JSON          `json:"metadata,omitempty"`
 }
 

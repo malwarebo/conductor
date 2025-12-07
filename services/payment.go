@@ -29,6 +29,7 @@ type PaymentService struct {
 	auditStore       *stores.AuditStore
 	provider         providers.PaymentProvider
 	executor         *providers.ProviderExecutor
+	fraudService     FraudService
 }
 
 func CreatePaymentService(paymentRepo *stores.PaymentRepository, provider providers.PaymentProvider) *PaymentService {
@@ -44,6 +45,7 @@ func CreatePaymentServiceFull(
 	idempotencyStore *stores.IdempotencyStore,
 	auditStore *stores.AuditStore,
 	provider providers.PaymentProvider,
+	fraudService FraudService,
 ) *PaymentService {
 	return &PaymentService{
 		paymentRepo:      paymentRepo,
@@ -51,6 +53,7 @@ func CreatePaymentServiceFull(
 		auditStore:       auditStore,
 		provider:         provider,
 		executor:         providers.CreateProviderExecutor(providers.DefaultProviderExecutorConfig()),
+		fraudService:     fraudService,
 	}
 }
 
@@ -68,6 +71,16 @@ func (s *PaymentService) CreateCharge(ctx context.Context, req *models.ChargeReq
 			var resp models.ChargeResponse
 			json.Unmarshal(result.ResponseBody, &resp)
 			return &resp, nil
+		}
+	}
+
+	if req.FraudCheck != nil && *req.FraudCheck && s.fraudService != nil {
+		fraudResp, err := s.runFraudCheck(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("fraud check failed: %w", err)
+		}
+		if !fraudResp.Allow {
+			return nil, fmt.Errorf("payment declined: %s", fraudResp.Reason)
 		}
 	}
 
@@ -459,4 +472,35 @@ func (s *PaymentService) buildChargeResponse(payment *models.Payment) *models.Ch
 
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+func (s *PaymentService) runFraudCheck(ctx context.Context, req *models.ChargeRequest) (*models.FraudAnalysisResponse, error) {
+	ipAddress := req.IPAddress
+	if ipAddress == "" {
+		if ip := ctx.Value("client_ip"); ip != nil {
+			ipAddress, _ = ip.(string)
+		}
+	}
+
+	fraudReq := &models.FraudAnalysisRequest{
+		TransactionID:       req.IdempotencyKey,
+		UserID:              req.CustomerID,
+		TransactionAmount:   float64(req.Amount) / 100,
+		BillingCountry:      extractMetadataString(req.Metadata, "billing_country", "US"),
+		ShippingCountry:     extractMetadataString(req.Metadata, "shipping_country", "US"),
+		IPAddress:           ipAddress,
+		TransactionVelocity: 1,
+	}
+
+	return s.fraudService.AnalyzeTransaction(ctx, fraudReq)
+}
+
+func extractMetadataString(metadata models.JSON, key, defaultVal string) string {
+	if metadata == nil {
+		return defaultVal
+	}
+	if v, ok := metadata[key].(string); ok && v != "" {
+		return v
+	}
+	return defaultVal
 }
