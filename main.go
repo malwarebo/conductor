@@ -175,10 +175,10 @@ func main() {
 	printInfo("  • Xendit: Ready for IDR, SGD, MYR, PHP, THB, VND")
 
 	printStep("8/8", "Initializing services...")
-	paymentService := services.CreatePaymentServiceFull(paymentRepo, idempotencyStore, auditStore, providerSelector)
+	fraudService := services.CreateFraudService(fraudRepo, cfg.OpenAI.APIKey)
+	paymentService := services.CreatePaymentServiceFull(paymentRepo, idempotencyStore, auditStore, providerSelector, fraudService)
 	subscriptionService := services.CreateSubscriptionService(planRepo, subscriptionRepo, providerSelector)
 	disputeService := services.CreateDisputeService(disputeRepo, providerSelector)
-	fraudService := services.CreateFraudService(fraudRepo, cfg.OpenAI.APIKey)
 	routingService := services.CreateRoutingService(cfg.OpenAI.APIKey)
 	auditService := services.CreateAuditService(auditStore)
 	tenantService := services.CreateTenantService(tenantStore)
