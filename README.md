@@ -7,7 +7,7 @@
 [![go build](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml)
 [![docker build](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml)
 
-`Conductor` is an open-source payment switch that simplifies handling multiple payment providers. It supports Stripe and Xendit as of now, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
+`Conductor` is an open-source payment switch that simplifies handling multiple payment providers. It supports Stripe, Xendit, and Razorpay, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
 
 The system includes an `experimental` fraud detection with AI that analyzes transactions in real-time before processing payments. It uses OpenAI's LLM models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates easily into your payment flow, automatically trying to block high-risk transactions while allowing legitimate ones to proceed smoothly.
 
@@ -56,7 +56,8 @@ cp env.example .env
 # - Set secure database credentials
 # - Add your Stripe API keys
 # - Add your Xendit API keys
-# - Add your OpenAI API key for fraud detection (optional)
+# - Add your Razorpay API keys
+# - Add your OpenAI API key for fraud detection (experimentation and optional)
 # - Adjust server settings if needed
 
 # Load environment variables
@@ -73,7 +74,8 @@ cp config/config.example.json config/config.json
 # - Update database credentials
 # - Add your Stripe API keys
 # - Add your Xendit API keys
-# - Add your OpenAI API key for fraud detection (optional)
+# - Add your Razorpay API keys
+# - Add your OpenAI API key for fraud detection (experimental and optional)
 # - Adjust server settings if needed
 ```
 
@@ -267,6 +269,26 @@ curl -X POST http://localhost:8080/v1/charges \
   }'
 ```
 
+#### Charge using Razorpay (INR)
+
+```bash
+curl -X POST http://localhost:8080/v1/charges \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key_here" \
+  -d '{
+    "customer_id": "customer_india_123",
+    "amount": 100000,
+    "currency": "INR",
+    "description": "Payment for order #67890",
+    "metadata": {
+      "order_id": "ORD-2024-IN-001",
+      "payment_method_preference": "upi"
+    }
+  }'
+```
+
+Note: Razorpay uses an Order → Payment flow. The response will include `requires_action: true` with the order ID in `client_secret`. Use Razorpay.js on the frontend to complete the payment.
+
 #### High-value charge with Stripe (EUR)
 
 ```bash
@@ -408,6 +430,7 @@ The system is smart about routing your payments to the right provider:
 
 - **Stripe**: USD, EUR, GBP (perfect for international payments)
 - **Xendit**: IDR, SGD, MYR, PHP, THB, VND (great for Southeast Asia)
+- **Razorpay**: INR (optimized for India with UPI and Netbanking support)
 
 Just specify the currency in your request, and the system automatically picks the best provider.
 
@@ -420,6 +443,7 @@ Always use the smallest currency unit:
 - **USD/EUR**: cents (1000 = $10.00)
 - **IDR**: rupiah (50000 = Rp 50,000)
 - **SGD**: cents (1500 = S$15.00)
+- **INR**: paise (100000 = ₹1,000.00)
 
 ### Payment Methods
 

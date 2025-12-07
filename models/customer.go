@@ -40,6 +40,11 @@ const (
 	PMTypeVirtualAccount PaymentMethodType = "virtual_account"
 	PMTypeDirectDebit    PaymentMethodType = "direct_debit"
 	PMTypeRetail         PaymentMethodType = "retail"
+	PMTypeUPI            PaymentMethodType = "upi"
+	PMTypeNetbanking     PaymentMethodType = "netbanking"
+	PMTypeWallet         PaymentMethodType = "wallet"
+	PMTypeEMI            PaymentMethodType = "emi"
+	PMTypeCardlessEMI    PaymentMethodType = "cardless_emi"
 )
 
 type PaymentMethod struct {

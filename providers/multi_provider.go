@@ -29,6 +29,8 @@ func CreateMultiProviderSelector(providers []PaymentProvider, mappingStore *stor
 			preferences["stripe"] = i
 		case *XenditProvider:
 			preferences["xendit"] = i
+		case *RazorpayProvider:
+			preferences["razorpay"] = i
 		}
 	}
 
@@ -96,6 +98,8 @@ func (m *MultiProviderSelector) getProviderName(provider PaymentProvider) string
 		return "stripe"
 	case *XenditProvider:
 		return "xendit"
+	case *RazorpayProvider:
+		return "razorpay"
 	default:
 		return "unknown"
 	}
@@ -128,6 +132,8 @@ func (m *MultiProviderSelector) selectProviderByCurrency(ctx context.Context, cu
 		return m.selectAvailableProvider(ctx, "stripe")
 	case "IDR", "SGD", "MYR", "PHP", "THB", "VND":
 		return m.selectAvailableProvider(ctx, "xendit")
+	case "INR":
+		return m.selectAvailableProvider(ctx, "razorpay")
 	default:
 		return m.selectAvailableProvider(ctx, "")
 	}
@@ -878,6 +884,8 @@ func (m *MultiProviderSelector) GetProviderStats() map[string]interface{} {
 			providerName = "stripe"
 		case *XenditProvider:
 			providerName = "xendit"
+		case *RazorpayProvider:
+			providerName = "razorpay"
 		}
 		providerStats[providerName] = provider.IsAvailable(context.Background())
 	}

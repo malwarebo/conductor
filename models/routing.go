@@ -37,8 +37,9 @@ type ProviderStats struct {
 }
 
 type ProviderStatsResponse struct {
-	Stripe *ProviderStats `json:"stripe"`
-	Xendit *ProviderStats `json:"xendit"`
+	Stripe   *ProviderStats `json:"stripe"`
+	Xendit   *ProviderStats `json:"xendit"`
+	Razorpay *ProviderStats `json:"razorpay"`
 }
 
 type RoutingHistory struct {

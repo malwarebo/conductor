@@ -17,6 +17,11 @@
     "public": "your_xendit_public_key",
     "webhook_secret": "your_xendit_webhook_secret"
   },
+  "razorpay": {
+    "key_id": "your_razorpay_key_id",
+    "key_secret": "your_razorpay_key_secret",
+    "webhook_secret": "your_razorpay_webhook_secret"
+  },
   "server": {
     "port": "8080",
     "env": "development"

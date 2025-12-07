@@ -6,6 +6,7 @@ toolchain go1.24.5
 
 require (
 	github.com/gorilla/mux v1.8.1
+	github.com/razorpay/razorpay-go v1.4.0
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/stripe/stripe-go/v82 v82.5.1
 	github.com/xendit/xendit-go/v6 v6.4.0

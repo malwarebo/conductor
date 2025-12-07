@@ -171,10 +171,21 @@ func main() {
 	stripeProvider := providers.CreateStripeProvider(cfg.Stripe.Secret)
 	xenditProvider := providers.CreateXenditProvider(cfg.Xendit.Secret)
 
-	providerSelector := providers.CreateMultiProviderSelector([]providers.PaymentProvider{stripeProvider, xenditProvider}, providerMappingStore)
+	availableProviders := []providers.PaymentProvider{stripeProvider, xenditProvider}
+
+	var razorpayProvider *providers.RazorpayProvider
+	if cfg.Razorpay.KeyID != "" && cfg.Razorpay.KeySecret != "" {
+		razorpayProvider = providers.CreateRazorpayProviderWithWebhook(cfg.Razorpay.KeyID, cfg.Razorpay.KeySecret, cfg.Razorpay.WebhookSecret)
+		availableProviders = append(availableProviders, razorpayProvider)
+	}
+
+	providerSelector := providers.CreateMultiProviderSelector(availableProviders, providerMappingStore)
 	printSuccess("Payment providers initialized")
 	printInfo("  • Stripe: Ready for USD, EUR, GBP")
 	printInfo("  • Xendit: Ready for IDR, SGD, MYR, PHP, THB, VND")
+	if razorpayProvider != nil {
+		printInfo("  • Razorpay: Ready for INR")
+	}
 
 	printStep("8/8", "Initializing services...")
 	fraudService := services.CreateFraudService(fraudRepo, cfg.OpenAI.APIKey)
@@ -302,6 +313,7 @@ func main() {
 	webhookRouter.Use(authMiddleware.WebhookMiddleware)
 	webhookRouter.HandleFunc("/stripe", paymentHandler.HandleStripeWebhook).Methods("POST")
 	webhookRouter.HandleFunc("/xendit", paymentHandler.HandleXenditWebhook).Methods("POST")
+	webhookRouter.HandleFunc("/razorpay", paymentHandler.HandleRazorpayWebhook).Methods("POST")
 
 	server := &http.Server{
 		Addr:           ":" + cfg.Server.Port,
