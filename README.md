@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="Conductor Logo" width="80" height="80">
+</p>
+
 # Conductor - a smart payment switch
 
 [![go build](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml)
