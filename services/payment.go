@@ -11,7 +11,6 @@ import (
 
 	"github.com/malwarebo/conductor/models"
 	"github.com/malwarebo/conductor/providers"
-	"github.com/malwarebo/conductor/resilience"
 	"github.com/malwarebo/conductor/stores"
 )
 
@@ -29,14 +28,14 @@ type PaymentService struct {
 	idempotencyStore *stores.IdempotencyStore
 	auditStore       *stores.AuditStore
 	provider         providers.PaymentProvider
-	executor         *resilience.ProviderExecutor
+	executor         *providers.ProviderExecutor
 }
 
 func CreatePaymentService(paymentRepo *stores.PaymentRepository, provider providers.PaymentProvider) *PaymentService {
 	return &PaymentService{
 		paymentRepo: paymentRepo,
 		provider:    provider,
-		executor:    resilience.CreateProviderExecutor(resilience.DefaultProviderExecutorConfig()),
+		executor:    providers.CreateProviderExecutor(providers.DefaultProviderExecutorConfig()),
 	}
 }
 
@@ -51,7 +50,7 @@ func CreatePaymentServiceFull(
 		idempotencyStore: idempotencyStore,
 		auditStore:       auditStore,
 		provider:         provider,
-		executor:         resilience.CreateProviderExecutor(resilience.DefaultProviderExecutorConfig()),
+		executor:         providers.CreateProviderExecutor(providers.DefaultProviderExecutorConfig()),
 	}
 }
 
