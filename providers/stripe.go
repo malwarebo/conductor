@@ -7,13 +7,17 @@ import (
 
 	"github.com/malwarebo/conductor/models"
 	"github.com/stripe/stripe-go/v82"
+	stripeBalance "github.com/stripe/stripe-go/v82/balance"
 	"github.com/stripe/stripe-go/v82/customer"
 	"github.com/stripe/stripe-go/v82/dispute"
+	stripeInvoice "github.com/stripe/stripe-go/v82/invoice"
 	"github.com/stripe/stripe-go/v82/paymentintent"
 	"github.com/stripe/stripe-go/v82/paymentmethod"
+	"github.com/stripe/stripe-go/v82/payout"
 	"github.com/stripe/stripe-go/v82/plan"
 	"github.com/stripe/stripe-go/v82/refund"
 	"github.com/stripe/stripe-go/v82/subscription"
+	"github.com/stripe/stripe-go/v82/transfer"
 	"github.com/stripe/stripe-go/v82/webhook"
 )
 
@@ -34,6 +38,23 @@ func CreateStripeProviderWithWebhook(apiKey, webhookSecret string) *StripeProvid
 	return &StripeProvider{
 		apiKey:        apiKey,
 		webhookSecret: webhookSecret,
+	}
+}
+
+func (p *StripeProvider) Name() string {
+	return "stripe"
+}
+
+func (p *StripeProvider) Capabilities() ProviderCapabilities {
+	return ProviderCapabilities{
+		SupportsInvoices:        true,
+		SupportsPayouts:         true,
+		SupportsPaymentSessions: true,
+		Supports3DS:             true,
+		SupportsManualCapture:   true,
+		SupportsBalance:         true,
+		SupportedCurrencies:     []string{"USD", "EUR", "GBP", "CAD", "AUD", "JPY", "SGD", "HKD"},
+		SupportedPaymentMethods: []models.PaymentMethodType{models.PMTypeCard, models.PMTypeBankAccount},
 	}
 }
 
@@ -212,7 +233,7 @@ func (p *StripeProvider) Confirm3DSPayment(ctx context.Context, paymentID string
 	}, nil
 }
 
-func (p *StripeProvider) CreatePaymentIntent(ctx context.Context, req *models.CreatePaymentIntentRequest) (*models.PaymentIntent, error) {
+func (p *StripeProvider) CreatePaymentSession(ctx context.Context, req *models.CreatePaymentSessionRequest) (*models.PaymentSession, error) {
 	params := &stripe.PaymentIntentParams{
 		Amount:   stripe.Int64(req.Amount),
 		Currency: stripe.String(req.Currency),
@@ -226,8 +247,8 @@ func (p *StripeProvider) CreatePaymentIntent(ctx context.Context, req *models.Cr
 		params.Description = stripe.String(req.Description)
 	}
 
-	if req.PaymentMethod != "" {
-		params.PaymentMethod = stripe.String(req.PaymentMethod)
+	if req.PaymentMethodID != "" {
+		params.PaymentMethod = stripe.String(req.PaymentMethodID)
 	}
 
 	if req.CaptureMethod == models.CaptureMethodManual {
@@ -252,22 +273,22 @@ func (p *StripeProvider) CreatePaymentIntent(ctx context.Context, req *models.Cr
 
 	pi, err := paymentintent.New(params)
 	if err != nil {
-		return nil, fmt.Errorf("stripe create payment intent failed: %w", err)
+		return nil, fmt.Errorf("stripe create payment session failed: %w", err)
 	}
 
-	return p.mapPaymentIntent(pi), nil
+	return p.mapPaymentSession(pi), nil
 }
 
-func (p *StripeProvider) GetPaymentIntent(ctx context.Context, paymentIntentID string) (*models.PaymentIntent, error) {
-	pi, err := paymentintent.Get(paymentIntentID, nil)
+func (p *StripeProvider) GetPaymentSession(ctx context.Context, sessionID string) (*models.PaymentSession, error) {
+	pi, err := paymentintent.Get(sessionID, nil)
 	if err != nil {
-		return nil, fmt.Errorf("stripe get payment intent failed: %w", err)
+		return nil, fmt.Errorf("stripe get payment session failed: %w", err)
 	}
 
-	return p.mapPaymentIntent(pi), nil
+	return p.mapPaymentSession(pi), nil
 }
 
-func (p *StripeProvider) UpdatePaymentIntent(ctx context.Context, paymentIntentID string, req *models.UpdatePaymentIntentRequest) (*models.PaymentIntent, error) {
+func (p *StripeProvider) UpdatePaymentSession(ctx context.Context, sessionID string, req *models.UpdatePaymentSessionRequest) (*models.PaymentSession, error) {
 	params := &stripe.PaymentIntentParams{}
 
 	if req.Amount != nil {
@@ -282,42 +303,69 @@ func (p *StripeProvider) UpdatePaymentIntent(ctx context.Context, paymentIntentI
 		params.Description = stripe.String(*req.Description)
 	}
 
-	if req.PaymentMethod != nil {
-		params.PaymentMethod = stripe.String(*req.PaymentMethod)
+	if req.PaymentMethodID != nil {
+		params.PaymentMethod = stripe.String(*req.PaymentMethodID)
 	}
 
 	if req.Metadata != nil {
 		params.Metadata = ConvertMetadataToStringMap(req.Metadata)
 	}
 
-	pi, err := paymentintent.Update(paymentIntentID, params)
+	pi, err := paymentintent.Update(sessionID, params)
 	if err != nil {
-		return nil, fmt.Errorf("stripe update payment intent failed: %w", err)
+		return nil, fmt.Errorf("stripe update payment session failed: %w", err)
 	}
 
-	return p.mapPaymentIntent(pi), nil
+	return p.mapPaymentSession(pi), nil
 }
 
-func (p *StripeProvider) ConfirmPaymentIntent(ctx context.Context, paymentIntentID string, req *models.ConfirmPaymentIntentRequest) (*models.PaymentIntent, error) {
+func (p *StripeProvider) ConfirmPaymentSession(ctx context.Context, sessionID string, req *models.ConfirmPaymentSessionRequest) (*models.PaymentSession, error) {
 	params := &stripe.PaymentIntentConfirmParams{}
 
-	if req.PaymentMethod != "" {
-		params.PaymentMethod = stripe.String(req.PaymentMethod)
+	if req.PaymentMethodID != "" {
+		params.PaymentMethod = stripe.String(req.PaymentMethodID)
 	}
 
 	if req.ReturnURL != "" {
 		params.ReturnURL = stripe.String(req.ReturnURL)
 	}
 
-	pi, err := paymentintent.Confirm(paymentIntentID, params)
+	pi, err := paymentintent.Confirm(sessionID, params)
 	if err != nil {
-		return nil, fmt.Errorf("stripe confirm payment intent failed: %w", err)
+		return nil, fmt.Errorf("stripe confirm payment session failed: %w", err)
 	}
 
-	return p.mapPaymentIntent(pi), nil
+	return p.mapPaymentSession(pi), nil
 }
 
-func (p *StripeProvider) ListPaymentIntents(ctx context.Context, req *models.ListPaymentIntentsRequest) ([]*models.PaymentIntent, error) {
+func (p *StripeProvider) CapturePaymentSession(ctx context.Context, sessionID string, amount *int64) (*models.PaymentSession, error) {
+	params := &stripe.PaymentIntentCaptureParams{}
+	if amount != nil {
+		params.AmountToCapture = stripe.Int64(*amount)
+	}
+
+	pi, err := paymentintent.Capture(sessionID, params)
+	if err != nil {
+		return nil, fmt.Errorf("stripe capture payment session failed: %w", err)
+	}
+
+	return p.mapPaymentSession(pi), nil
+}
+
+func (p *StripeProvider) CancelPaymentSession(ctx context.Context, sessionID string) (*models.PaymentSession, error) {
+	params := &stripe.PaymentIntentCancelParams{
+		CancellationReason: stripe.String("requested_by_customer"),
+	}
+
+	pi, err := paymentintent.Cancel(sessionID, params)
+	if err != nil {
+		return nil, fmt.Errorf("stripe cancel payment session failed: %w", err)
+	}
+
+	return p.mapPaymentSession(pi), nil
+}
+
+func (p *StripeProvider) ListPaymentSessions(ctx context.Context, req *models.ListPaymentSessionsRequest) ([]*models.PaymentSession, error) {
 	params := &stripe.PaymentIntentListParams{}
 
 	if req.CustomerID != "" {
@@ -329,59 +377,330 @@ func (p *StripeProvider) ListPaymentIntents(ctx context.Context, req *models.Lis
 	}
 
 	i := paymentintent.List(params)
-	var intents []*models.PaymentIntent
+	var sessions []*models.PaymentSession
 
 	for i.Next() {
-		intents = append(intents, p.mapPaymentIntent(i.PaymentIntent()))
+		sessions = append(sessions, p.mapPaymentSession(i.PaymentIntent()))
 	}
 
-	return intents, nil
+	return sessions, nil
 }
 
-func (p *StripeProvider) mapPaymentIntent(pi *stripe.PaymentIntent) *models.PaymentIntent {
-	intent := &models.PaymentIntent{
-		ID:             pi.ID,
+func (p *StripeProvider) mapPaymentSession(pi *stripe.PaymentIntent) *models.PaymentSession {
+	session := &models.PaymentSession{
+		ProviderID:     pi.ID,
+		ProviderName:   "stripe",
 		Amount:         pi.Amount,
 		Currency:       string(pi.Currency),
-		Status:         string(pi.Status),
+		Status:         p.mapPaymentIntentStatus(pi.Status),
 		ClientSecret:   pi.ClientSecret,
-		CaptureMethod:  string(pi.CaptureMethod),
+		CaptureMethod:  models.CaptureMethod(pi.CaptureMethod),
 		CapturedAmount: pi.AmountReceived,
-		ProviderName:   "stripe",
 		CreatedAt:      time.Unix(pi.Created, 0),
+		UpdatedAt:      time.Unix(pi.Created, 0),
 	}
 
 	if pi.Customer != nil {
-		intent.CustomerID = pi.Customer.ID
+		session.CustomerID = pi.Customer.ID
 	}
 
 	if pi.PaymentMethod != nil {
-		intent.PaymentMethod = pi.PaymentMethod.ID
+		session.PaymentMethodID = pi.PaymentMethod.ID
 	}
 
 	if pi.Description != "" {
-		intent.Description = pi.Description
+		session.Description = pi.Description
 	}
 
 	if pi.NextAction != nil {
-		intent.RequiresAction = true
-		intent.NextActionType = string(pi.NextAction.Type)
+		session.RequiresAction = true
+		session.NextActionType = string(pi.NextAction.Type)
 		if pi.NextAction.RedirectToURL != nil {
-			intent.NextActionURL = pi.NextAction.RedirectToURL.URL
+			session.NextActionURL = pi.NextAction.RedirectToURL.URL
+			session.NextAction = &models.NextAction{
+				Type:        string(pi.NextAction.Type),
+				RedirectURL: pi.NextAction.RedirectToURL.URL,
+			}
 		}
 	}
 
 	if pi.Metadata != nil {
-		intent.Metadata = ConvertStringMapToMetadata(pi.Metadata)
+		session.Metadata = ConvertStringMapToMetadata(pi.Metadata)
 	}
 
-	return intent
+	return session
+}
+
+func (p *StripeProvider) CreateInvoice(ctx context.Context, req *models.CreateInvoiceRequest) (*models.Invoice, error) {
+	params := &stripe.InvoiceParams{
+		AutoAdvance: stripe.Bool(true),
+	}
+
+	if req.CustomerID != "" {
+		params.Customer = stripe.String(req.CustomerID)
+	}
+
+	if req.Description != "" {
+		params.Description = stripe.String(req.Description)
+	}
+
+	if req.DueDate != nil {
+		params.DueDate = stripe.Int64(req.DueDate.Unix())
+	}
+
+	if req.Metadata != nil {
+		params.Metadata = ConvertMetadataToStringMap(req.Metadata)
+	}
+
+	inv, err := stripeInvoice.New(params)
+	if err != nil {
+		return nil, fmt.Errorf("stripe create invoice failed: %w", err)
+	}
+
+	return p.mapInvoice(inv), nil
+}
+
+func (p *StripeProvider) GetInvoice(ctx context.Context, invoiceID string) (*models.Invoice, error) {
+	inv, err := stripeInvoice.Get(invoiceID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("stripe get invoice failed: %w", err)
+	}
+
+	return p.mapInvoice(inv), nil
+}
+
+func (p *StripeProvider) ListInvoices(ctx context.Context, req *models.ListInvoicesRequest) ([]*models.Invoice, error) {
+	params := &stripe.InvoiceListParams{}
+
+	if req.CustomerID != "" {
+		params.Customer = stripe.String(req.CustomerID)
+	}
+
+	if req.Limit > 0 {
+		params.Limit = stripe.Int64(int64(req.Limit))
+	}
+
+	i := stripeInvoice.List(params)
+	var invoices []*models.Invoice
+
+	for i.Next() {
+		invoices = append(invoices, p.mapInvoice(i.Invoice()))
+	}
+
+	return invoices, nil
+}
+
+func (p *StripeProvider) CancelInvoice(ctx context.Context, invoiceID string) (*models.Invoice, error) {
+	inv, err := stripeInvoice.VoidInvoice(invoiceID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("stripe cancel invoice failed: %w", err)
+	}
+
+	return p.mapInvoice(inv), nil
+}
+
+func (p *StripeProvider) mapInvoice(inv *stripe.Invoice) *models.Invoice {
+	result := &models.Invoice{
+		ProviderID:   inv.ID,
+		ProviderName: "stripe",
+		Amount:       inv.AmountDue,
+		Currency:     string(inv.Currency),
+		Status:       p.mapInvoiceStatus(inv.Status),
+		Description:  inv.Description,
+		InvoiceURL:   inv.HostedInvoiceURL,
+		CreatedAt:    time.Unix(inv.Created, 0),
+		UpdatedAt:    time.Unix(inv.Created, 0),
+	}
+
+	if inv.Customer != nil {
+		result.CustomerID = inv.Customer.ID
+		result.CustomerEmail = inv.Customer.Email
+	}
+
+	if inv.DueDate > 0 {
+		dueDate := time.Unix(inv.DueDate, 0)
+		result.DueDate = &dueDate
+	}
+
+	if inv.StatusTransitions != nil && inv.StatusTransitions.PaidAt > 0 {
+		paidAt := time.Unix(inv.StatusTransitions.PaidAt, 0)
+		result.PaidAt = &paidAt
+	}
+
+	if inv.Metadata != nil {
+		result.Metadata = ConvertStringMapToMetadata(inv.Metadata)
+	}
+
+	return result
+}
+
+func (p *StripeProvider) mapInvoiceStatus(status stripe.InvoiceStatus) models.InvoiceStatus {
+	switch status {
+	case stripe.InvoiceStatusDraft:
+		return models.InvoiceStatusDraft
+	case stripe.InvoiceStatusOpen:
+		return models.InvoiceStatusPending
+	case stripe.InvoiceStatusPaid:
+		return models.InvoiceStatusPaid
+	case stripe.InvoiceStatusVoid:
+		return models.InvoiceStatusVoid
+	case stripe.InvoiceStatusUncollectible:
+		return models.InvoiceStatusCanceled
+	default:
+		return models.InvoiceStatusPending
+	}
+}
+
+func (p *StripeProvider) CreatePayout(ctx context.Context, req *models.CreatePayoutRequest) (*models.Payout, error) {
+	params := &stripe.TransferParams{
+		Amount:   stripe.Int64(req.Amount),
+		Currency: stripe.String(req.Currency),
+	}
+
+	if req.DestinationAccount != "" {
+		params.Destination = stripe.String(req.DestinationAccount)
+	}
+
+	if req.Description != "" {
+		params.Description = stripe.String(req.Description)
+	}
+
+	if req.Metadata != nil {
+		params.Metadata = ConvertMetadataToStringMap(req.Metadata)
+	}
+
+	tr, err := transfer.New(params)
+	if err != nil {
+		return nil, fmt.Errorf("stripe create payout failed: %w", err)
+	}
+
+	return &models.Payout{
+		ProviderID:         tr.ID,
+		ProviderName:       "stripe",
+		ReferenceID:        req.ReferenceID,
+		Amount:             tr.Amount,
+		Currency:           string(tr.Currency),
+		Status:             models.PayoutStatusSucceeded,
+		Description:        req.Description,
+		DestinationType:    req.DestinationType,
+		DestinationAccount: req.DestinationAccount,
+		CreatedAt:          time.Unix(tr.Created, 0),
+		UpdatedAt:          time.Unix(tr.Created, 0),
+	}, nil
+}
+
+func (p *StripeProvider) GetPayout(ctx context.Context, payoutID string) (*models.Payout, error) {
+	po, err := payout.Get(payoutID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("stripe get payout failed: %w", err)
+	}
+
+	return p.mapPayout(po), nil
+}
+
+func (p *StripeProvider) ListPayouts(ctx context.Context, req *models.ListPayoutsRequest) ([]*models.Payout, error) {
+	params := &stripe.PayoutListParams{}
+
+	if req.Limit > 0 {
+		params.Limit = stripe.Int64(int64(req.Limit))
+	}
+
+	i := payout.List(params)
+	var payouts []*models.Payout
+
+	for i.Next() {
+		payouts = append(payouts, p.mapPayout(i.Payout()))
+	}
+
+	return payouts, nil
+}
+
+func (p *StripeProvider) CancelPayout(ctx context.Context, payoutID string) (*models.Payout, error) {
+	po, err := payout.Cancel(payoutID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("stripe cancel payout failed: %w", err)
+	}
+
+	return p.mapPayout(po), nil
+}
+
+func (p *StripeProvider) GetPayoutChannels(ctx context.Context, currency string) ([]*models.PayoutChannel, error) {
+	return []*models.PayoutChannel{
+		{Code: "bank_account", Name: "Bank Account", Category: "bank", Currency: currency},
+		{Code: "card", Name: "Debit Card", Category: "card", Currency: currency},
+	}, nil
+}
+
+func (p *StripeProvider) mapPayout(po *stripe.Payout) *models.Payout {
+	status := models.PayoutStatusPending
+	switch po.Status {
+	case stripe.PayoutStatusPaid:
+		status = models.PayoutStatusSucceeded
+	case stripe.PayoutStatusFailed:
+		status = models.PayoutStatusFailed
+	case stripe.PayoutStatusCanceled:
+		status = models.PayoutStatusCanceled
+	case stripe.PayoutStatusInTransit:
+		status = models.PayoutStatusProcessing
+	}
+
+	result := &models.Payout{
+		ProviderID:      po.ID,
+		ProviderName:    "stripe",
+		Amount:          po.Amount,
+		Currency:        string(po.Currency),
+		Status:          status,
+		Description:     po.Description,
+		DestinationType: models.DestinationBankAccount,
+		CreatedAt:       time.Unix(po.Created, 0),
+		UpdatedAt:       time.Unix(po.Created, 0),
+	}
+
+	if po.ArrivalDate > 0 {
+		arrival := time.Unix(po.ArrivalDate, 0)
+		result.EstimatedArrival = &arrival
+	}
+
+	if po.FailureMessage != "" {
+		result.FailureReason = po.FailureMessage
+	}
+
+	return result
+}
+
+func (p *StripeProvider) GetBalance(ctx context.Context, currency string) (*models.Balance, error) {
+	bal, err := stripeBalance.Get(nil)
+	if err != nil {
+		return nil, fmt.Errorf("stripe get balance failed: %w", err)
+	}
+
+	result := &models.Balance{
+		ProviderName: "stripe",
+		Currency:     currency,
+	}
+
+	for _, a := range bal.Available {
+		if currency == "" || string(a.Currency) == currency {
+			result.Available = a.Amount
+			result.Currency = string(a.Currency)
+			break
+		}
+	}
+
+	for _, p := range bal.Pending {
+		if currency == "" || string(p.Currency) == currency {
+			result.Pending = p.Amount
+			break
+		}
+	}
+
+	return result, nil
 }
 
 func (p *StripeProvider) Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
 	params := &stripe.RefundParams{
 		PaymentIntent: stripe.String(req.PaymentID),
-		Amount:        stripe.Int64(req.Amount), // Amount is already in cents
+		Amount:        stripe.Int64(req.Amount),
 		Reason:        stripe.String(req.Reason),
 	}
 
@@ -422,6 +741,7 @@ func (p *StripeProvider) ValidateWebhookSignature(payload []byte, signature stri
 
 	return nil
 }
+
 func (p *StripeProvider) CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
 	params := &stripe.SubscriptionParams{
 		Customer: stripe.String(req.CustomerID),
@@ -465,7 +785,6 @@ func (p *StripeProvider) CreateSubscription(ctx context.Context, req *models.Cre
 		UpdatedAt:          time.Unix(sub.Created, 0),
 	}
 
-	// Add trial dates if present
 	if sub.TrialStart > 0 {
 		trialStart := time.Unix(sub.TrialStart, 0)
 		result.TrialStart = &trialStart
@@ -480,9 +799,7 @@ func (p *StripeProvider) CreateSubscription(ctx context.Context, req *models.Cre
 }
 
 func (p *StripeProvider) UpdateSubscription(ctx context.Context, subscriptionID string, req *models.UpdateSubscriptionRequest) (*models.Subscription, error) {
-	params := &stripe.SubscriptionParams{
-		// No need to set ID in params, it's used in the API call
-	}
+	params := &stripe.SubscriptionParams{}
 
 	if req.PlanID != nil && *req.PlanID != "" {
 		itemsParams := &stripe.SubscriptionItemsParams{
@@ -554,15 +871,11 @@ func (p *StripeProvider) CancelSubscription(ctx context.Context, subscriptionID 
 	var err error
 
 	if req.CancelAtPeriodEnd {
-		// Update subscription to cancel at period end
 		sub, err = subscription.Update(subscriptionID, params)
 	} else {
 		cancelParams := &stripe.SubscriptionCancelParams{
 			Prorate: stripe.Bool(true),
 		}
-
-		// Metadata handling removed as it's deprecated in Stripe API
-
 		sub, err = subscription.Cancel(subscriptionID, cancelParams)
 	}
 
@@ -835,38 +1148,6 @@ func (p *StripeProvider) SubmitDisputeEvidence(ctx context.Context, disputeID st
 			params.CustomerName = stripe.String(req.Description)
 		case "customer_communication":
 			params.CustomerCommunication = stripe.String(req.Description)
-		case "duplicate_charge_documentation":
-			params.DuplicateChargeDocumentation = stripe.String(req.Description)
-		case "duplicate_charge_explanation":
-			params.DuplicateChargeExplanation = stripe.String(req.Description)
-		case "duplicate_charge_id":
-			params.DuplicateChargeID = stripe.String(req.Description)
-		case "refund_policy":
-			params.RefundPolicy = stripe.String(req.Description)
-		case "refund_policy_disclosure":
-			params.RefundPolicyDisclosure = stripe.String(req.Description)
-		case "refund_refusal_explanation":
-			params.RefundRefusalExplanation = stripe.String(req.Description)
-		case "cancellation_policy":
-			params.CancellationPolicy = stripe.String(req.Description)
-		case "cancellation_policy_disclosure":
-			params.CancellationPolicyDisclosure = stripe.String(req.Description)
-		case "cancellation_rebuttal":
-			params.CancellationRebuttal = stripe.String(req.Description)
-		case "access_activity_log":
-			params.AccessActivityLog = stripe.String(req.Description)
-		case "shipping_address":
-			params.ShippingAddress = stripe.String(req.Description)
-		case "shipping_carrier":
-			params.ShippingCarrier = stripe.String(req.Description)
-		case "shipping_date":
-			params.ShippingDate = stripe.String(req.Description)
-		case "shipping_documentation":
-			params.ShippingDocumentation = stripe.String(req.Description)
-		case "shipping_tracking_number":
-			params.ShippingTrackingNumber = stripe.String(req.Description)
-		case "uncategorized_file":
-			params.UncategorizedFile = stripe.String(req.Description)
 		}
 	}
 
@@ -964,11 +1245,7 @@ func (p *StripeProvider) GetDisputeStats(ctx context.Context) (*models.DisputeSt
 			stats.Won++
 		case "lost":
 			stats.Lost++
-		case "warning_needs_response":
-			stats.Open++
-		case "warning_under_review":
-			stats.Open++
-		case "under_review":
+		case "warning_needs_response", "warning_under_review", "under_review":
 			stats.Open++
 		case "charge_refunded":
 			stats.Canceled++
@@ -1052,7 +1329,7 @@ func (p *StripeProvider) DeleteCustomer(ctx context.Context, customerID string) 
 }
 
 func (p *StripeProvider) CreatePaymentMethod(ctx context.Context, req *models.CreatePaymentMethodRequest) (*models.PaymentMethod, error) {
-	pm, err := paymentmethod.Get(req.PaymentMethodID, nil)
+	pm, err := paymentmethod.Get(req.CardToken, nil)
 	if err != nil {
 		return nil, fmt.Errorf("stripe payment method get failed: %w", err)
 	}
@@ -1061,7 +1338,9 @@ func (p *StripeProvider) CreatePaymentMethod(ctx context.Context, req *models.Cr
 		CustomerID:              req.CustomerID,
 		ProviderName:            "stripe",
 		ProviderPaymentMethodID: pm.ID,
-		Type:                    string(pm.Type),
+		Type:                    req.Type,
+		Reusable:                req.Reusable,
+		Status:                  "active",
 		IsDefault:               req.IsDefault,
 		Metadata:                req.Metadata,
 		CreatedAt:               time.Unix(pm.Created, 0),
@@ -1092,7 +1371,8 @@ func (p *StripeProvider) GetPaymentMethod(ctx context.Context, paymentMethodID s
 		CustomerID:              customerID,
 		ProviderName:            "stripe",
 		ProviderPaymentMethodID: pm.ID,
-		Type:                    string(pm.Type),
+		Type:                    models.PaymentMethodType(pm.Type),
+		Status:                  "active",
 		CreatedAt:               time.Unix(pm.Created, 0),
 	}
 
@@ -1106,10 +1386,14 @@ func (p *StripeProvider) GetPaymentMethod(ctx context.Context, paymentMethodID s
 	return result, nil
 }
 
-func (p *StripeProvider) ListPaymentMethods(ctx context.Context, customerID string) ([]*models.PaymentMethod, error) {
+func (p *StripeProvider) ListPaymentMethods(ctx context.Context, customerID string, pmType *models.PaymentMethodType) ([]*models.PaymentMethod, error) {
 	params := &stripe.PaymentMethodListParams{
 		Customer: stripe.String(customerID),
 		Type:     stripe.String("card"),
+	}
+
+	if pmType != nil {
+		params.Type = stripe.String(string(*pmType))
 	}
 
 	i := paymentmethod.List(params)
@@ -1121,7 +1405,8 @@ func (p *StripeProvider) ListPaymentMethods(ctx context.Context, customerID stri
 			CustomerID:              customerID,
 			ProviderName:            "stripe",
 			ProviderPaymentMethodID: pm.ID,
-			Type:                    string(pm.Type),
+			Type:                    models.PaymentMethodType(pm.Type),
+			Status:                  "active",
 			CreatedAt:               time.Unix(pm.Created, 0),
 		}
 
@@ -1151,13 +1436,24 @@ func (p *StripeProvider) DetachPaymentMethod(ctx context.Context, paymentMethodI
 	return err
 }
 
-// TODO: need to add a better way to check if the provider is available
+func (p *StripeProvider) ExpirePaymentMethod(ctx context.Context, paymentMethodID string) (*models.PaymentMethod, error) {
+	_, err := paymentmethod.Detach(paymentMethodID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.PaymentMethod{
+		ProviderPaymentMethodID: paymentMethodID,
+		ProviderName:            "stripe",
+		Status:                  "expired",
+	}, nil
+}
+
 func (p *StripeProvider) IsAvailable(ctx context.Context) bool {
 	if p.apiKey == "" {
 		return false
 	}
 
-	// Try to make a simple API call to check connectivity
 	var account stripe.Account
 	err := stripe.GetBackend(stripe.APIBackend).Call(
 		"GET",

@@ -316,39 +316,53 @@ func (s *PaymentService) ListRefunds(ctx context.Context, paymentID string) ([]*
 	return s.paymentRepo.ListRefundsByPayment(ctx, paymentID)
 }
 
-func (s *PaymentService) CreatePaymentIntent(ctx context.Context, req *models.CreatePaymentIntentRequest) (*models.PaymentIntent, error) {
-	if intentProvider, ok := s.provider.(providers.PaymentIntentProvider); ok {
-		return intentProvider.CreatePaymentIntent(ctx, req)
+func (s *PaymentService) CreatePaymentSession(ctx context.Context, req *models.CreatePaymentSessionRequest) (*models.PaymentSession, error) {
+	if sessionProvider, ok := s.provider.(providers.PaymentSessionProvider); ok {
+		return sessionProvider.CreatePaymentSession(ctx, req)
 	}
-	return nil, errors.New("provider does not support payment intents")
+	return nil, errors.New("provider does not support payment sessions")
 }
 
-func (s *PaymentService) GetPaymentIntent(ctx context.Context, id string) (*models.PaymentIntent, error) {
-	if intentProvider, ok := s.provider.(providers.PaymentIntentProvider); ok {
-		return intentProvider.GetPaymentIntent(ctx, id)
+func (s *PaymentService) GetPaymentSession(ctx context.Context, id string) (*models.PaymentSession, error) {
+	if sessionProvider, ok := s.provider.(providers.PaymentSessionProvider); ok {
+		return sessionProvider.GetPaymentSession(ctx, id)
 	}
-	return nil, errors.New("provider does not support payment intents")
+	return nil, errors.New("provider does not support payment sessions")
 }
 
-func (s *PaymentService) UpdatePaymentIntent(ctx context.Context, id string, req *models.UpdatePaymentIntentRequest) (*models.PaymentIntent, error) {
-	if intentProvider, ok := s.provider.(providers.PaymentIntentProvider); ok {
-		return intentProvider.UpdatePaymentIntent(ctx, id, req)
+func (s *PaymentService) UpdatePaymentSession(ctx context.Context, id string, req *models.UpdatePaymentSessionRequest) (*models.PaymentSession, error) {
+	if sessionProvider, ok := s.provider.(providers.PaymentSessionProvider); ok {
+		return sessionProvider.UpdatePaymentSession(ctx, id, req)
 	}
-	return nil, errors.New("provider does not support payment intents")
+	return nil, errors.New("provider does not support payment sessions")
 }
 
-func (s *PaymentService) ConfirmPaymentIntent(ctx context.Context, id string, req *models.ConfirmPaymentIntentRequest) (*models.PaymentIntent, error) {
-	if intentProvider, ok := s.provider.(providers.PaymentIntentProvider); ok {
-		return intentProvider.ConfirmPaymentIntent(ctx, id, req)
+func (s *PaymentService) ConfirmPaymentSession(ctx context.Context, id string, req *models.ConfirmPaymentSessionRequest) (*models.PaymentSession, error) {
+	if sessionProvider, ok := s.provider.(providers.PaymentSessionProvider); ok {
+		return sessionProvider.ConfirmPaymentSession(ctx, id, req)
 	}
-	return nil, errors.New("provider does not support payment intents")
+	return nil, errors.New("provider does not support payment sessions")
 }
 
-func (s *PaymentService) ListPaymentIntents(ctx context.Context, req *models.ListPaymentIntentsRequest) ([]*models.PaymentIntent, error) {
-	if intentProvider, ok := s.provider.(providers.PaymentIntentProvider); ok {
-		return intentProvider.ListPaymentIntents(ctx, req)
+func (s *PaymentService) CapturePaymentSession(ctx context.Context, id string, amount *int64) (*models.PaymentSession, error) {
+	if sessionProvider, ok := s.provider.(providers.PaymentSessionProvider); ok {
+		return sessionProvider.CapturePaymentSession(ctx, id, amount)
 	}
-	return nil, errors.New("provider does not support payment intents")
+	return nil, errors.New("provider does not support payment sessions")
+}
+
+func (s *PaymentService) CancelPaymentSession(ctx context.Context, id string) (*models.PaymentSession, error) {
+	if sessionProvider, ok := s.provider.(providers.PaymentSessionProvider); ok {
+		return sessionProvider.CancelPaymentSession(ctx, id)
+	}
+	return nil, errors.New("provider does not support payment sessions")
+}
+
+func (s *PaymentService) ListPaymentSessions(ctx context.Context, req *models.ListPaymentSessionsRequest) ([]*models.PaymentSession, error) {
+	if sessionProvider, ok := s.provider.(providers.PaymentSessionProvider); ok {
+		return sessionProvider.ListPaymentSessions(ctx, req)
+	}
+	return nil, errors.New("provider does not support payment sessions")
 }
 
 func (s *PaymentService) checkIdempotency(ctx context.Context, key, path string, req interface{}) (*models.IdempotencyResult, error) {
