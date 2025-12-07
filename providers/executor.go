@@ -1,4 +1,4 @@
-package resilience
+package providers
 
 import (
 	"context"
@@ -8,26 +8,26 @@ import (
 )
 
 type ProviderExecutor struct {
-	breakers    map[string]*CircuitBreaker
+	fuses       map[string]*Fuse
 	retryConfig RetryConfig
 	mu          sync.RWMutex
 }
 
 type ProviderExecutorConfig struct {
-	CircuitBreakerConfig CircuitBreakerConfig
-	RetryConfig          RetryConfig
+	FuseConfig  FuseConfig
+	RetryConfig RetryConfig
 }
 
 func CreateProviderExecutor(cfg ProviderExecutorConfig) *ProviderExecutor {
 	return &ProviderExecutor{
-		breakers:    make(map[string]*CircuitBreaker),
+		fuses:       make(map[string]*Fuse),
 		retryConfig: cfg.RetryConfig,
 	}
 }
 
 func DefaultProviderExecutorConfig() ProviderExecutorConfig {
 	return ProviderExecutorConfig{
-		CircuitBreakerConfig: CircuitBreakerConfig{
+		FuseConfig: FuseConfig{
 			MaxFailures: 5,
 			Timeout:     30 * time.Second,
 			HalfOpenMax: 3,
@@ -37,19 +37,19 @@ func DefaultProviderExecutorConfig() ProviderExecutorConfig {
 }
 
 func (pe *ProviderExecutor) Execute(ctx context.Context, provider string, fn func() error) error {
-	breaker := pe.getOrCreateBreaker(provider)
+	fuse := pe.getOrCreateFuse(provider)
 
-	return breaker.Execute(ctx, func() error {
+	return fuse.Execute(ctx, func() error {
 		_, err := Retry(ctx, pe.retryConfig, fn)
 		return err
 	})
 }
 
 func (pe *ProviderExecutor) ExecuteWithResult(ctx context.Context, provider string, fn func() (interface{}, error)) (interface{}, error) {
-	breaker := pe.getOrCreateBreaker(provider)
+	fuse := pe.getOrCreateFuse(provider)
 
 	var result interface{}
-	err := breaker.Execute(ctx, func() error {
+	err := fuse.Execute(ctx, func() error {
 		_, retryErr := Retry(ctx, pe.retryConfig, func() error {
 			var fnErr error
 			result, fnErr = fn()
@@ -61,58 +61,58 @@ func (pe *ProviderExecutor) ExecuteWithResult(ctx context.Context, provider stri
 	return result, err
 }
 
-func (pe *ProviderExecutor) getOrCreateBreaker(provider string) *CircuitBreaker {
+func (pe *ProviderExecutor) getOrCreateFuse(provider string) *Fuse {
 	pe.mu.RLock()
-	breaker, exists := pe.breakers[provider]
+	fuse, exists := pe.fuses[provider]
 	pe.mu.RUnlock()
 
 	if exists {
-		return breaker
+		return fuse
 	}
 
 	pe.mu.Lock()
 	defer pe.mu.Unlock()
 
-	if breaker, exists = pe.breakers[provider]; exists {
-		return breaker
+	if fuse, exists = pe.fuses[provider]; exists {
+		return fuse
 	}
 
-	breaker = CreateCircuitBreaker(CircuitBreakerConfig{
+	fuse = CreateFuse(FuseConfig{
 		Name:        provider,
 		MaxFailures: 5,
 		Timeout:     30 * time.Second,
 		HalfOpenMax: 3,
-		OnStateChange: func(name string, from, to CircuitState) {
-			fmt.Printf("Circuit breaker %s: %s -> %s\n", name, from, to)
+		OnStateChange: func(name string, from, to FuseState) {
+			fmt.Printf("Fuse %s: %s -> %s\n", name, from, to)
 		},
 	})
-	pe.breakers[provider] = breaker
+	pe.fuses[provider] = fuse
 
-	return breaker
+	return fuse
 }
 
-func (pe *ProviderExecutor) GetBreakerState(provider string) CircuitState {
+func (pe *ProviderExecutor) GetFuseState(provider string) FuseState {
 	pe.mu.RLock()
-	breaker, exists := pe.breakers[provider]
+	fuse, exists := pe.fuses[provider]
 	pe.mu.RUnlock()
 
 	if !exists {
-		return CircuitClosed
+		return FuseClosed
 	}
-	return breaker.State()
+	return fuse.State()
 }
 
-func (pe *ProviderExecutor) ResetBreaker(provider string) {
+func (pe *ProviderExecutor) ResetFuse(provider string) {
 	pe.mu.RLock()
-	breaker, exists := pe.breakers[provider]
+	fuse, exists := pe.fuses[provider]
 	pe.mu.RUnlock()
 
 	if exists {
-		breaker.Reset()
+		fuse.Reset()
 	}
 }
 
 func (pe *ProviderExecutor) IsProviderHealthy(provider string) bool {
-	return pe.GetBreakerState(provider) != CircuitOpen
+	return pe.GetFuseState(provider) != FuseOpen
 }
 

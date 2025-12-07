@@ -1,4 +1,4 @@
-package resilience
+package providers
 
 import (
 	"context"
@@ -96,7 +96,7 @@ func Retry(ctx context.Context, cfg RetryConfig, fn func() error) (*RetryResult,
 
 func calculateDelay(cfg RetryConfig, attempt int) time.Duration {
 	delay := float64(cfg.InitialDelay) * math.Pow(cfg.Multiplier, float64(attempt))
-	
+
 	if delay > float64(cfg.MaxDelay) {
 		delay = float64(cfg.MaxDelay)
 	}
