@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductor - Architecture Diagram</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf, #ff006e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 1.1rem;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+        
+        .diagram-container {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            padding: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .flow-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+        }
+        
+        .layer {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+        
+        .layer-label {
+            position: absolute;
+            left: -10px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            white-space: nowrap;
+        }
+        
+        .node {
+            padding: 20px 30px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            min-width: 160px;
+        }
+        
+        .node:hover {
+            transform: translateY(-5px) scale(1.02);
+        }
+        
+        .node.active {
+            transform: translateY(-5px) scale(1.05);
+            z-index: 10;
+        }
+        
+        .node-title {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+        
+        .node-subtitle {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        
+        .node-client {
+            background: linear-gradient(135deg, #1e3a5f, #2d5a87);
+            border: 2px solid #3d7ab8;
+            box-shadow: 0 4px 20px rgba(45, 90, 135, 0.3);
+        }
+        
+        .node-middleware {
+            background: linear-gradient(135deg, #3d2066, #5a3d7a);
+            border: 2px solid #7b4fa2;
+            box-shadow: 0 4px 20px rgba(123, 79, 162, 0.3);
+        }
+        
+        .node-api {
+            background: linear-gradient(135deg, #1a4d1a, #2d7a2d);
+            border: 2px solid #4da64d;
+            box-shadow: 0 4px 20px rgba(77, 166, 77, 0.3);
+        }
+        
+        .node-service {
+            background: linear-gradient(135deg, #664d00, #997a00);
+            border: 2px solid #cca300;
+            box-shadow: 0 4px 20px rgba(204, 163, 0, 0.3);
+        }
+        
+        .node-provider {
+            background: linear-gradient(135deg, #4d1a1a, #7a2d2d);
+            border: 2px solid #a64d4d;
+            box-shadow: 0 4px 20px rgba(166, 77, 77, 0.3);
+        }
+        
+        .node-store {
+            background: linear-gradient(135deg, #1a4d4d, #2d7a7a);
+            border: 2px solid #4da6a6;
+            box-shadow: 0 4px 20px rgba(77, 166, 166, 0.3);
+        }
+        
+        .arrow {
+            display: flex;
+            justify-content: center;
+            padding: 10px 0;
+            position: relative;
+        }
+        
+        .arrow-line {
+            width: 3px;
+            height: 40px;
+            background: linear-gradient(180deg, #00d4ff, #7b2cbf);
+            border-radius: 3px;
+            position: relative;
+        }
+        
+        .arrow-line.animated {
+            overflow: hidden;
+        }
+        
+        .arrow-line.animated::after {
+            content: '';
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, transparent, #fff, transparent);
+            animation: flowDown 1.5s infinite;
+        }
+        
+        @keyframes flowDown {
+            0% { top: -100%; }
+            100% { top: 200%; }
+        }
+        
+        .arrow-head {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 10px solid #7b2cbf;
+            margin-top: -2px;
+        }
+        
+        .detail-panel {
+            position: fixed;
+            right: -450px;
+            top: 0;
+            width: 450px;
+            height: 100vh;
+            background: linear-gradient(180deg, #1a1a2e, #0f0f1a);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow-y: auto;
+            z-index: 100;
+        }
+        
+        .detail-panel.open {
+            right: 0;
+        }
+        
+        .detail-panel h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #00d4ff;
+        }
+        
+        .detail-panel .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        
+        .detail-panel .close-btn:hover {
+            color: #fff;
+        }
+        
+        .detail-section {
+            margin-bottom: 25px;
+        }
+        
+        .detail-section h3 {
+            font-size: 0.9rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        
+        .detail-section p {
+            line-height: 1.6;
+            color: #ccc;
+        }
+        
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .code-block .keyword { color: #ff79c6; }
+        .code-block .string { color: #f1fa8c; }
+        .code-block .function { color: #50fa7b; }
+        .code-block .comment { color: #6272a4; }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+            color: #666;
+            transition: all 0.3s;
+        }
+        
+        .step.active {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #000;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+        }
+        
+        .step.completed {
+            background: #4da64d;
+            color: #fff;
+        }
+        
+        .step-connector {
+            width: 30px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            align-self: center;
+            border-radius: 3px;
+            transition: background 0.3s;
+        }
+        
+        .step-connector.active {
+            background: linear-gradient(90deg, #4da64d, #00d4ff);
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            z-index: 99;
+        }
+        
+        .overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .flow-description {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+        
+        .flow-description h3 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+        
+        .providers-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .node-stripe { border-color: #635bff !important; }
+        .node-xendit { border-color: #00bcd4 !important; }
+        .node-razorpay { border-color: #0066ff !important; }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        footer a {
+            color: #00d4ff;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Conductor Architecture</h1>
+            <p class="subtitle">Interactive Request Flow Diagram</p>
+        </header>
+        
+        <div class="controls">
+            <button class="btn btn-primary" onclick="animateFlow()">▶ Animate Request Flow</button>
+            <button class="btn btn-secondary" onclick="resetFlow()">↺ Reset</button>
+            <button class="btn btn-secondary" id="toggleLabels" onclick="toggleLabels()">📝 Show Labels</button>
+        </div>
+        
+        <div class="step-indicator" id="stepIndicator">
+            <div class="step" data-step="1">1</div>
+            <div class="step-connector"></div>
+            <div class="step" data-step="2">2</div>
+            <div class="step-connector"></div>
+            <div class="step" data-step="3">3</div>
+            <div class="step-connector"></div>
+            <div class="step" data-step="4">4</div>
+            <div class="step-connector"></div>
+            <div class="step" data-step="5">5</div>
+            <div class="step-connector"></div>
+            <div class="step" data-step="6">6</div>
+            <div class="step-connector"></div>
+            <div class="step" data-step="7">7</div>
+        </div>
+        
+        <div class="flow-description" id="flowDescription">
+            <h3>Click "Animate Request Flow" to see how a payment request travels through the system</h3>
+            <p>Or click on any component to see its details</p>
+        </div>
+        
+        <div class="diagram-container">
+            <div class="flow-container">
+                <div class="layer">
+                    <div class="node node-client" data-component="client" onclick="showDetails('client')">
+                        <div class="node-title">🌐 Client</div>
+                        <div class="node-subtitle">HTTP Request</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">
+                    <div class="arrow-wrapper">
+                        <div class="arrow-line" id="arrow1"></div>
+                        <div class="arrow-head"></div>
+                    </div>
+                </div>
+                
+                <div class="layer">
+                    <div class="node node-middleware" data-component="middleware" onclick="showDetails('middleware')">
+                        <div class="node-title">🛡️ Middleware Chain</div>
+                        <div class="node-subtitle">Auth • Rate Limit • Logging</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">
+                    <div class="arrow-wrapper">
+                        <div class="arrow-line" id="arrow2"></div>
+                        <div class="arrow-head"></div>
+                    </div>
+                </div>
+                
+                <div class="layer">
+                    <div class="node node-api" data-component="api" onclick="showDetails('api')">
+                        <div class="node-title">📡 API Handler</div>
+                        <div class="node-subtitle">PaymentHandler</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">
+                    <div class="arrow-wrapper">
+                        <div class="arrow-line" id="arrow3"></div>
+                        <div class="arrow-head"></div>
+                    </div>
+                </div>
+                
+                <div class="layer">
+                    <div class="node node-service" data-component="service" onclick="showDetails('service')">
+                        <div class="node-title">⚙️ Service Layer</div>
+                        <div class="node-subtitle">PaymentService</div>
+                    </div>
+                    <div class="node node-service" data-component="fraud" onclick="showDetails('fraud')">
+                        <div class="node-title">🔍 Fraud Detection</div>
+                        <div class="node-subtitle">AI Analysis</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">
+                    <div class="arrow-wrapper">
+                        <div class="arrow-line" id="arrow4"></div>
+                        <div class="arrow-head"></div>
+                    </div>
+                </div>
+                
+                <div class="layer">
+                    <div class="node node-provider" data-component="selector" onclick="showDetails('selector')">
+                        <div class="node-title">🔀 Provider Selector</div>
+                        <div class="node-subtitle">Smart Routing</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">
+                    <div class="arrow-wrapper">
+                        <div class="arrow-line" id="arrow5"></div>
+                        <div class="arrow-head"></div>
+                    </div>
+                </div>
+                
+                <div class="layer providers-row">
+                    <div class="node node-provider node-stripe" data-component="stripe" onclick="showDetails('stripe')">
+                        <div class="node-title">💳 Stripe</div>
+                        <div class="node-subtitle">USD, EUR, GBP</div>
+                    </div>
+                    <div class="node node-provider node-xendit" data-component="xendit" onclick="showDetails('xendit')">
+                        <div class="node-title">🌏 Xendit</div>
+                        <div class="node-subtitle">IDR, SGD, SEA</div>
+                    </div>
+                    <div class="node node-provider node-razorpay" data-component="razorpay" onclick="showDetails('razorpay')">
+                        <div class="node-title">🇮🇳 Razorpay</div>
+                        <div class="node-subtitle">INR</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">
+                    <div class="arrow-wrapper">
+                        <div class="arrow-line" id="arrow6"></div>
+                        <div class="arrow-head"></div>
+                    </div>
+                </div>
+                
+                <div class="layer">
+                    <div class="node node-store" data-component="store" onclick="showDetails('store')">
+                        <div class="node-title">💾 Data Store</div>
+                        <div class="node-subtitle">PostgreSQL + Redis</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #1e3a5f, #2d5a87);"></div>
+                <span>Client</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #3d2066, #5a3d7a);"></div>
+                <span>Middleware</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #1a4d1a, #2d7a2d);"></div>
+                <span>API</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #664d00, #997a00);"></div>
+                <span>Service</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #4d1a1a, #7a2d2d);"></div>
+                <span>Provider</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #1a4d4d, #2d7a7a);"></div>
+                <span>Storage</span>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Conductor Payment Switch • <a href="https://github.com/malwarebo/conductor" target="_blank">GitHub</a></p>
+        </footer>
+    </div>
+    
+    <div class="overlay" id="overlay" onclick="closeDetails()"></div>
+    
+    <div class="detail-panel" id="detailPanel">
+        <button class="close-btn" onclick="closeDetails()">×</button>
+        <div id="detailContent"></div>
+    </div>
+    
+    <script>
+        const componentDetails = {
+            client: {
+                title: '🌐 Client Request',
+                description: 'The entry point for all API requests. Clients send HTTP requests to Conductor\'s REST API.',
+                flow: 'Step 1: Request Received',
+                details: [
+                    'Accepts JSON payloads over HTTPS',
+                    'Supports X-API-Key or Bearer token authentication',
+                    'Validates Content-Type headers'
+                ],
+                code: `<span class="comment">// Example: Create a charge</span>
+<span class="function">POST</span> /v1/charges
+<span class="function">Headers:</span>
+  Content-Type: application/json
+  X-API-Key: your_api_key
+
+<span class="function">Body:</span>
+{
+  <span class="string">"customer_id"</span>: <span class="string">"cus_123"</span>,
+  <span class="string">"amount"</span>: 2500,
+  <span class="string">"currency"</span>: <span class="string">"USD"</span>
+}`
+            },
+            middleware: {
+                title: '🛡️ Middleware Chain',
+                description: 'A series of middleware functions that process every request before it reaches the handler.',
+                flow: 'Step 2: Request Processing',
+                details: [
+                    'Logging: Records request/response for debugging',
+                    'CORS: Handles cross-origin requests',
+                    'Recovery: Catches panics gracefully',
+                    'Rate Limiting: Tiered limits (10-1000 req/s)',
+                    'JWT Auth: Validates authentication tokens',
+                    'Tenant Context: Multi-tenant isolation',
+                    'Idempotency: Prevents duplicate processing',
+                    'Audit: Logs all operations',
+                    'Encryption: Secures sensitive data'
+                ],
+                code: `<span class="comment">// Middleware chain order</span>
+router.Use(middleware.LoggingMiddleware)
+router.Use(middleware.CORSMiddleware)
+router.Use(middleware.RecoveryMiddleware)
+router.Use(auth.RateLimitMiddleware)
+router.Use(auth.JWTMiddleware)
+router.Use(tenant.TenantContextMiddleware)
+router.Use(tenant.IdempotencyMiddleware)
+router.Use(tenant.AuditMiddleware)
+router.Use(auth.EncryptionMiddleware)`
+            },
+            api: {
+                title: '📡 API Handler',
+                description: 'HTTP handlers that parse requests, validate input, and delegate to services.',
+                flow: 'Step 3: Request Handling',
+                details: [
+                    'Parses and validates JSON request body',
+                    'Extracts path parameters and query strings',
+                    'Calls appropriate service methods',
+                    'Formats and returns JSON responses',
+                    'Handles errors with appropriate status codes'
+                ],
+                code: `<span class="keyword">func</span> (h *PaymentHandler) <span class="function">HandleCharge</span>(
+    w http.ResponseWriter, 
+    r *http.Request,
+) {
+    <span class="keyword">var</span> req models.ChargeRequest
+    json.NewDecoder(r.Body).Decode(&req)
+    
+    result, err := h.paymentService.Charge(
+        r.Context(), &req,
+    )
+    
+    writeJSON(w, http.StatusOK, result)
+}`
+            },
+            service: {
+                title: '⚙️ Service Layer',
+                description: 'Business logic layer that orchestrates operations between stores and providers.',
+                flow: 'Step 4: Business Logic',
+                details: [
+                    'Implements core payment processing logic',
+                    'Handles idempotency checking',
+                    'Triggers fraud analysis before processing',
+                    'Selects appropriate payment provider',
+                    'Manages transaction state',
+                    'Records audit logs'
+                ],
+                code: `<span class="keyword">func</span> (s *PaymentService) <span class="function">Charge</span>(
+    ctx context.Context,
+    req *models.ChargeRequest,
+) (*models.ChargeResponse, error) {
+    <span class="comment">// 1. Check idempotency</span>
+    <span class="comment">// 2. Run fraud analysis</span>
+    <span class="comment">// 3. Select provider by currency</span>
+    <span class="comment">// 4. Execute charge</span>
+    <span class="comment">// 5. Save to database</span>
+    <span class="comment">// 6. Return response</span>
+}`
+            },
+            fraud: {
+                title: '🔍 Fraud Detection',
+                description: 'AI-powered fraud analysis using OpenAI to detect suspicious transactions.',
+                flow: 'Step 4a: Risk Analysis',
+                details: [
+                    'Analyzes transaction patterns in real-time',
+                    'Uses OpenAI LLM for intelligent detection',
+                    'Anonymizes sensitive data before analysis',
+                    'Returns risk score and recommendation',
+                    'Can block high-risk transactions automatically'
+                ],
+                code: `<span class="comment">// Fraud analysis response</span>
+{
+  <span class="string">"risk_score"</span>: 0.15,
+  <span class="string">"risk_level"</span>: <span class="string">"low"</span>,
+  <span class="string">"recommendation"</span>: <span class="string">"approve"</span>,
+  <span class="string">"reasons"</span>: [
+    <span class="string">"Normal transaction pattern"</span>,
+    <span class="string">"Known customer"</span>
+  ]
+}`
+            },
+            selector: {
+                title: '🔀 Provider Selector',
+                description: 'Smart routing engine that selects the optimal payment provider based on currency and availability.',
+                flow: 'Step 5: Provider Selection',
+                details: [
+                    'Routes by currency (USD→Stripe, IDR→Xendit, INR→Razorpay)',
+                    'Checks provider availability in real-time',
+                    'Falls back to alternative providers if needed',
+                    'Maintains provider-to-entity mappings',
+                    'Aggregates results from multiple providers'
+                ],
+                code: `<span class="keyword">func</span> (m *MultiProviderSelector) <span class="function">selectProviderByCurrency</span>(
+    currency <span class="keyword">string</span>,
+) (PaymentProvider, error) {
+    <span class="keyword">switch</span> currency {
+    <span class="keyword">case</span> <span class="string">"USD"</span>, <span class="string">"EUR"</span>, <span class="string">"GBP"</span>:
+        <span class="keyword">return</span> m.selectProvider(<span class="string">"stripe"</span>)
+    <span class="keyword">case</span> <span class="string">"IDR"</span>, <span class="string">"SGD"</span>, <span class="string">"MYR"</span>:
+        <span class="keyword">return</span> m.selectProvider(<span class="string">"xendit"</span>)
+    <span class="keyword">case</span> <span class="string">"INR"</span>:
+        <span class="keyword">return</span> m.selectProvider(<span class="string">"razorpay"</span>)
+    }
+}`
+            },
+            stripe: {
+                title: '💳 Stripe Provider',
+                description: 'Integration with Stripe for international payments.',
+                flow: 'Step 6a: Provider Execution',
+                details: [
+                    'Supports: USD, EUR, GBP, CAD, AUD, JPY, SGD, HKD',
+                    'Features: Cards, Bank Accounts, 3DS',
+                    'Full support for subscriptions and invoices',
+                    'Dispute management with evidence submission',
+                    'Real-time webhook processing'
+                ],
+                code: `<span class="comment">// Stripe PaymentIntent creation</span>
+params := &stripe.PaymentIntentParams{
+    Amount:   stripe.Int64(req.Amount),
+    Currency: stripe.String(req.Currency),
+    Customer: stripe.String(req.CustomerID),
+}
+pi, _ := paymentintent.New(params)`
+            },
+            xendit: {
+                title: '🌏 Xendit Provider',
+                description: 'Integration with Xendit for Southeast Asian markets.',
+                flow: 'Step 6b: Provider Execution',
+                details: [
+                    'Supports: IDR, PHP, VND, THB, MYR, SGD',
+                    'Features: Cards, E-Wallets, Virtual Accounts, QR',
+                    'Invoice generation with payment links',
+                    'Payout support for disbursements',
+                    'Real-time webhook processing'
+                ],
+                code: `<span class="comment">// Xendit Payment Request</span>
+paymentReq := paymentrequest.NewPaymentRequestParameters(
+    currency,
+)
+paymentReq.SetAmount(float64(req.Amount))
+paymentReq.SetReferenceId(req.CustomerID)
+pr, _ := client.PaymentRequestApi.
+    CreatePaymentRequest(ctx).Execute()`
+            },
+            razorpay: {
+                title: '🇮🇳 Razorpay Provider',
+                description: 'Integration with Razorpay for Indian market payments.',
+                flow: 'Step 6c: Provider Execution',
+                details: [
+                    'Supports: INR only',
+                    'Features: Cards, UPI, Netbanking, Wallets, EMI',
+                    'Order → Payment flow (requires frontend)',
+                    'Subscription and plan management',
+                    'Dispute handling with accept/contest'
+                ],
+                code: `<span class="comment">// Razorpay Order creation</span>
+orderData := map[string]interface{}{
+    <span class="string">"amount"</span>:   req.Amount,
+    <span class="string">"currency"</span>: req.Currency,
+    <span class="string">"receipt"</span>:  req.CustomerID,
+}
+order, _ := client.Order.Create(orderData, nil)`
+            },
+            store: {
+                title: '💾 Data Store',
+                description: 'Persistence layer using PostgreSQL for data and Redis for caching.',
+                flow: 'Step 7: Data Persistence',
+                details: [
+                    'PostgreSQL: Primary database for all entities',
+                    'Redis: Caching layer for performance',
+                    'GORM: ORM for database operations',
+                    'Connection pooling for scalability',
+                    'Automatic migrations on startup'
+                ],
+                code: `<span class="comment">// Repository pattern</span>
+<span class="keyword">type</span> PaymentRepository <span class="keyword">struct</span> {
+    BaseStore
+}
+
+<span class="keyword">func</span> (r *PaymentRepository) <span class="function">Create</span>(
+    ctx context.Context,
+    payment *models.Payment,
+) error {
+    <span class="keyword">return</span> r.GetDB(ctx).Create(payment).Error
+}`
+            }
+        };
+        
+        let currentStep = 0;
+        let animationInterval = null;
+        
+        function showDetails(component) {
+            const details = componentDetails[component];
+            if (!details) return;
+            
+            const content = `
+                <h2>${details.title}</h2>
+                <div class="detail-section">
+                    <h3>Description</h3>
+                    <p>${details.description}</p>
+                </div>
+                <div class="detail-section">
+                    <h3>${details.flow}</h3>
+                    <ul style="list-style: none; padding: 0;">
+                        ${details.details.map(d => `<li style="padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">• ${d}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="detail-section">
+                    <h3>Code Example</h3>
+                    <div class="code-block">${details.code}</div>
+                </div>
+            `;
+            
+            document.getElementById('detailContent').innerHTML = content;
+            document.getElementById('detailPanel').classList.add('open');
+            document.getElementById('overlay').classList.add('open');
+            
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
+            document.querySelector(`[data-component="${component}"]`)?.classList.add('active');
+        }
+        
+        function closeDetails() {
+            document.getElementById('detailPanel').classList.remove('open');
+            document.getElementById('overlay').classList.remove('open');
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
+        }
+        
+        function animateFlow() {
+            resetFlow();
+            currentStep = 0;
+            
+            const steps = [
+                { step: 1, component: 'client', arrow: null, desc: 'Client sends HTTP request to /v1/charges' },
+                { step: 2, component: 'middleware', arrow: 'arrow1', desc: 'Request passes through middleware chain (auth, rate limit, logging)' },
+                { step: 3, component: 'api', arrow: 'arrow2', desc: 'API handler parses request and validates input' },
+                { step: 4, component: 'service', arrow: 'arrow3', desc: 'Service layer runs fraud check and prepares payment' },
+                { step: 5, component: 'selector', arrow: 'arrow4', desc: 'Provider selector routes to Stripe (USD currency)' },
+                { step: 6, component: 'stripe', arrow: 'arrow5', desc: 'Stripe processes the payment and returns result' },
+                { step: 7, component: 'store', arrow: 'arrow6', desc: 'Transaction saved to PostgreSQL, response returned to client' }
+            ];
+            
+            let i = 0;
+            animationInterval = setInterval(() => {
+                if (i >= steps.length) {
+                    clearInterval(animationInterval);
+                    document.getElementById('flowDescription').innerHTML = `
+                        <h3>✅ Payment Complete!</h3>
+                        <p>The charge was successfully processed and saved. Response returned to client.</p>
+                    `;
+                    return;
+                }
+                
+                const step = steps[i];
+                
+                document.querySelectorAll('.step').forEach(s => {
+                    const stepNum = parseInt(s.dataset.step);
+                    if (stepNum < step.step) s.classList.add('completed');
+                    else if (stepNum === step.step) s.classList.add('active');
+                    else s.classList.remove('active', 'completed');
+                });
+                
+                document.querySelectorAll('.step-connector').forEach((c, idx) => {
+                    if (idx < step.step - 1) c.classList.add('active');
+                    else c.classList.remove('active');
+                });
+                
+                if (step.arrow) {
+                    document.getElementById(step.arrow).classList.add('animated');
+                }
+                
+                document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
+                document.querySelector(`[data-component="${step.component}"]`)?.classList.add('active');
+                
+                document.getElementById('flowDescription').innerHTML = `
+                    <h3>Step ${step.step}: ${componentDetails[step.component]?.title || step.component}</h3>
+                    <p>${step.desc}</p>
+                `;
+                
+                i++;
+            }, 1500);
+        }
+        
+        function resetFlow() {
+            if (animationInterval) clearInterval(animationInterval);
+            
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active', 'completed'));
+            document.querySelectorAll('.step-connector').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.arrow-line').forEach(a => a.classList.remove('animated'));
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById('flowDescription').innerHTML = `
+                <h3>Click "Animate Request Flow" to see how a payment request travels through the system</h3>
+                <p>Or click on any component to see its details</p>
+            `;
+        }
+        
+        function toggleLabels() {
+            const btn = document.getElementById('toggleLabels');
+            btn.classList.toggle('active');
+        }
+    </script>
+</body>
+</html>
+
