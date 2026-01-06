@@ -44,6 +44,9 @@ GRANT ALL PRIVILEGES ON DATABASE conductor TO conductor_user;
 psql -U conductor_user -d conductor -f config/db/schema.sql
 ```
 
+> [!TIP]
+> Want to automate the database setup? See the [Development Guide](docs/DEVELOPMENT.md#database-setup-script) for a handy script.
+
 ### 3. Configure the app
 
 **Option 1: Using Environment Variables (Recommended for Production)**
@@ -80,56 +83,6 @@ cp config/config.example.json config/config.json
 ```
 
 **⚠️ Security Note**: For production deployments, it is advised to use environment variables for API keys and database passwords.
-
-## Database Setup Script
-
-Want to automate the database setup? Here's a handy script in `/scripts`:
-
-```bash
-#!/bin/bash
-
-set -e
-
-DB_NAME="conductor"
-DB_USER="conductor_user"
-DB_PASSWORD="your_password_here"
-
-echo "Creating database and user..."
-if sudo -u postgres psql << EOF
-CREATE DATABASE $DB_NAME;
-CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
-GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
-EOF
-then
-    echo "Database and user created successfully"
-else
-    echo "Failed to create database and user"
-    exit 1
-fi
-
-echo ""
-echo "Running schema migration..."
-if psql -U $DB_USER -d $DB_NAME -f config/db/schema.sql 2>&1 | tee /tmp/schema_output.log | grep -q "ERROR"; then
-    echo ""
-    echo "Schema migration failed with errors:"
-    grep "ERROR" /tmp/schema_output.log
-    rm -f /tmp/schema_output.log
-    exit 1
-else
-    echo "Schema migration completed successfully"
-    rm -f /tmp/schema_output.log
-fi
-
-echo ""
-echo "Database setup complete!"
-```
-
-Make it executable and run:
-
-```bash
-chmod +x setup_db.sh
-./setup_db.sh
-```
 
 ## Running the App
 
@@ -169,46 +122,6 @@ docker-compose up --build
 
 The app will be available at `http://localhost:8080`
 
-## API Endpoints
-
-Note: This section need to be migrated to it is own separate page.
-
-### Payments
-
-- `POST /v1/charges` - Create a new charge
-- `POST /v1/refunds` - Create a refund
-
-### Subscriptions
-
-- `POST /v1/plans` - Create a subscription plan
-- `GET /v1/plans` - List all plans
-- `GET /v1/plans/:id` - Get plan details
-- `PUT /v1/plans/:id` - Update plan
-- `DELETE /v1/plans/:id` - Delete plan
-- `POST /v1/subscriptions` - Create a subscription
-- `GET /v1/subscriptions` - List subscriptions (requires customer_id parameter)
-- `GET /v1/subscriptions/:id` - Get subscription details
-- `PUT /v1/subscriptions/:id` - Update subscription
-- `DELETE /v1/subscriptions/:id` - Cancel subscription
-
-### Disputes
-
-- `POST /v1/disputes` - Create a dispute
-- `GET /v1/disputes` - List disputes (requires customer_id parameter)
-- `GET /v1/disputes/:id` - Get dispute details
-- `PUT /v1/disputes/:id` - Update dispute
-- `POST /v1/disputes/:id/evidence` - Submit evidence
-- `GET /v1/disputes/stats` - Get dispute statistics
-
-### Fraud Detection
-
-- `POST /v1/fraud/analyze` - Analyze transaction for fraud risk
-- `GET /v1/fraud/stats` - Get fraud detection statistics
-
-### System
-
-- `GET /v1/health` - Health check
-
 ## Authentication
 
 All API endpoints (except health check) require authentication using an API key. You can provide the API key in two ways:
@@ -227,203 +140,6 @@ All API endpoints (except health check) require authentication using an API key.
 
 **Note**: Replace `your_api_key_here` with your actual API key. For development, you can use any string with at least 10 characters.
 
-## API Examples
-
-Here are some real examples of how to use the API. The system automatically routes your requests to the right payment provider based on the currency!
-
-### Creating Charges
-
-#### Basic charge with Stripe (USD)
-
-```bash
-curl -X POST http://localhost:8080/v1/charges \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your_api_key_here" \
-  -d '{
-    "customer_id": "cus_123456789",
-    "amount": 2500,
-    "currency": "USD",
-    "payment_method": "pm_123456789",
-    "description": "Payment for order #12345"
-  }'
-```
-
-#### Charge with metadata using Xendit (IDR)
-
-```bash
-curl -X POST http://localhost:8080/v1/charges \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your_api_key_here" \
-  -d '{
-    "customer_id": "customer_123",
-    "amount": 500000,
-    "currency": "IDR",
-    "payment_method": "pm_xendit_123",
-    "description": "Premium subscription payment",
-    "metadata": {
-      "order_id": "ORD-2024-001",
-      "user_id": "user_456",
-      "product_type": "subscription",
-      "billing_cycle": "monthly"
-    }
-  }'
-```
-
-#### Charge using Razorpay (INR)
-
-```bash
-curl -X POST http://localhost:8080/v1/charges \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your_api_key_here" \
-  -d '{
-    "customer_id": "customer_india_123",
-    "amount": 100000,
-    "currency": "INR",
-    "description": "Payment for order #67890",
-    "metadata": {
-      "order_id": "ORD-2024-IN-001",
-      "payment_method_preference": "upi"
-    }
-  }'
-```
-
-Note: Razorpay uses an Order → Payment flow. The response will include `requires_action: true` with the order ID in `client_secret`. Use Razorpay.js on the frontend to complete the payment.
-
-#### High-value charge with Stripe (EUR)
-
-```bash
-curl -X POST http://localhost:8080/v1/charges \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customer_id": "cus_europe_789",
-    "amount": 9999,
-    "currency": "EUR",
-    "payment_method": "pm_europe_456",
-    "description": "Annual enterprise license",
-    "metadata": {
-      "license_type": "enterprise",
-      "duration": "annual",
-      "seats": 100,
-      "region": "EU"
-    }
-  }'
-```
-
-### Creating Refunds
-
-#### Simple refund
-
-```bash
-curl -X POST http://localhost:8080/v1/refunds \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your_api_key_here" \
-  -d '{
-    "payment_id": "ch_123456789",
-    "amount": 2500,
-    "currency": "USD",
-    "reason": "Customer requested refund"
-  }'
-```
-
-#### Partial refund with metadata
-
-```bash
-curl -X POST http://localhost:8080/v1/refunds \
-  -H "Content-Type: application/json" \
-  -d '{
-    "payment_id": "ch_123456789",
-    "amount": 1000,
-    "currency": "USD",
-    "reason": "Partial refund for damaged item",
-    "metadata": {
-      "refund_type": "partial",
-      "damage_reported": true,
-      "customer_service_agent": "agent_123"
-    }
-  }'
-```
-
-### Managing Subscriptions
-
-#### Create a subscription plan
-
-```bash
-curl -X POST http://localhost:8080/v1/plans \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Premium Plan",
-    "description": "Premium features with priority support",
-    "amount": 2999,
-    "currency": "USD",
-    "billing_period": "monthly",
-    "pricing_type": "fixed",
-    "trial_days": 7,
-    "features": ["priority_support", "advanced_analytics", "api_access"]
-  }'
-```
-
-#### Create a subscription
-
-```bash
-curl -X POST http://localhost:8080/v1/subscriptions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customer_id": "cus_123456789",
-    "plan_id": "plan_premium_001",
-    "quantity": 1,
-    "trial_days": 7,
-    "payment_method_id": "pm_123456789",
-    "metadata": {
-      "marketing_source": "website",
-      "referral_code": "WELCOME10"
-    }
-  }'
-```
-
-### Handling Disputes
-
-#### Create a dispute
-
-```bash
-curl -X POST http://localhost:8080/v1/disputes \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customer_id": "cus_123456789",
-    "transaction_id": "ch_123456789",
-    "amount": 2500,
-    "currency": "USD",
-    "reason": "fraudulent",
-    "evidence": {
-      "customer_communication": "Customer claims unauthorized charge"
-    },
-    "due_by": "2024-02-15T23:59:59Z"
-  }'
-```
-
-#### Submit evidence for a dispute
-
-```bash
-curl -X POST http://localhost:8080/v1/disputes/disp_123/evidence \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "customer_communication",
-    "description": "Email from customer confirming receipt",
-    "files": ["https://example.com/evidence1.pdf"],
-    "metadata": {
-      "evidence_type": "email",
-      "customer_email": "customer@example.com"
-    }
-  }'
-```
-
-### System Health
-
-#### Check if the system is healthy
-
-```bash
-curl -X GET http://localhost:8080/v1/health
-```
-
 ## How Currency Routing Works
 
 The system is smart about routing your payments to the right provider:
@@ -434,65 +150,16 @@ The system is smart about routing your payments to the right provider:
 
 Just specify the currency in your request, and the system automatically picks the best provider.
 
-## Important Notes
+> [!TIP]
+> For more details on smart routing, see the [Smart Routing Guide](docs/SMART_ROUTING.md).
 
-### Amount Format
+## Documentation
 
-Always use the smallest currency unit:
-
-- **USD/EUR**: cents (1000 = $10.00)
-- **IDR**: rupiah (50000 = Rp 50,000)
-- **SGD**: cents (1500 = S$15.00)
-- **INR**: paise (100000 = ₹1,000.00)
-
-### Payment Methods
-
-Make sure you're using valid payment method IDs from your chosen provider:
-
-- Stripe: `pm_123456789`
-- Xendit: `pm_xendit_123`
-
-### Customer IDs
-
-Your customer IDs should match what's in your provider's system.
-
-## Cache support
-
-The Redis cache is ready to go and can be used to cache things like payment methods, customer info, and subscription details. Right now, the cache is set up but not actively caching. It's there for when you want to add caching to improve performance.
-
-Here's how you might use the cache in a service:
-
-```go
-type ExampleService struct {
-    store Store
-    cache *cache.RedisCache
-}
-
-func NewExampleService(store Store, cache *cache.RedisCache) *ExampleService {
-    return &ExampleService{
-        store: store,
-        cache: cache,
-    }
-}
-
-func (s *ExampleService) GetItem(ctx context.Context, id string) (*Item, error) {
-    cacheKey := "item:" + id
-    if cachedData, err := s.cache.Get(ctx, cacheKey); err == nil {
-        var item Item
-        if err := json.Unmarshal([]byte(cachedData), &item); err == nil {
-            return &item, nil
-        }
-    }
-    
-    item, err := s.store.GetItem(ctx, id)
-    if err != nil {
-        return nil, err
-    }
-    
-    if itemJSON, err := json.Marshal(item); err == nil {
-        s.cache.Set(ctx, cacheKey, itemJSON)
-    }
-    
-    return item, nil
-}
-```
+| Document | Description |
+|----------|-------------|
+| [API Reference](docs/API_REFERENCE.md) | Endpoints, examples, authentication |
+| [Architecture](docs/ARCHITECTURE.md) | System design and diagrams |
+| [Smart Routing](docs/SMART_ROUTING.md) | How currency routing works |
+| [Fraud Detection](docs/FRAUD_DETECTION.md) | AI-powered fraud prevention |
+| [Security Guide](docs/SECURITY_GUIDE.md) | Security best practices |
+| [Development Guide](docs/DEVELOPMENT.md) | Database scripts, caching, dev tips |
