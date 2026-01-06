@@ -235,7 +235,23 @@ func (p *XenditProvider) CancelPaymentSession(ctx context.Context, sessionID str
 }
 
 func (p *XenditProvider) ListPaymentSessions(ctx context.Context, req *models.ListPaymentSessionsRequest) ([]*models.PaymentSession, error) {
-	return nil, ErrNotSupported
+	apiReq := p.client.PaymentRequestApi.GetAllPaymentRequests(ctx)
+
+	if req.Limit > 0 {
+		apiReq = apiReq.Limit(int32(req.Limit))
+	}
+
+	resp, _, err := apiReq.Execute()
+	if err != nil {
+		return nil, fmt.Errorf("xendit list payment sessions failed: %w", err)
+	}
+
+	var sessions []*models.PaymentSession
+	for _, pr := range resp.GetData() {
+		sessions = append(sessions, p.mapPaymentSession(&pr))
+	}
+
+	return sessions, nil
 }
 
 func (p *XenditProvider) mapPaymentSession(pr *paymentrequest.PaymentRequest) *models.PaymentSession {
