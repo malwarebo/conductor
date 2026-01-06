@@ -158,7 +158,7 @@ Just specify the currency in your request, and the system automatically picks th
 | Document | Description |
 |----------|-------------|
 | [API Reference](docs/API_REFERENCE.md) | Endpoints, examples, authentication |
-| [Architecture](docs/ARCHITECTURE.md) | System design and diagrams |
+| [Architecture](docs/ARCHITECTURE.md) | System design and diagrams (`make diagram` for interactive) |
 | [Smart Routing](docs/SMART_ROUTING.md) | How currency routing works |
 | [Fraud Detection](docs/FRAUD_DETECTION.md) | AI-powered fraud prevention |
 | [Security Guide](docs/SECURITY_GUIDE.md) | Security best practices |

@@ -1,5 +1,24 @@
 # Conductor Architecture
 
+## Interactive Diagram
+
+Launch the interactive architecture diagram to explore how requests flow through the system:
+
+```bash
+make diagram
+```
+
+Or run directly:
+
+```bash
+go run ./cmd/diagram
+```
+
+This opens an interactive visualization at http://localhost:9090 where you can:
+- Animate the request flow step-by-step
+- Click on any component to see detailed information
+- View code examples for each layer
+
 ## Overview
 
 Conductor is a payment switch that provides a unified interface for multiple payment providers while maintaining its own state and data consistency.

@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-integration test-coverage test-race test-verbose clean
+.PHONY: test test-unit test-integration test-coverage test-race test-verbose clean diagram
 
 test:
 	@echo "Running all tests..."
@@ -51,6 +51,10 @@ run:
 	@echo "Running application..."
 	go run main.go
 
+diagram:
+	@echo "Launching architecture diagram..."
+	go run ./cmd/diagram
+
 security-scan:
 	@echo "Running security scan..."
 	./scripts/security-check.sh
@@ -69,5 +73,6 @@ help:
 	@echo "  clean             - Clean test cache and coverage files"
 	@echo "  build             - Build the application"
 	@echo "  run               - Run the application"
+	@echo "  diagram           - Launch interactive architecture diagram"
 	@echo "  security-scan     - Run security vulnerability scan"
 
