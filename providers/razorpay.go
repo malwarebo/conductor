@@ -497,19 +497,79 @@ func (p *RazorpayProvider) mapInvoiceStatus(status string) models.InvoiceStatus 
 }
 
 func (p *RazorpayProvider) CreatePayout(ctx context.Context, req *models.CreatePayoutRequest) (*models.Payout, error) {
-	return nil, ErrNotSupported
+	payoutData := map[string]interface{}{
+		"account_number":  req.SourceAccount,
+		"fund_account_id": req.DestinationAccount,
+		"amount":          req.Amount,
+		"currency":        req.Currency,
+		"mode":            req.DestinationChannel,
+		"purpose":         "payout",
+	}
+
+	if req.ReferenceID != "" {
+		payoutData["reference_id"] = req.ReferenceID
+	}
+
+	if req.Description != "" {
+		payoutData["narration"] = req.Description
+	}
+
+	if req.Metadata != nil {
+		payoutData["notes"] = req.Metadata
+	}
+
+	payout, err := p.client.Post("/v1/payouts", payoutData, nil)
+	if err != nil {
+		return nil, fmt.Errorf("razorpay create payout failed: %w", err)
+	}
+
+	return p.mapPayout(payout), nil
 }
 
 func (p *RazorpayProvider) GetPayout(ctx context.Context, payoutID string) (*models.Payout, error) {
-	return nil, ErrNotSupported
+	payout, err := p.client.Payout.Fetch(payoutID, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("razorpay get payout failed: %w", err)
+	}
+
+	return p.mapPayout(payout), nil
 }
 
 func (p *RazorpayProvider) ListPayouts(ctx context.Context, req *models.ListPayoutsRequest) ([]*models.Payout, error) {
-	return nil, ErrNotSupported
+	options := map[string]interface{}{}
+
+	if req.Limit > 0 {
+		options["count"] = req.Limit
+	}
+
+	payouts, err := p.client.Payout.All(options, nil)
+	if err != nil {
+		return nil, fmt.Errorf("razorpay list payouts failed: %w", err)
+	}
+
+	items, ok := payouts["items"].([]interface{})
+	if !ok {
+		return []*models.Payout{}, nil
+	}
+
+	var result []*models.Payout
+	for _, item := range items {
+		payoutMap, ok := item.(map[string]interface{})
+		if ok {
+			result = append(result, p.mapPayout(payoutMap))
+		}
+	}
+
+	return result, nil
 }
 
 func (p *RazorpayProvider) CancelPayout(ctx context.Context, payoutID string) (*models.Payout, error) {
-	return nil, ErrNotSupported
+	payout, err := p.client.Post("/v1/payouts/"+payoutID+"/cancel", nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("razorpay cancel payout failed: %w", err)
+	}
+
+	return p.mapPayout(payout), nil
 }
 
 func (p *RazorpayProvider) GetPayoutChannels(ctx context.Context, currency string) ([]*models.PayoutChannel, error) {
@@ -519,6 +579,59 @@ func (p *RazorpayProvider) GetPayoutChannels(ctx context.Context, currency strin
 		{Code: "IMPS", Name: "IMPS Transfer", Category: "bank", Currency: "INR"},
 		{Code: "UPI", Name: "UPI Transfer", Category: "upi", Currency: "INR"},
 	}, nil
+}
+
+func (p *RazorpayProvider) mapPayout(po map[string]interface{}) *models.Payout {
+	payoutID := p.getStringValue(po, "id")
+	referenceID := p.getStringValue(po, "reference_id")
+	amount := p.getInt64Value(po, "amount")
+	currency := p.getStringValue(po, "currency")
+	status := p.mapPayoutStatus(p.getStringValue(po, "status"))
+	narration := p.getStringValue(po, "narration")
+	mode := p.getStringValue(po, "mode")
+	fundAccountID := p.getStringValue(po, "fund_account_id")
+
+	result := &models.Payout{
+		ProviderID:         payoutID,
+		ProviderName:       "razorpay",
+		ReferenceID:        referenceID,
+		Amount:             amount,
+		Currency:           currency,
+		Status:             status,
+		Description:        narration,
+		DestinationType:    models.DestinationBankAccount,
+		DestinationChannel: mode,
+		DestinationAccount: fundAccountID,
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
+	}
+
+	if createdAt, ok := po["created_at"].(float64); ok && createdAt > 0 {
+		result.CreatedAt = time.Unix(int64(createdAt), 0)
+	}
+
+	if failureReason, ok := po["failure_reason"].(string); ok {
+		result.FailureReason = failureReason
+	}
+
+	return result
+}
+
+func (p *RazorpayProvider) mapPayoutStatus(status string) models.PayoutStatus {
+	switch status {
+	case "processed":
+		return models.PayoutStatusSucceeded
+	case "processing":
+		return models.PayoutStatusProcessing
+	case "queued", "pending":
+		return models.PayoutStatusPending
+	case "cancelled":
+		return models.PayoutStatusCanceled
+	case "failed", "rejected", "reversed":
+		return models.PayoutStatusFailed
+	default:
+		return models.PayoutStatusPending
+	}
 }
 
 func (p *RazorpayProvider) CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
@@ -811,23 +924,180 @@ func (p *RazorpayProvider) CreateDispute(ctx context.Context, req *models.Create
 }
 
 func (p *RazorpayProvider) UpdateDispute(ctx context.Context, disputeID string, req *models.UpdateDisputeRequest) (*models.Dispute, error) {
-	return nil, ErrNotSupported
+	dispute, err := p.client.Dispute.Fetch(disputeID, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("razorpay get dispute failed: %w", err)
+	}
+
+	return p.mapDispute(dispute), nil
+}
+
+func (p *RazorpayProvider) AcceptDispute(ctx context.Context, disputeID string) (*models.Dispute, error) {
+	dispute, err := p.client.Dispute.Accept(disputeID, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("razorpay accept dispute failed: %w", err)
+	}
+
+	return p.mapDispute(dispute), nil
+}
+
+func (p *RazorpayProvider) ContestDispute(ctx context.Context, disputeID string, documents []map[string]interface{}) (*models.Dispute, error) {
+	contestData := map[string]interface{}{}
+	if len(documents) > 0 {
+		contestData["documents"] = documents
+	}
+
+	dispute, err := p.client.Dispute.Contest(disputeID, contestData, nil)
+	if err != nil {
+		return nil, fmt.Errorf("razorpay contest dispute failed: %w", err)
+	}
+
+	return p.mapDispute(dispute), nil
 }
 
 func (p *RazorpayProvider) SubmitDisputeEvidence(ctx context.Context, disputeID string, req *models.SubmitEvidenceRequest) (*models.Evidence, error) {
-	return nil, ErrNotSupported
+	documents := []map[string]interface{}{}
+	for _, file := range req.Files {
+		documents = append(documents, map[string]interface{}{
+			"type": req.Type,
+			"url":  file,
+		})
+	}
+
+	contestData := map[string]interface{}{
+		"documents": documents,
+	}
+
+	_, err := p.client.Dispute.Contest(disputeID, contestData, nil)
+	if err != nil {
+		return nil, fmt.Errorf("razorpay submit evidence failed: %w", err)
+	}
+
+	return &models.Evidence{
+		ID:          fmt.Sprintf("evid_%s", disputeID),
+		DisputeID:   disputeID,
+		Type:        req.Type,
+		Description: req.Description,
+		Files:       req.Files,
+		Metadata:    req.Metadata,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}, nil
 }
 
 func (p *RazorpayProvider) GetDispute(ctx context.Context, disputeID string) (*models.Dispute, error) {
-	return nil, ErrNotSupported
+	dispute, err := p.client.Dispute.Fetch(disputeID, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("razorpay get dispute failed: %w", err)
+	}
+
+	return p.mapDispute(dispute), nil
 }
 
 func (p *RazorpayProvider) ListDisputes(ctx context.Context, customerID string) ([]*models.Dispute, error) {
-	return nil, ErrNotSupported
+	options := map[string]interface{}{}
+
+	disputes, err := p.client.Dispute.All(options, nil)
+	if err != nil {
+		return nil, fmt.Errorf("razorpay list disputes failed: %w", err)
+	}
+
+	items, ok := disputes["items"].([]interface{})
+	if !ok {
+		return []*models.Dispute{}, nil
+	}
+
+	var result []*models.Dispute
+	for _, item := range items {
+		disputeMap, ok := item.(map[string]interface{})
+		if ok {
+			result = append(result, p.mapDispute(disputeMap))
+		}
+	}
+
+	return result, nil
 }
 
 func (p *RazorpayProvider) GetDisputeStats(ctx context.Context) (*models.DisputeStats, error) {
-	return nil, ErrNotSupported
+	disputes, err := p.client.Dispute.All(nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("razorpay get dispute stats failed: %w", err)
+	}
+
+	stats := &models.DisputeStats{}
+
+	items, ok := disputes["items"].([]interface{})
+	if !ok {
+		return stats, nil
+	}
+
+	for _, item := range items {
+		disputeMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		stats.Total++
+		status := p.getStringValue(disputeMap, "status")
+
+		switch status {
+		case "open", "under_review":
+			stats.Open++
+		case "won":
+			stats.Won++
+		case "lost":
+			stats.Lost++
+		case "closed":
+			stats.Canceled++
+		}
+	}
+
+	return stats, nil
+}
+
+func (p *RazorpayProvider) mapDispute(d map[string]interface{}) *models.Dispute {
+	disputeID := p.getStringValue(d, "id")
+	paymentID := p.getStringValue(d, "payment_id")
+	amount := p.getInt64Value(d, "amount")
+	reasonCode := p.getStringValue(d, "reason_code")
+	status := p.mapDisputeStatus(p.getStringValue(d, "status"))
+
+	result := &models.Dispute{
+		ID:            disputeID,
+		TransactionID: paymentID,
+		Amount:        amount,
+		Currency:      "INR",
+		Reason:        reasonCode,
+		Status:        status,
+		Evidence:      make(map[string]interface{}),
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+
+	if createdAt, ok := d["created_at"].(float64); ok && createdAt > 0 {
+		result.CreatedAt = time.Unix(int64(createdAt), 0)
+	}
+
+	if respondBy, ok := d["respond_by"].(float64); ok && respondBy > 0 {
+		result.DueBy = time.Unix(int64(respondBy), 0)
+	}
+
+	return result
+}
+
+func (p *RazorpayProvider) mapDisputeStatus(status string) models.DisputeStatus {
+	switch status {
+	case "open", "under_review":
+		return models.DisputeStatusOpen
+	case "won":
+		return models.DisputeStatusWon
+	case "lost":
+		return models.DisputeStatusLost
+	case "closed", "accepted":
+		return models.DisputeStatusCanceled
+	default:
+		return models.DisputeStatusOpen
+	}
 }
 
 func (p *RazorpayProvider) CreateCustomer(ctx context.Context, req *models.CreateCustomerRequest) (string, error) {

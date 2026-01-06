@@ -55,6 +55,7 @@ type CreatePayoutRequest struct {
 	DestinationName    string                 `json:"destination_name,omitempty"`
 	DestinationBank    string                 `json:"destination_bank,omitempty"`
 	DestinationChannel string                 `json:"destination_channel,omitempty"`
+	SourceAccount      string                 `json:"source_account,omitempty"`
 	Provider           string                 `json:"provider,omitempty"`
 	Metadata           map[string]interface{} `json:"metadata,omitempty"`
 }
