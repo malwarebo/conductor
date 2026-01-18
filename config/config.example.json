@@ -22,6 +22,12 @@
     "key_secret": "your_razorpay_key_secret",
     "webhook_secret": "your_razorpay_webhook_secret"
   },
+  "airwallex": {
+    "client_id": "your_airwallex_client_id",
+    "api_key": "your_airwallex_api_key",
+    "webhook_secret": "your_airwallex_webhook_secret",
+    "use_sandbox": true
+  },
   "server": {
     "port": "8080",
     "env": "development"

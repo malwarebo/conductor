@@ -14,6 +14,7 @@ type Config struct {
 	Stripe      StripeConfig     `json:"stripe"`
 	Xendit      XenditConfig     `json:"xendit"`
 	Razorpay    RazorpayConfig   `json:"razorpay"`
+	Airwallex   AirwallexConfig  `json:"airwallex"`
 	Server      ServerConfig     `json:"server"`
 	Redis       RedisConfig      `json:"redis"`
 	OpenAI      OpenAIConfig     `json:"openai"`
@@ -51,6 +52,13 @@ type RazorpayConfig struct {
 	KeyID         string `json:"key_id"`
 	KeySecret     string `json:"key_secret"`
 	WebhookSecret string `json:"webhook_secret"`
+}
+
+type AirwallexConfig struct {
+	ClientID      string `json:"client_id"`
+	APIKey        string `json:"api_key"`
+	WebhookSecret string `json:"webhook_secret"`
+	UseSandbox    bool   `json:"use_sandbox"`
 }
 
 type OpenAIConfig struct {
@@ -183,6 +191,19 @@ func (c *Config) loadFromEnv() {
 	}
 	if razorpayWebhook := os.Getenv("RAZORPAY_WEBHOOK_SECRET"); razorpayWebhook != "" {
 		c.Razorpay.WebhookSecret = razorpayWebhook
+	}
+
+	if airwallexClientID := os.Getenv("AIRWALLEX_CLIENT_ID"); airwallexClientID != "" {
+		c.Airwallex.ClientID = airwallexClientID
+	}
+	if airwallexAPIKey := os.Getenv("AIRWALLEX_API_KEY"); airwallexAPIKey != "" {
+		c.Airwallex.APIKey = airwallexAPIKey
+	}
+	if airwallexWebhook := os.Getenv("AIRWALLEX_WEBHOOK_SECRET"); airwallexWebhook != "" {
+		c.Airwallex.WebhookSecret = airwallexWebhook
+	}
+	if airwallexSandbox := os.Getenv("AIRWALLEX_USE_SANDBOX"); airwallexSandbox == "true" {
+		c.Airwallex.UseSandbox = true
 	}
 
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey != "" {

@@ -200,8 +200,6 @@ func (p *XenditProvider) Capabilities() ProviderCapabilities {
 		SupportsBalance:         true,
 		SupportedCurrencies:     []string{"IDR", "PHP", "VND", "THB", "MYR", "SGD"},
 		SupportedPaymentMethods: []models.PaymentMethodType{models.PMTypeCard, models.PMTypeEWallet, models.PMTypeVirtualAccount, models.PMTypeQRCode, models.PMTypeDirectDebit, models.PMTypeRetail},
-		// Note: Subscriptions use Xendit's Recurring Plans API
-		// Note: Disputes have limited API support - retrieved via transactions, managed via dashboard
 	}
 }
 
@@ -830,7 +828,6 @@ func (p *XenditProvider) mapPaymentMethod(pm *payment_method.PaymentMethod) *mod
 }
 
 func (p *XenditProvider) CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
-	// Convert billing period to Xendit interval
 	interval := "MONTH"
 	switch models.BillingPeriod(req.PlanID) {
 	case models.BillingPeriodDaily:
@@ -840,18 +837,15 @@ func (p *XenditProvider) CreateSubscription(ctx context.Context, req *models.Cre
 	case models.BillingPeriodMonthly:
 		interval = "MONTH"
 	case models.BillingPeriodYearly:
-		// Xendit doesn't have YEAR, use 12 months
 		interval = "MONTH"
 	}
 
-	// Build the recurring plan request
-	// Note: In Xendit, a "recurring plan" is equivalent to a subscription
 	planReq := xenditCreateRecurringPlanRequest{
 		ReferenceID:     fmt.Sprintf("sub_%s_%d", req.CustomerID, time.Now().Unix()),
 		CustomerID:      req.CustomerID,
 		RecurringAction: "PAYMENT",
-		Currency:        "IDR", // Default, should be passed in request
-		Amount:          0,     // Amount should come from plan
+		Currency:        "IDR",
+		Amount:          0,
 		Schedule: xenditRecurringSchedule{
 			ReferenceID:   fmt.Sprintf("sched_%d", time.Now().Unix()),
 			Interval:      interval,
@@ -864,7 +858,6 @@ func (p *XenditProvider) CreateSubscription(ctx context.Context, req *models.Cre
 	if req.Metadata != nil {
 		if metadata, ok := req.Metadata.(map[string]interface{}); ok {
 			planReq.Metadata = metadata
-			// Extract amount and currency from metadata if provided
 			if amount, ok := metadata["amount"].(float64); ok {
 				planReq.Amount = amount
 			}
@@ -874,9 +867,7 @@ func (p *XenditProvider) CreateSubscription(ctx context.Context, req *models.Cre
 		}
 	}
 
-	// Set trial period if specified
 	if req.TrialDays != nil && *req.TrialDays > 0 {
-		// Set anchor date to future for trial
 		anchorDate := time.Now().AddDate(0, 0, *req.TrialDays)
 		planReq.Schedule.AnchorDate = anchorDate.Format(time.RFC3339)
 	}
@@ -898,7 +889,6 @@ func (p *XenditProvider) UpdateSubscription(ctx context.Context, subscriptionID 
 	updateReq := xenditUpdateRecurringPlanRequest{}
 
 	if req.Quantity != nil && *req.Quantity > 0 {
-		// Quantity changes are reflected in metadata
 		if updateReq.Metadata == nil {
 			updateReq.Metadata = make(map[string]interface{})
 		}
@@ -935,7 +925,6 @@ func (p *XenditProvider) UpdateSubscription(ctx context.Context, subscriptionID 
 }
 
 func (p *XenditProvider) CancelSubscription(ctx context.Context, subscriptionID string, req *models.CancelSubscriptionRequest) (*models.Subscription, error) {
-	// Xendit uses INACTIVE status to deactivate a recurring plan
 	updateReq := xenditUpdateRecurringPlanRequest{
 		Status: "INACTIVE",
 	}
@@ -1047,16 +1036,9 @@ func (p *XenditProvider) mapRecurringPlanStatus(status string) models.Subscripti
 	}
 }
 
-// Note: Xendit doesn't have a separate Plan API like Stripe.
-// Plans in Xendit are embedded within recurring plans.
-// These methods create plans as local constructs that can be used with subscriptions.
-// The plan data is returned with a generated ID and stored in the local database.
-
 func (p *XenditProvider) CreatePlan(ctx context.Context, planReq *models.Plan) (*models.Plan, error) {
-	// Generate a plan ID for Xendit (plans are managed locally)
 	planID := fmt.Sprintf("xnd_plan_%d", time.Now().UnixNano())
 
-	// Convert billing period to Xendit-compatible interval for reference
 	interval := "MONTH"
 	switch planReq.BillingPeriod {
 	case models.BillingPeriodDaily:
@@ -1066,10 +1048,9 @@ func (p *XenditProvider) CreatePlan(ctx context.Context, planReq *models.Plan) (
 	case models.BillingPeriodMonthly:
 		interval = "MONTH"
 	case models.BillingPeriodYearly:
-		interval = "YEAR" // Will be converted to 12 months when creating subscription
+		interval = "YEAR"
 	}
 
-	// Store interval info in metadata for subscription creation
 	metadata := make(map[string]interface{})
 	if planReq.Metadata != nil {
 		if m, ok := planReq.Metadata.(map[string]interface{}); ok {
@@ -1098,8 +1079,6 @@ func (p *XenditProvider) CreatePlan(ctx context.Context, planReq *models.Plan) (
 }
 
 func (p *XenditProvider) UpdatePlan(ctx context.Context, planID string, planReq *models.Plan) (*models.Plan, error) {
-	// Plans are managed locally for Xendit
-	// Return updated plan data
 	result := &models.Plan{
 		ID:            planID,
 		Name:          planReq.Name,
@@ -1118,43 +1097,27 @@ func (p *XenditProvider) UpdatePlan(ctx context.Context, planID string, planReq 
 }
 
 func (p *XenditProvider) DeletePlan(ctx context.Context, planID string) error {
-	// Plans are managed locally for Xendit
-	// Just return success - actual deletion happens in the store
 	return nil
 }
 
 func (p *XenditProvider) GetPlan(ctx context.Context, planID string) (*models.Plan, error) {
-	// Plans are stored locally, not in Xendit
-	// This should be handled by the store layer
-	// Return not supported to indicate the caller should use local storage
 	return nil, fmt.Errorf("xendit plans are stored locally, use the plan store to retrieve")
 }
 
 func (p *XenditProvider) ListPlans(ctx context.Context) ([]*models.Plan, error) {
-	// Plans are stored locally, not in Xendit
-	// This should be handled by the store layer
 	return nil, fmt.Errorf("xendit plans are stored locally, use the plan store to list")
 }
 
-// Note: Xendit has limited dispute API support.
-// Disputes (chargebacks) are retrieved via the transactions API.
-// Evidence can be uploaded via the files API.
-// Actual dispute resolution is handled via dashboard/email, not API.
-
 func (p *XenditProvider) CreateDispute(ctx context.Context, req *models.CreateDisputeRequest) (*models.Dispute, error) {
-	// Xendit disputes (chargebacks) are created by card networks/banks, not via API
 	return nil, fmt.Errorf("xendit: disputes are initiated by card networks, cannot create via API")
 }
 
 func (p *XenditProvider) UpdateDispute(ctx context.Context, disputeID string, req *models.UpdateDisputeRequest) (*models.Dispute, error) {
-	// Xendit doesn't have a dispute update API
-	// Get the current dispute status
 	dispute, err := p.GetDispute(ctx, disputeID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Update metadata locally
 	if req.Metadata != nil {
 		dispute.Metadata = req.Metadata
 	}
@@ -1163,26 +1126,18 @@ func (p *XenditProvider) UpdateDispute(ctx context.Context, disputeID string, re
 }
 
 func (p *XenditProvider) AcceptDispute(ctx context.Context, disputeID string) (*models.Dispute, error) {
-	// Xendit doesn't have an API for accepting disputes
-	// This is done via dashboard/email
 	return nil, fmt.Errorf("xendit: accepting disputes must be done via Xendit dashboard")
 }
 
 func (p *XenditProvider) ContestDispute(ctx context.Context, disputeID string, evidence map[string]interface{}) (*models.Dispute, error) {
-	// Xendit doesn't have an API for contesting disputes directly
-	// Evidence can be uploaded, but the actual contest is via dashboard/email
 	return nil, fmt.Errorf("xendit: contesting disputes must be done via Xendit dashboard after uploading evidence")
 }
 
 func (p *XenditProvider) SubmitDisputeEvidence(ctx context.Context, disputeID string, req *models.SubmitEvidenceRequest) (*models.Evidence, error) {
-	// Xendit allows uploading files for chargeback evidence via POST /files
-	// Note: This is a simplified implementation. In production, you'd need multipart form upload.
-	
 	if len(req.Files) == 0 {
 		return nil, fmt.Errorf("at least one evidence file URL is required")
 	}
 
-	// Create evidence record
 	evidence := &models.Evidence{
 		ID:          fmt.Sprintf("xnd_evid_%s_%d", disputeID, time.Now().Unix()),
 		DisputeID:   disputeID,
@@ -1194,15 +1149,10 @@ func (p *XenditProvider) SubmitDisputeEvidence(ctx context.Context, disputeID st
 		UpdatedAt:   time.Now(),
 	}
 
-	// Note: Actual file upload to Xendit would require:
-	// POST /files with multipart/form-data, purpose=CHARGEBACK_EVIDENCE
-	// This is a placeholder - the actual files should be uploaded separately
-
 	return evidence, nil
 }
 
 func (p *XenditProvider) GetDispute(ctx context.Context, disputeID string) (*models.Dispute, error) {
-	// Get transaction by ID to find chargeback details
 	respBody, err := p.doRequest(ctx, "GET", "/transactions/"+disputeID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("xendit get dispute failed: %w", err)
@@ -1221,7 +1171,6 @@ func (p *XenditProvider) GetDispute(ctx context.Context, disputeID string) (*mod
 }
 
 func (p *XenditProvider) ListDisputes(ctx context.Context, customerID string) ([]*models.Dispute, error) {
-	// List transactions filtered by type CHARGEBACK
 	path := "/transactions?types=CHARGEBACK"
 
 	respBody, err := p.doRequest(ctx, "GET", path, nil)
@@ -1274,20 +1223,16 @@ func (p *XenditProvider) mapTransactionToDispute(txn *xenditTransaction) *models
 	created, _ := time.Parse(time.RFC3339, txn.Created)
 	updated, _ := time.Parse(time.RFC3339, txn.Updated)
 
-	// Map transaction status to dispute status
 	status := models.DisputeStatusOpen
 	switch txn.Status {
 	case "SUCCESS", "SETTLED":
-		// A successful chargeback means the customer won (merchant lost)
 		status = models.DisputeStatusLost
 	case "FAILED", "VOIDED":
-		// Failed chargeback means merchant won
 		status = models.DisputeStatusWon
 	case "PENDING":
 		status = models.DisputeStatusOpen
 	}
 
-	// Calculate due date (typically 7 days from creation for Xendit)
 	dueBy := created.AddDate(0, 0, 7)
 
 	return &models.Dispute{
@@ -1295,7 +1240,7 @@ func (p *XenditProvider) mapTransactionToDispute(txn *xenditTransaction) *models
 		TransactionID: txn.ProductID,
 		Amount:        int64(txn.Amount),
 		Currency:      txn.Currency,
-		Reason:        "chargeback", // Xendit doesn't provide detailed reason codes via transaction API
+		Reason:        "chargeback",
 		Status:        status,
 		Evidence:      make(map[string]interface{}),
 		DueBy:         dueBy,
