@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"time"
 
@@ -382,12 +383,10 @@ func (p *XenditProvider) CancelPaymentSession(ctx context.Context, sessionID str
 func (p *XenditProvider) ListPaymentSessions(ctx context.Context, req *models.ListPaymentSessionsRequest) ([]*models.PaymentSession, error) {
 	apiReq := p.client.PaymentRequestApi.GetAllPaymentRequests(ctx)
 
-	if req.Limit > 0 {
-		limit := req.Limit
-		if limit > int(^int32(0)) {
-			limit = int(^int32(0)) // Cap at max int32 value
-		}
-		apiReq = apiReq.Limit(int32(limit))
+	if req.Limit > 0 && req.Limit <= math.MaxInt32 {
+		apiReq = apiReq.Limit(int32(req.Limit))
+	} else if req.Limit > math.MaxInt32 {
+		apiReq = apiReq.Limit(math.MaxInt32)
 	}
 
 	resp, _, err := apiReq.Execute()

@@ -33,7 +33,7 @@ jobs:
           govulncheck ./...
 
       - name: Run gosec
-        uses: securego/gosec@v2.21.4
+        uses: securego/gosec@d4617f51baf75f4f809066386a4f9d27b3ac3e46 # v2.21.4
         with:
           args: '-fmt sarif -out gosec.sarif ./...'
 
@@ -81,7 +81,7 @@ jobs:
         run: docker build -t conductor:security-scan .
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
         with:
           image-ref: 'conductor:security-scan'
           format: 'sarif'
