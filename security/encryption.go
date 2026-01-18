@@ -4,10 +4,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"io"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type EncryptionManager struct {
@@ -72,16 +73,16 @@ func (e *EncryptionManager) Decrypt(ciphertext string) (string, error) {
 }
 
 func (e *EncryptionManager) HashPassword(password string) (string, error) {
-	hash := sha256.Sum256([]byte(password))
-	return base64.StdEncoding.EncodeToString(hash[:]), nil
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash password: %v", err)
+	}
+	return string(hash), nil
 }
 
 func (e *EncryptionManager) VerifyPassword(password, hash string) bool {
-	hashedPassword, err := e.HashPassword(password)
-	if err != nil {
-		return false
-	}
-	return hashedPassword == hash
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
 
 func CreateGenerateEncryptionKey() ([]byte, error) {
