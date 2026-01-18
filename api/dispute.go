@@ -20,23 +20,29 @@ func CreateDisputeHandler(disputeService *services.DisputeService) *DisputeHandl
 }
 
 func (h *DisputeHandler) HandleDisputes(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+
 	switch r.Method {
 	case http.MethodPost:
-		if strings.HasSuffix(r.URL.Path, "/evidence") {
+		if strings.HasSuffix(path, "/accept") {
+			h.handleAcceptDispute(w, r)
+		} else if strings.HasSuffix(path, "/contest") {
+			h.handleContestDispute(w, r)
+		} else if strings.HasSuffix(path, "/evidence") {
 			h.handleSubmitEvidence(w, r)
 		} else {
 			h.handleCreateDispute(w, r)
 		}
 	case http.MethodGet:
-		if strings.HasSuffix(r.URL.Path, "/stats") {
+		if strings.HasSuffix(path, "/stats") {
 			h.handleGetStats(w, r)
-		} else if id := strings.TrimPrefix(r.URL.Path, "/disputes/"); id != "" {
+		} else if id := extractDisputeID(path); id != "" {
 			h.handleGetDispute(w, r, id)
 		} else {
 			h.handleListDisputes(w, r)
 		}
 	case http.MethodPut:
-		if id := strings.TrimPrefix(r.URL.Path, "/disputes/"); id != "" {
+		if id := extractDisputeID(path); id != "" {
 			h.handleUpdateDispute(w, r, id)
 		} else {
 			http.Error(w, "Dispute ID required", http.StatusBadRequest)
@@ -44,6 +50,15 @@ func (h *DisputeHandler) HandleDisputes(w http.ResponseWriter, r *http.Request) 
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func extractDisputeID(path string) string {
+	path = strings.TrimPrefix(path, "/v1/disputes/")
+	path = strings.TrimPrefix(path, "/disputes/")
+	if idx := strings.Index(path, "/"); idx != -1 {
+		return path[:idx]
+	}
+	return path
 }
 
 func (h *DisputeHandler) handleCreateDispute(w http.ResponseWriter, r *http.Request) {
@@ -82,8 +97,54 @@ func (h *DisputeHandler) handleUpdateDispute(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, dispute)
 }
 
+func (h *DisputeHandler) handleAcceptDispute(w http.ResponseWriter, r *http.Request) {
+	disputeID := extractDisputeID(r.URL.Path)
+	if disputeID == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Dispute ID required"})
+		return
+	}
+
+	dispute, err := h.disputeService.AcceptDispute(r.Context(), disputeID)
+	if err != nil {
+		if err == services.ErrDisputeNotFound {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Dispute not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dispute)
+}
+
+func (h *DisputeHandler) handleContestDispute(w http.ResponseWriter, r *http.Request) {
+	disputeID := extractDisputeID(r.URL.Path)
+	if disputeID == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Dispute ID required"})
+		return
+	}
+
+	var evidence map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&evidence); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
+		return
+	}
+
+	dispute, err := h.disputeService.ContestDispute(r.Context(), disputeID, evidence)
+	if err != nil {
+		if err == services.ErrDisputeNotFound {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Dispute not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dispute)
+}
+
 func (h *DisputeHandler) handleSubmitEvidence(w http.ResponseWriter, r *http.Request) {
-	disputeID := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/disputes/"), "/evidence")
+	disputeID := extractDisputeID(r.URL.Path)
 	if disputeID == "" {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Dispute ID required"})
 		return
@@ -95,16 +156,7 @@ func (h *DisputeHandler) handleSubmitEvidence(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	metadata := map[string]interface{}{
-		"evidence_type":        req.Type,
-		"evidence_description": req.Description,
-		"evidence_files":       req.Files,
-	}
-
-	updateReq := &models.UpdateDisputeRequest{
-		Metadata: metadata,
-	}
-	dispute, err := h.disputeService.UpdateDispute(r.Context(), disputeID, updateReq)
+	evidence, err := h.disputeService.SubmitEvidence(r.Context(), disputeID, &req)
 	if err != nil {
 		if err == services.ErrDisputeNotFound {
 			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "Dispute not found"})
@@ -114,7 +166,7 @@ func (h *DisputeHandler) handleSubmitEvidence(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	writeJSON(w, http.StatusOK, dispute)
+	writeJSON(w, http.StatusOK, evidence)
 }
 
 func (h *DisputeHandler) handleGetDispute(w http.ResponseWriter, r *http.Request, disputeID string) {

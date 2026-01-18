@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/malwarebo/conductor/models"
-	xendit "github.com/xendit/xendit-go/v6"
-	"github.com/xendit/xendit-go/v6/customer"
-	"github.com/xendit/xendit-go/v6/invoice"
-	"github.com/xendit/xendit-go/v6/payment_method"
-	paymentrequest "github.com/xendit/xendit-go/v6/payment_request"
-	"github.com/xendit/xendit-go/v6/payout"
-	"github.com/xendit/xendit-go/v6/refund"
+	xendit "github.com/xendit/xendit-go/v7"
+	"github.com/xendit/xendit-go/v7/customer"
+	"github.com/xendit/xendit-go/v7/invoice"
+	"github.com/xendit/xendit-go/v7/payment_method"
+	paymentrequest "github.com/xendit/xendit-go/v7/payment_request"
+	"github.com/xendit/xendit-go/v7/payout"
+	"github.com/xendit/xendit-go/v7/refund"
 )
 
 type XenditProvider struct {
@@ -308,7 +308,7 @@ func (p *XenditProvider) CreateInvoice(ctx context.Context, req *models.CreateIn
 		invoiceReq.SetDescription(req.Description)
 	}
 	if req.DurationSeconds > 0 {
-		invoiceReq.SetInvoiceDuration(fmt.Sprintf("%d", req.DurationSeconds))
+		invoiceReq.SetInvoiceDuration(float32(req.DurationSeconds))
 	}
 	if req.SuccessRedirectURL != "" {
 		invoiceReq.SetSuccessRedirectUrl(req.SuccessRedirectURL)
@@ -727,6 +727,14 @@ func (p *XenditProvider) CreateDispute(ctx context.Context, req *models.CreateDi
 }
 
 func (p *XenditProvider) UpdateDispute(ctx context.Context, disputeID string, req *models.UpdateDisputeRequest) (*models.Dispute, error) {
+	return nil, ErrNotSupported
+}
+
+func (p *XenditProvider) AcceptDispute(ctx context.Context, disputeID string) (*models.Dispute, error) {
+	return nil, ErrNotSupported
+}
+
+func (p *XenditProvider) ContestDispute(ctx context.Context, disputeID string, evidence map[string]interface{}) (*models.Dispute, error) {
 	return nil, ErrNotSupported
 }
 

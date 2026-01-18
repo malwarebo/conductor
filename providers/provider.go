@@ -44,6 +44,8 @@ type PaymentProvider interface {
 
 	CreateDispute(ctx context.Context, req *models.CreateDisputeRequest) (*models.Dispute, error)
 	UpdateDispute(ctx context.Context, disputeID string, req *models.UpdateDisputeRequest) (*models.Dispute, error)
+	AcceptDispute(ctx context.Context, disputeID string) (*models.Dispute, error)
+	ContestDispute(ctx context.Context, disputeID string, evidence map[string]interface{}) (*models.Dispute, error)
 	SubmitDisputeEvidence(ctx context.Context, disputeID string, req *models.SubmitEvidenceRequest) (*models.Evidence, error)
 	GetDispute(ctx context.Context, disputeID string) (*models.Dispute, error)
 	ListDisputes(ctx context.Context, customerID string) ([]*models.Dispute, error)
