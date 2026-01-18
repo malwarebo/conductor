@@ -37,6 +37,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/stripe/stripe-go/v84 v84.0.0 h1:4bZvf5DVdfnvgBDnW/PB24N2LwDFBVwguMB4khAZ+KI=
 github.com/stripe/stripe-go/v84 v84.0.0/go.mod h1:kjXh3OrF4PT16qz7z9Q5yqYAZ1mJmu8g8f4Z1sOHBfc=
+github.com/stripe/stripe-go/v84 v84.2.0 h1:ODgjKBFnCFM8fZ1plGdpykYk9VUyF0eKP34l6SxPyA0=
+github.com/stripe/stripe-go/v84 v84.2.0/go.mod h1:Z4gcKw1zl4geDG2+cjpSaJES9jaohGX6n7FP8/kHIqw=
 github.com/xendit/xendit-go/v7 v7.0.0 h1:A7Nhaulk1a+mOI/KgRcvb5VSQEB6nhsUGkAhi+RkrEM=
 github.com/xendit/xendit-go/v7 v7.0.0/go.mod h1:W562aw0zhjzF/OUhZLc77q2iFQc9INa5tBy5xl6OLbo=
 golang.org/x/net v0.48.0 h1:zyQRTTrjc33Lhh0fBgT/H3oZq9WuvRR5gPC70xpDiQU=
