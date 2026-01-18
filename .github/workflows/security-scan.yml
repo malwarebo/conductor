@@ -8,9 +8,16 @@ on:
   schedule:
     - cron: '0 2 * * 1'
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   dependency-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,7 +33,7 @@ jobs:
           govulncheck ./...
 
       - name: Run gosec
-        uses: securecodewarrior/github-action-gosec@master
+        uses: securego/gosec@v2.21.4
         with:
           args: '-fmt sarif -out gosec.sarif ./...'
 
@@ -38,6 +45,8 @@ jobs:
 
   license-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -61,6 +70,9 @@ jobs:
 
   docker-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -69,7 +81,7 @@ jobs:
         run: docker build -t conductor:security-scan .
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: 'conductor:security-scan'
           format: 'sarif'

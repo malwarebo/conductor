@@ -383,7 +383,11 @@ func (p *XenditProvider) ListPaymentSessions(ctx context.Context, req *models.Li
 	apiReq := p.client.PaymentRequestApi.GetAllPaymentRequests(ctx)
 
 	if req.Limit > 0 {
-		apiReq = apiReq.Limit(int32(req.Limit))
+		limit := req.Limit
+		if limit > int(^int32(0)) {
+			limit = int(^int32(0)) // Cap at max int32 value
+		}
+		apiReq = apiReq.Limit(int32(limit))
 	}
 
 	resp, _, err := apiReq.Execute()
