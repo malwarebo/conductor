@@ -332,6 +332,38 @@ func (m *MultiProviderSelector) UpdateDispute(ctx context.Context, disputeID str
 	return provider.UpdateDispute(ctx, disputeID, req)
 }
 
+func (m *MultiProviderSelector) AcceptDispute(ctx context.Context, disputeID string) (*models.Dispute, error) {
+	m.mu.RLock()
+	provider, ok := m.disputeProviderMap[disputeID]
+	m.mu.RUnlock()
+
+	if !ok {
+		var err error
+		provider, err = m.getProviderFromDB(ctx, disputeID, "dispute")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return provider.AcceptDispute(ctx, disputeID)
+}
+
+func (m *MultiProviderSelector) ContestDispute(ctx context.Context, disputeID string, evidence map[string]interface{}) (*models.Dispute, error) {
+	m.mu.RLock()
+	provider, ok := m.disputeProviderMap[disputeID]
+	m.mu.RUnlock()
+
+	if !ok {
+		var err error
+		provider, err = m.getProviderFromDB(ctx, disputeID, "dispute")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return provider.ContestDispute(ctx, disputeID, evidence)
+}
+
 func (m *MultiProviderSelector) SubmitDisputeEvidence(ctx context.Context, disputeID string, req *models.SubmitEvidenceRequest) (*models.Evidence, error) {
 	m.mu.RLock()
 	provider, ok := m.disputeProviderMap[disputeID]

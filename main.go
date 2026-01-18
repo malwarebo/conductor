@@ -262,9 +262,11 @@ func main() {
 	apiRouter.HandleFunc("/subscriptions/{id}", subscriptionHandler.HandleSubscriptions).Methods("GET", "PUT", "DELETE")
 
 	apiRouter.HandleFunc("/disputes", disputeHandler.HandleDisputes).Methods("POST", "GET")
-	apiRouter.HandleFunc("/disputes/{id}", disputeHandler.HandleDisputes).Methods("GET", "PUT")
-	apiRouter.HandleFunc("/disputes/{id}/evidence", disputeHandler.HandleDisputes).Methods("POST")
 	apiRouter.HandleFunc("/disputes/stats", disputeHandler.HandleDisputes).Methods("GET")
+	apiRouter.HandleFunc("/disputes/{id}", disputeHandler.HandleDisputes).Methods("GET", "PUT")
+	apiRouter.HandleFunc("/disputes/{id}/accept", disputeHandler.HandleDisputes).Methods("POST")
+	apiRouter.HandleFunc("/disputes/{id}/contest", disputeHandler.HandleDisputes).Methods("POST")
+	apiRouter.HandleFunc("/disputes/{id}/evidence", disputeHandler.HandleDisputes).Methods("POST")
 
 	apiRouter.HandleFunc("/fraud/analyze", fraudHandler.AnalyzeTransaction).Methods("POST")
 	apiRouter.HandleFunc("/fraud/stats", fraudHandler.GetStats).Methods("GET")

@@ -941,10 +941,10 @@ func (p *RazorpayProvider) AcceptDispute(ctx context.Context, disputeID string) 
 	return p.mapDispute(dispute), nil
 }
 
-func (p *RazorpayProvider) ContestDispute(ctx context.Context, disputeID string, documents []map[string]interface{}) (*models.Dispute, error) {
+func (p *RazorpayProvider) ContestDispute(ctx context.Context, disputeID string, evidence map[string]interface{}) (*models.Dispute, error) {
 	contestData := map[string]interface{}{}
-	if len(documents) > 0 {
-		contestData["documents"] = documents
+	if evidence != nil {
+		contestData = evidence
 	}
 
 	dispute, err := p.client.Dispute.Contest(disputeID, contestData, nil)

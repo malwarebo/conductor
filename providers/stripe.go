@@ -6,19 +6,19 @@ import (
 	"time"
 
 	"github.com/malwarebo/conductor/models"
-	"github.com/stripe/stripe-go/v82"
-	stripeBalance "github.com/stripe/stripe-go/v82/balance"
-	"github.com/stripe/stripe-go/v82/customer"
-	"github.com/stripe/stripe-go/v82/dispute"
-	stripeInvoice "github.com/stripe/stripe-go/v82/invoice"
-	"github.com/stripe/stripe-go/v82/paymentintent"
-	"github.com/stripe/stripe-go/v82/paymentmethod"
-	"github.com/stripe/stripe-go/v82/payout"
-	"github.com/stripe/stripe-go/v82/plan"
-	"github.com/stripe/stripe-go/v82/refund"
-	"github.com/stripe/stripe-go/v82/subscription"
-	"github.com/stripe/stripe-go/v82/transfer"
-	"github.com/stripe/stripe-go/v82/webhook"
+	"github.com/stripe/stripe-go/v84"
+	stripeBalance "github.com/stripe/stripe-go/v84/balance"
+	"github.com/stripe/stripe-go/v84/customer"
+	"github.com/stripe/stripe-go/v84/dispute"
+	stripeInvoice "github.com/stripe/stripe-go/v84/invoice"
+	"github.com/stripe/stripe-go/v84/paymentintent"
+	"github.com/stripe/stripe-go/v84/paymentmethod"
+	"github.com/stripe/stripe-go/v84/payout"
+	"github.com/stripe/stripe-go/v84/plan"
+	"github.com/stripe/stripe-go/v84/refund"
+	"github.com/stripe/stripe-go/v84/subscription"
+	"github.com/stripe/stripe-go/v84/transfer"
+	"github.com/stripe/stripe-go/v84/webhook"
 )
 
 type StripeProvider struct {
@@ -1123,6 +1123,61 @@ func (p *StripeProvider) UpdateDispute(ctx context.Context, disputeID string, re
 	}
 
 	return result, nil
+}
+
+func (p *StripeProvider) AcceptDispute(ctx context.Context, disputeID string) (*models.Dispute, error) {
+	params := &stripe.DisputeParams{}
+	stripeDispute, err := dispute.Close(disputeID, params)
+	if err != nil {
+		return nil, fmt.Errorf("stripe close dispute failed: %w", err)
+	}
+
+	return &models.Dispute{
+		ID:            stripeDispute.ID,
+		TransactionID: stripeDispute.Charge.ID,
+		Amount:        stripeDispute.Amount,
+		Currency:      string(stripeDispute.Currency),
+		Reason:        string(stripeDispute.Reason),
+		Status:        models.DisputeStatus(stripeDispute.Status),
+		CreatedAt:     time.Unix(stripeDispute.Created, 0),
+		UpdatedAt:     time.Now(),
+	}, nil
+}
+
+func (p *StripeProvider) ContestDispute(ctx context.Context, disputeID string, evidence map[string]interface{}) (*models.Dispute, error) {
+	params := &stripe.DisputeParams{
+		Submit:   stripe.Bool(true),
+		Evidence: &stripe.DisputeEvidenceParams{},
+	}
+
+	if uncategorizedText, ok := evidence["uncategorized_text"].(string); ok {
+		params.Evidence.UncategorizedText = stripe.String(uncategorizedText)
+	}
+	if productDescription, ok := evidence["product_description"].(string); ok {
+		params.Evidence.ProductDescription = stripe.String(productDescription)
+	}
+	if customerName, ok := evidence["customer_name"].(string); ok {
+		params.Evidence.CustomerName = stripe.String(customerName)
+	}
+	if customerEmail, ok := evidence["customer_email_address"].(string); ok {
+		params.Evidence.CustomerEmailAddress = stripe.String(customerEmail)
+	}
+
+	stripeDispute, err := dispute.Update(disputeID, params)
+	if err != nil {
+		return nil, fmt.Errorf("stripe contest dispute failed: %w", err)
+	}
+
+	return &models.Dispute{
+		ID:            stripeDispute.ID,
+		TransactionID: stripeDispute.Charge.ID,
+		Amount:        stripeDispute.Amount,
+		Currency:      string(stripeDispute.Currency),
+		Reason:        string(stripeDispute.Reason),
+		Status:        models.DisputeStatus(stripeDispute.Status),
+		CreatedAt:     time.Unix(stripeDispute.Created, 0),
+		UpdatedAt:     time.Now(),
+	}, nil
 }
 
 func (p *StripeProvider) SubmitDisputeEvidence(ctx context.Context, disputeID string, req *models.SubmitEvidenceRequest) (*models.Evidence, error) {
