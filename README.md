@@ -7,7 +7,7 @@
 [![go build](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/go-build.yml)
 [![docker build](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml/badge.svg)](https://github.com/malwarebo/conductor/actions/workflows/docker-image.yml)
 
-`Conductor` is an open-source payment switch that simplifies handling multiple payment providers. It supports Stripe, Xendit, and Razorpay, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
+`Conductor` is an open-source payment switch that simplifies handling multiple payment providers. It supports Stripe, Xendit, Airwallex and Razorpay, giving you a unified interface for payments, subscriptions, and dispute management. Perfect for when you need more than one payment provider to handle different currencies or regions.
 
 The system includes an `experimental` fraud detection with AI that analyzes transactions in real-time before processing payments. It uses OpenAI's LLM models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates easily into your payment flow, automatically trying to block high-risk transactions while allowing legitimate ones to proceed smoothly.
 
