@@ -32,9 +32,7 @@ func (h *CustomerHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, map[string]interface{}{
-		"customer": customer,
-	})
+	writeJSON(w, http.StatusCreated, customer)
 }
 
 func (h *CustomerHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
@@ -47,9 +45,7 @@ func (h *CustomerHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"customer": customer,
-	})
+	writeJSON(w, http.StatusOK, customer)
 }
 
 func (h *CustomerHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
@@ -73,9 +69,7 @@ func (h *CustomerHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"customer": customer,
-	})
+	writeJSON(w, http.StatusOK, customer)
 }
 
 func (h *CustomerHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
