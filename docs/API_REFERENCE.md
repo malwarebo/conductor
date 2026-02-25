@@ -1,8 +1,6 @@
 # Conductor API Reference
 
-## Overview
-
-The Conductor API provides a unified interface for payment processing across multiple providers. This document covers all available endpoints, request/response formats, and authentication requirements.
+Conductor provides a unified REST API for payment processing across multiple providers (Stripe, Xendit, Razorpay, Airwallex). All endpoints are under the `/v1` prefix.
 
 ## Base URL
 
@@ -12,62 +10,47 @@ http://localhost:8080/v1
 
 ## Authentication
 
-Conductor uses JWT-based authentication. Include the JWT token in the Authorization header:
+All API requests require a Bearer token in the Authorization header:
 
 ```
 Authorization: Bearer <your-jwt-token>
 ```
 
-### Getting a JWT Token
-
-For development and testing, you can generate JWT tokens using the application's JWT manager directly:
-
-```bash
-# Using curl to get a token (if you have a token endpoint)
-curl -X POST http://localhost:8080/v1/auth/token \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "password": "your_password"
-  }'
-```
-
-Or programmatically in your application:
+Tokens are generated using the JWT manager with your configured secret. For programmatic access, you can also use the tenant API key flow via the `X-API-Key` header.
 
 ```go
-// Example: Generate a JWT token programmatically
 jwtManager := security.CreateJWTManager("your-jwt-secret", "conductor", "conductor-api")
 token, err := jwtManager.GenerateToken("user123", "test@example.com", []string{"admin"}, "api-key-123", 24*time.Hour)
 ```
 
-## Common Response Formats
+## Error Responses
 
-### Success Response
+All errors follow the same format:
+
 ```json
 {
-  "status": "success",
-  "data": { ... },
-  "timestamp": "2025-01-26T10:30:00Z"
+  "error": "Description of what went wrong"
 }
 ```
 
-### Error Response
-```json
-{
-  "error": "Error message",
-  "status": "400",
-  "timestamp": "2025-01-26T10:30:00Z"
-}
-```
+## Rate Limits
 
-## Endpoints
+| Tier | Requests per Second | Burst |
+|------|---------------------|-------|
+| Default | 10 | 20 |
+| Standard | 50 | 100 |
+| Premium | 100 | 200 |
 
-### Health Check
+All list endpoints enforce a maximum page size of 100 items.
 
-#### GET /health
-Check system health status.
+---
 
-**Response:**
+## Health
+
+### GET /health
+
+Returns the current server health.
+
 ```json
 {
   "status": "healthy",
@@ -76,792 +59,684 @@ Check system health status.
 }
 ```
 
-### Payments
+---
 
-#### POST /charges
-Create a new payment charge.
+## Payments
 
-**Request Body:**
+### POST /charges
+
+Create a new payment charge. The system automatically routes to the right provider based on currency.
+
+**Headers:**
+- `Idempotency-Key` (optional): Prevents duplicate charges.
+
+**Request:**
 ```json
 {
-  "amount": 1000,
+  "customer_id": "cus_123456789",
+  "amount": 2500,
   "currency": "USD",
-  "description": "Payment for order #123",
-  "customer_email": "customer@example.com",
-  "customer_name": "John Doe",
+  "payment_method": "pm_123456789",
+  "description": "Payment for order #12345",
+  "capture_method": "automatic",
   "metadata": {
-    "order_id": "123",
-    "product": "premium_plan"
+    "order_id": "123"
   }
 }
 ```
 
-**Response:**
+**Response (200):**
 ```json
 {
-  "id": "ch_1234567890",
-  "amount": 1000,
-  "currency": "USD",
-  "status": "pending",
-  "provider": "stripe",
-  "provider_transaction_id": "pi_1234567890",
-  "created_at": "2025-01-26T10:30:00Z"
-}
-```
-
-#### GET /charges/{id}
-Retrieve a specific charge.
-
-**Response:**
-```json
-{
-  "id": "ch_1234567890",
-  "amount": 1000,
-  "currency": "USD",
+  "id": "pi_abc123",
+  "customer_id": "cus_123456789",
+  "amount": 2500,
+  "currency": "usd",
   "status": "succeeded",
-  "provider": "stripe",
-  "provider_transaction_id": "pi_1234567890",
-  "created_at": "2025-01-26T10:30:00Z",
-  "updated_at": "2025-01-26T10:31:00Z"
-}
-```
-
-#### POST /charges/{id}/refund
-Refund a charge.
-
-**Request Body:**
-```json
-{
-  "amount": 500,
-  "reason": "customer_request"
-}
-```
-
-**Response:**
-```json
-{
-  "id": "rf_1234567890",
-  "charge_id": "ch_1234567890",
-  "amount": 500,
-  "status": "pending",
+  "payment_method": "pm_123456789",
+  "provider_name": "stripe",
+  "provider_charge_id": "pi_abc123",
+  "capture_method": "automatic",
+  "captured_amount": 2500,
   "created_at": "2025-01-26T10:30:00Z"
 }
 ```
 
-### Subscriptions
+### POST /authorize
 
-#### POST /subscriptions
-Create a new subscription.
+Create a payment authorization (manual capture). Accepts the same body as `/charges` with `capture_method` forced to `manual`.
 
-**Request Body:**
+**Headers:**
+- `Idempotency-Key` (optional)
+
+### GET /payments/{id}
+
+Retrieve a specific payment by ID.
+
+### POST /payments/{id}/capture
+
+Capture a previously authorized payment.
+
+**Request:**
 ```json
 {
-  "plan_id": "plan_premium_monthly",
-  "customer_email": "customer@example.com",
-  "customer_name": "John Doe",
-  "payment_method": "card",
-  "billing_cycle": "monthly"
+  "amount": 2500
 }
 ```
 
-**Response:**
-```json
-{
-  "id": "sub_1234567890",
-  "plan_id": "plan_premium_monthly",
-  "status": "active",
-  "current_period_start": "2025-01-26T10:30:00Z",
-  "current_period_end": "2025-02-26T10:30:00Z",
-  "created_at": "2025-01-26T10:30:00Z"
-}
-```
+Amount is optional — omitting it captures the full authorized amount.
 
-#### GET /subscriptions/{id}
-Retrieve a specific subscription.
+### POST /payments/{id}/void
 
-**Response:**
-```json
-{
-  "id": "sub_1234567890",
-  "plan_id": "plan_premium_monthly",
-  "status": "active",
-  "current_period_start": "2025-01-26T10:30:00Z",
-  "current_period_end": "2025-02-26T10:30:00Z",
-  "created_at": "2025-01-26T10:30:00Z"
-}
-```
+Cancel an authorized (uncaptured) payment.
 
-#### POST /subscriptions/{id}/cancel
-Cancel a subscription.
+### POST /payments/{id}/confirm
 
-**Response:**
-```json
-{
-  "id": "sub_1234567890",
-  "status": "cancelled",
-  "cancelled_at": "2025-01-26T10:30:00Z"
-}
-```
-
-### Plans
-
-#### GET /plans
-List all available plans.
-
-**Response:**
-```json
-{
-  "plans": [
-    {
-      "id": "plan_basic_monthly",
-      "name": "Basic Plan",
-      "description": "Basic monthly subscription",
-      "amount": 999,
-      "currency": "USD",
-      "interval": "month",
-      "active": true
-    }
-  ]
-}
-```
-
-#### POST /plans
-Create a new plan.
-
-**Request Body:**
-```json
-{
-  "name": "Premium Plan",
-  "description": "Premium monthly subscription",
-  "amount": 2999,
-  "currency": "USD",
-  "interval": "month"
-}
-```
-
-**Response:**
-```json
-{
-  "id": "plan_premium_monthly",
-  "name": "Premium Plan",
-  "description": "Premium monthly subscription",
-  "amount": 2999,
-  "currency": "USD",
-  "interval": "month",
-  "active": true,
-  "created_at": "2025-01-26T10:30:00Z"
-}
-```
-
-### Fraud Detection
-
-#### POST /fraud/analyze
-Analyze a transaction for fraud.
-
-**Request Body:**
-```json
-{
-  "amount": 1000,
-  "currency": "USD",
-  "customer_email": "customer@example.com",
-  "customer_ip": "192.168.1.1",
-  "customer_country": "US",
-  "payment_method": "card",
-  "transaction_type": "payment"
-}
-```
-
-**Response:**
-```json
-{
-  "fraud_score": 0.15,
-  "risk_level": "low",
-  "recommendation": "approve",
-  "reasons": [
-    "Low risk transaction pattern",
-    "Valid customer information"
-  ],
-  "analyzed_at": "2025-01-26T10:30:00Z"
-}
-```
-
-#### GET /fraud/stats
-Get fraud detection statistics.
-
-**Query Parameters:**
-- `start_date` (optional): Start date for statistics (ISO 8601)
-- `end_date` (optional): End date for statistics (ISO 8601)
-
-**Response:**
-```json
-{
-  "total_transactions": 1000,
-  "fraudulent_transactions": 15,
-  "fraud_rate": 0.015,
-  "avg_fraud_score": 0.25,
-  "period": {
-    "start": "2025-01-01T00:00:00Z",
-    "end": "2025-01-26T23:59:59Z"
-  }
-}
-```
-
-### AI Routing
-
-#### POST /routing/select
-Get AI-powered provider selection.
-
-**Request Body:**
-```json
-{
-  "amount": 1000,
-  "currency": "USD",
-  "customer_country": "US",
-  "payment_method": "card",
-  "transaction_type": "payment"
-}
-```
-
-**Response:**
-```json
-{
-  "selected_provider": "stripe",
-  "confidence": 0.95,
-  "reasoning": "Stripe has 99.2% success rate for USD transactions in US",
-  "alternatives": [
-    {
-      "provider": "xendit",
-      "confidence": 0.85,
-      "reasoning": "Good for international transactions"
-    }
-  ]
-}
-```
-
-#### GET /routing/stats
-Get routing statistics.
-
-**Response:**
-```json
-{
-  "total_routes": 1000,
-  "success_rate": 0.987,
-  "avg_response_time": 150,
-  "provider_breakdown": {
-    "stripe": {
-      "routes": 750,
-      "success_rate": 0.992,
-      "avg_response_time": 120
-    },
-    "xendit": {
-      "routes": 250,
-      "success_rate": 0.976,
-      "avg_response_time": 200
-    }
-  }
-}
-```
-
-### Disputes
-
-#### GET /disputes
-List all disputes.
-
-**Query Parameters:**
-- `status` (optional): Filter by status (open, closed, won, lost)
-- `limit` (optional): Number of results (default: 20)
-- `offset` (optional): Number of results to skip (default: 0)
-
-**Response:**
-```json
-{
-  "disputes": [
-    {
-      "id": "dp_1234567890",
-      "charge_id": "ch_1234567890",
-      "amount": 1000,
-      "currency": "USD",
-      "status": "open",
-      "reason": "fraudulent",
-      "created_at": "2025-01-26T10:30:00Z"
-    }
-  ],
-  "total": 1,
-  "limit": 20,
-  "offset": 0
-}
-```
-
-#### GET /disputes/{id}
-Retrieve a specific dispute.
-
-**Response:**
-```json
-{
-  "id": "dp_1234567890",
-  "charge_id": "ch_1234567890",
-  "amount": 1000,
-  "currency": "USD",
-  "status": "open",
-  "reason": "fraudulent",
-  "evidence": {
-    "customer_communication": "Customer claims unauthorized charge",
-    "duplicate_charge": false,
-    "product_description": "Premium subscription"
-  },
-  "created_at": "2025-01-26T10:30:00Z"
-}
-```
-
-### Performance Monitoring
-
-#### POST /performance/benchmark
-Run performance benchmarks.
-
-**Request Body:**
-```json
-{
-  "name": "payment_benchmark",
-  "duration": "10s",
-  "concurrency": 5,
-  "operation": "payment"
-}
-```
-
-**Response:**
-```json
-{
-  "name": "payment_benchmark",
-  "duration": "10s",
-  "concurrency": 5,
-  "operations": 500,
-  "ops_per_second": 50,
-  "avg_duration": "20ms",
-  "p95_duration": "45ms",
-  "p99_duration": "80ms",
-  "errors": 0,
-  "error_rate": 0.0
-}
-```
-
-#### POST /performance/load-test
-Run load tests.
-
-**Request Body:**
-```json
-{
-  "concurrency": 10,
-  "duration": "30s",
-  "ramp_up_duration": "5s",
-  "target_rps": 50,
-  "endpoint": "http://localhost:8080/v1/health"
-}
-```
-
-**Response:**
-```json
-{
-  "concurrency": 10,
-  "duration": "30s",
-  "total_requests": 1500,
-  "successful_requests": 1485,
-  "failed_requests": 15,
-  "avg_response_time": "25ms",
-  "p95_response_time": "60ms",
-  "p99_response_time": "120ms",
-  "requests_per_second": 50.0
-}
-```
-
-#### GET /performance/metrics
-Get performance metrics.
-
-**Response:**
-```json
-{
-  "metrics": {
-    "response_time": "25ms",
-    "throughput": 50.0,
-    "error_rate": 0.01,
-    "memory_usage": "128MB",
-    "cpu_usage": "15%"
-  },
-  "summary": {
-    "by_type": {
-      "payment": {
-        "count": 1000,
-        "avg_duration": "20ms"
-      }
-    },
-    "total_metrics": 1
-  }
-}
-```
-
-#### GET /performance/health
-Get enhanced health status.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "checks": {
-    "database": {
-      "status": "healthy",
-      "response_time": "5ms"
-    },
-    "redis": {
-      "status": "healthy",
-      "response_time": "2ms"
-    }
-  },
-  "summary": {
-    "healthy": 2,
-    "unhealthy": 0,
-    "degraded": 0
-  }
-}
-```
-
-#### GET /performance/optimization
-Get optimization recommendations.
-
-**Response:**
-```json
-{
-  "metrics": {
-    "avg_response_time": "25ms",
-    "cache_hit_rate": 0.85,
-    "error_rate": 0.01,
-    "memory_usage": "128MB"
-  },
-  "recommendations": [
-    "Consider increasing cache TTL for better hit rate",
-    "Database query optimization recommended"
-  ],
-  "optimizations": {
-    "cache_ttl": "2h",
-    "cache_size": 2000,
-    "recommendation": "Increase cache TTL and size"
-  }
-}
-```
-
-## Error Codes
-
-| Code | Description |
-|------|-------------|
-| 400 | Bad Request - Invalid request data |
-| 401 | Unauthorized - Invalid or missing authentication |
-| 403 | Forbidden - Insufficient permissions |
-| 404 | Not Found - Resource not found |
-| 409 | Conflict - Resource already exists |
-| 422 | Unprocessable Entity - Validation error |
-| 429 | Too Many Requests - Rate limit exceeded |
-| 500 | Internal Server Error - Server error |
-| 502 | Bad Gateway - Provider error |
-| 503 | Service Unavailable - Service temporarily unavailable |
-
-## Rate Limits
-
-| Tier | Requests per Second | Burst |
-|------|---------------------|-------|
-| Default | 10 | 20 |
-| Standard | 50 | 100 |
-| Premium | 200 | 400 |
-| Admin | 1000 | 2000 |
-
-## Webhooks
-
-Conductor sends webhooks for important events. Configure webhook endpoints in your provider settings.
-
-### Webhook Events
-
-- `payment.succeeded` - Payment completed successfully
-- `payment.failed` - Payment failed
-- `payment.refunded` - Payment refunded
-- `subscription.created` - Subscription created
-- `subscription.cancelled` - Subscription cancelled
-- `dispute.created` - Dispute created
-- `dispute.updated` - Dispute updated
-
-### Webhook Security
-
-All webhooks include a signature header for verification:
-
-```
-X-Conductor-Signature: sha256=abc123...
-```
-
-Verify the signature using your webhook secret to ensure the webhook is from Conductor.
+Confirm a payment that requires 3D Secure authentication.
 
 ---
 
-## API Endpoints
+## Refunds
 
-Note: This section need to be migrated to it is own separate page.
+### POST /refunds
 
-### Payments
+Create a refund for an existing payment.
 
-- `POST /v1/charges` - Create a new charge
-- `POST /v1/refunds` - Create a refund
-
-### Subscriptions
-
-- `POST /v1/plans` - Create a subscription plan
-- `GET /v1/plans` - List all plans
-- `GET /v1/plans/:id` - Get plan details
-- `PUT /v1/plans/:id` - Update plan
-- `DELETE /v1/plans/:id` - Delete plan
-- `POST /v1/subscriptions` - Create a subscription
-- `GET /v1/subscriptions` - List subscriptions (requires customer_id parameter)
-- `GET /v1/subscriptions/:id` - Get subscription details
-- `PUT /v1/subscriptions/:id` - Update subscription
-- `DELETE /v1/subscriptions/:id` - Cancel subscription
-
-### Disputes
-
-- `POST /v1/disputes` - Create a dispute
-- `GET /v1/disputes` - List disputes (requires customer_id parameter)
-- `GET /v1/disputes/:id` - Get dispute details
-- `PUT /v1/disputes/:id` - Update dispute
-- `POST /v1/disputes/:id/evidence` - Submit evidence
-- `GET /v1/disputes/stats` - Get dispute statistics
-
-### Fraud Detection
-
-- `POST /v1/fraud/analyze` - Analyze transaction for fraud risk
-- `GET /v1/fraud/stats` - Get fraud detection statistics
-
-### System
-
-- `GET /v1/health` - Health check
-
-## API Examples
-
-Here are some real examples of how to use the API. The system automatically routes your requests to the right payment provider based on the currency!
-
-### Creating Charges
-
-#### Basic charge with Stripe (USD)
-
-```bash
-curl -X POST http://localhost:8080/v1/charges \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your_api_key_here" \
-  -d '{
-    "customer_id": "cus_123456789",
-    "amount": 2500,
-    "currency": "USD",
-    "payment_method": "pm_123456789",
-    "description": "Payment for order #12345"
-  }'
+**Request:**
+```json
+{
+  "payment_id": "pi_abc123",
+  "amount": 1000,
+  "reason": "Customer requested refund",
+  "metadata": {
+    "refund_type": "partial"
+  }
+}
 ```
 
-#### Charge with metadata using Xendit (IDR)
-
-```bash
-curl -X POST http://localhost:8080/v1/charges \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your_api_key_here" \
-  -d '{
-    "customer_id": "customer_123",
-    "amount": 500000,
-    "currency": "IDR",
-    "payment_method": "pm_xendit_123",
-    "description": "Premium subscription payment",
-    "metadata": {
-      "order_id": "ORD-2024-001",
-      "user_id": "user_456",
-      "product_type": "subscription",
-      "billing_cycle": "monthly"
-    }
-  }'
+**Response (200):**
+```json
+{
+  "id": "re_xyz789",
+  "payment_id": "pi_abc123",
+  "amount": 1000,
+  "currency": "usd",
+  "status": "succeeded",
+  "reason": "Customer requested refund",
+  "provider_name": "stripe",
+  "provider_refund_id": "re_xyz789",
+  "created_at": "2025-01-26T10:30:00Z"
+}
 ```
 
-#### Charge using Razorpay (INR)
+---
 
-```bash
-curl -X POST http://localhost:8080/v1/charges \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your_api_key_here" \
-  -d '{
-    "customer_id": "customer_india_123",
-    "amount": 100000,
-    "currency": "INR",
-    "description": "Payment for order #67890",
-    "metadata": {
-      "order_id": "ORD-2024-IN-001",
-      "payment_method_preference": "upi"
-    }
-  }'
+## Payment Sessions
+
+Payment sessions let you create and manage payment intents with a client-side flow.
+
+### POST /payment-sessions
+
+Create a new payment session.
+
+**Request:**
+```json
+{
+  "amount": 5000,
+  "currency": "USD",
+  "customer_id": "cus_123",
+  "description": "Order #456",
+  "capture_method": "automatic",
+  "return_url": "https://example.com/return",
+  "metadata": {}
+}
 ```
 
-Note: Razorpay uses an Order → Payment flow. The response will include `requires_action: true` with the order ID in `client_secret`. Use Razorpay.js on the frontend to complete the payment.
+### GET /payment-sessions
 
-#### High-value charge with Stripe (EUR)
+List payment sessions.
 
-```bash
-curl -X POST http://localhost:8080/v1/charges \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customer_id": "cus_europe_789",
-    "amount": 9999,
-    "currency": "EUR",
-    "payment_method": "pm_europe_456",
-    "description": "Annual enterprise license",
-    "metadata": {
-      "license_type": "enterprise",
-      "duration": "annual",
-      "seats": 100,
-      "region": "EU"
-    }
-  }'
+**Query Parameters:**
+- `customer_id` (optional)
+- `limit` (optional, default: 20, max: 100)
+
+**Response (200):**
+```json
+{
+  "payment_sessions": [ ... ],
+}
 ```
 
-### Creating Refunds
+### GET /payment-sessions/{id}
 
-#### Simple refund
+Retrieve a payment session.
 
-```bash
-curl -X POST http://localhost:8080/v1/refunds \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your_api_key_here" \
-  -d '{
-    "payment_id": "ch_123456789",
-    "amount": 2500,
-    "currency": "USD",
-    "reason": "Customer requested refund"
-  }'
+### PATCH /payment-sessions/{id}
+
+Update a payment session (amount, currency, description, payment method, metadata).
+
+### POST /payment-sessions/{id}/confirm
+
+Confirm a payment session, optionally attaching a payment method.
+
+### POST /payment-sessions/{id}/capture
+
+Capture a payment session. Optionally pass `{"amount": 5000}` for partial capture.
+
+### POST /payment-sessions/{id}/cancel
+
+Cancel a payment session.
+
+---
+
+## Plans
+
+### POST /plans
+
+Create a subscription plan.
+
+**Request:**
+```json
+{
+  "name": "Premium Plan",
+  "description": "Premium features with priority support",
+  "amount": 29.99,
+  "currency": "USD",
+  "billing_period": "month",
+  "trial_days": 7,
+  "features": ["priority_support", "advanced_analytics"]
+}
 ```
 
-#### Partial refund with metadata
+### GET /plans
 
-```bash
-curl -X POST http://localhost:8080/v1/refunds \
-  -H "Content-Type: application/json" \
-  -d '{
-    "payment_id": "ch_123456789",
-    "amount": 1000,
-    "currency": "USD",
-    "reason": "Partial refund for damaged item",
-    "metadata": {
-      "refund_type": "partial",
-      "damage_reported": true,
-      "customer_service_agent": "agent_123"
-    }
-  }'
+List all plans.
+
+**Response (200):**
+```json
+{
+  "data": [ ... ],
+  "total": 5
+}
 ```
 
-### Managing Subscriptions
+### GET /plans/{id}
 
-#### Create a subscription plan
+Retrieve a specific plan.
 
-```bash
-curl -X POST http://localhost:8080/v1/plans \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Premium Plan",
-    "description": "Premium features with priority support",
-    "amount": 2999,
-    "currency": "USD",
-    "billing_period": "monthly",
-    "pricing_type": "fixed",
-    "trial_days": 7,
-    "features": ["priority_support", "advanced_analytics", "api_access"]
-  }'
+### PUT /plans/{id}
+
+Update a plan.
+
+### DELETE /plans/{id}
+
+Delete a plan. Returns `204 No Content`.
+
+---
+
+## Subscriptions
+
+### POST /subscriptions
+
+Create a subscription.
+
+**Request:**
+```json
+{
+  "customer_id": "cus_123456789",
+  "plan_id": "plan_premium_001",
+  "quantity": 1,
+  "trial_days": 7,
+  "payment_method_id": "pm_123456789"
+}
 ```
 
-#### Create a subscription
+### GET /subscriptions
 
-```bash
-curl -X POST http://localhost:8080/v1/subscriptions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customer_id": "cus_123456789",
-    "plan_id": "plan_premium_001",
-    "quantity": 1,
-    "trial_days": 7,
-    "payment_method_id": "pm_123456789",
-    "metadata": {
-      "marketing_source": "website",
-      "referral_code": "WELCOME10"
-    }
-  }'
+List subscriptions for a customer.
+
+**Query Parameters:**
+- `customer_id` (required)
+
+**Response (200):**
+```json
+{
+  "data": [ ... ],
+  "total": 3
+}
 ```
 
-### Handling Disputes
+### GET /subscriptions/{id}
 
-#### Create a dispute
+Retrieve a subscription.
 
-```bash
-curl -X POST http://localhost:8080/v1/disputes \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customer_id": "cus_123456789",
-    "transaction_id": "ch_123456789",
-    "amount": 2500,
-    "currency": "USD",
-    "reason": "fraudulent",
-    "evidence": {
-      "customer_communication": "Customer claims unauthorized charge"
-    },
-    "due_by": "2024-02-15T23:59:59Z"
-  }'
+### PUT /subscriptions/{id}
+
+Update a subscription (plan, quantity, payment method, metadata).
+
+### DELETE /subscriptions/{id}
+
+Cancel a subscription.
+
+**Request:**
+```json
+{
+  "cancel_at_period_end": true,
+  "reason": "No longer needed"
+}
 ```
 
-#### Submit evidence for a dispute
+---
 
-```bash
-curl -X POST http://localhost:8080/v1/disputes/disp_123/evidence \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "customer_communication",
-    "description": "Email from customer confirming receipt",
-    "files": ["https://example.com/evidence1.pdf"],
-    "metadata": {
-      "evidence_type": "email",
-      "customer_email": "customer@example.com"
-    }
-  }'
+## Disputes
+
+### POST /disputes
+
+Create a dispute (availability depends on provider).
+
+### GET /disputes
+
+List disputes for a customer.
+
+**Query Parameters:**
+- `customer_id` (required)
+
+**Response (200):**
+```json
+{
+  "data": [ ... ],
+  "total": 2
+}
 ```
 
-### System Health
+### GET /disputes/{id}
 
-#### Check if the system is healthy
+Retrieve a specific dispute.
 
-```bash
-curl -X GET http://localhost:8080/v1/health
+### PUT /disputes/{id}
+
+Update dispute metadata.
+
+### POST /disputes/{id}/accept
+
+Accept (close) a dispute.
+
+### POST /disputes/{id}/contest
+
+Contest a dispute with evidence.
+
+**Request:**
+```json
+{
+  "uncategorized_text": "Customer received the product",
+  "product_description": "Digital subscription",
+  "customer_name": "John Doe",
+  "customer_email_address": "john@example.com"
+}
 ```
 
-## How Currency Routing Works
+### POST /disputes/{id}/evidence
 
-The system is smart about routing your payments to the right provider:
+Submit structured evidence for a dispute.
 
-- **Stripe**: USD, EUR, GBP (perfect for international payments)
-- **Xendit**: IDR, SGD, MYR, PHP, THB, VND (great for Southeast Asia)
-- **Razorpay**: INR (optimized for India with UPI and Netbanking support)
+**Request:**
+```json
+{
+  "type": "customer_communication",
+  "description": "Email from customer confirming receipt",
+  "files": ["https://example.com/evidence1.pdf"]
+}
+```
 
-Just specify the currency in your request, and the system automatically picks the best provider.
+### GET /disputes/stats
 
-## Important Notes
+Get aggregate dispute statistics (total, open, won, lost, canceled).
 
-### Amount Format
+---
 
-Always use the smallest currency unit:
+## Fraud Detection
 
-- **USD/EUR**: cents (1000 = $10.00)
-- **IDR**: rupiah (50000 = Rp 50,000)
-- **SGD**: cents (1500 = S$15.00)
-- **INR**: paise (100000 = ₹1,000.00)
+### POST /fraud/analyze
 
-### Payment Methods
+Analyze a transaction for fraud risk using AI-powered analysis.
 
-Make sure you're using valid payment method IDs from your chosen provider:
+**Request:**
+```json
+{
+  "transaction_id": "txn_001",
+  "user_id": "user_123",
+  "transaction_amount": 25.00,
+  "billing_country": "US",
+  "shipping_country": "US",
+  "ip_address": "192.168.1.1",
+  "transaction_velocity": 1
+}
+```
 
-- Stripe: `pm_123456789`
-- Xendit: `pm_xendit_123`
+### GET /fraud/stats
 
-### Customer IDs
+Get fraud detection statistics for a date range.
 
-Your customer IDs should match what's in your provider's system.
+**Query Parameters:**
+- `start_date` (required, ISO 8601)
+- `end_date` (required, ISO 8601)
+
+---
+
+## AI Routing
+
+### POST /routing/select
+
+Get an AI-powered recommendation for which payment provider to use.
+
+**Request:**
+```json
+{
+  "amount": 1000,
+  "currency": "USD",
+  "country": "US",
+  "payment_method": "card"
+}
+```
+
+### GET /routing/stats
+
+Get provider performance statistics.
+
+### GET /routing/config
+
+Get current routing configuration.
+
+### PUT /routing/config
+
+Update routing configuration (AI routing toggle, cache TTL, confidence threshold, fallback provider).
+
+---
+
+## Invoices
+
+### POST /invoices
+
+Create an invoice.
+
+**Request:**
+```json
+{
+  "customer_id": "cus_123",
+  "amount": 5000,
+  "currency": "USD",
+  "description": "Consulting services",
+  "due_date": "2025-02-28T00:00:00Z"
+}
+```
+
+### GET /invoices
+
+List invoices.
+
+**Query Parameters:**
+- `customer_id` (optional)
+- `status` (optional)
+- `limit` (optional, default: 20, max: 100)
+- `offset` (optional)
+
+### GET /invoices/{id}
+
+Retrieve an invoice.
+
+### POST /invoices/{id}/cancel
+
+Cancel (void) an invoice.
+
+---
+
+## Payouts
+
+### POST /payouts
+
+Create a payout.
+
+**Request:**
+```json
+{
+  "amount": 10000,
+  "currency": "USD",
+  "destination_account": "acct_123",
+  "description": "Weekly payout"
+}
+```
+
+### GET /payouts
+
+List payouts.
+
+**Query Parameters:**
+- `reference_id` (optional)
+- `status` (optional)
+- `limit` (optional, default: 20, max: 100)
+- `offset` (optional)
+
+### GET /payouts/{id}
+
+Retrieve a payout.
+
+### POST /payouts/{id}/cancel
+
+Cancel a payout.
+
+### GET /payout-channels
+
+List available payout channels for a currency.
+
+**Query Parameters:**
+- `currency` (optional)
+
+---
+
+## Customers
+
+### POST /customers
+
+Create a customer.
+
+**Request:**
+```json
+{
+  "email": "customer@example.com",
+  "name": "Jane Doe",
+  "phone": "+1234567890"
+}
+```
+
+### GET /customers/{id}
+
+Retrieve a customer.
+
+### PUT /customers/{id}
+
+Update a customer (email, name, phone, metadata).
+
+### DELETE /customers/{id}
+
+Delete a customer.
+
+---
+
+## Payment Methods
+
+### POST /payment-methods
+
+Create or register a payment method.
+
+**Request:**
+```json
+{
+  "customer_id": "cus_123",
+  "card_token": "pm_abc123",
+  "type": "card",
+  "reusable": true,
+  "is_default": true
+}
+```
+
+### GET /payment-methods
+
+List payment methods.
+
+**Query Parameters:**
+- `customer_id` (optional)
+- `type` (optional)
+
+### GET /payment-methods/{id}
+
+Retrieve a payment method.
+
+### POST /payment-methods/{id}/attach
+
+Attach a payment method to a customer.
+
+**Request:**
+```json
+{
+  "customer_id": "cus_123"
+}
+```
+
+### POST /payment-methods/{id}/detach
+
+Detach a payment method from a customer.
+
+### POST /payment-methods/{id}/expire
+
+Mark a payment method as expired.
+
+---
+
+## Balance
+
+### GET /balance
+
+Get account balance. Optionally filter by currency.
+
+**Query Parameters:**
+- `currency` (optional): ISO currency code
+
+---
+
+## Tenants
+
+### POST /tenants
+
+Create a new tenant.
+
+### GET /tenants
+
+List tenants.
+
+**Query Parameters:**
+- `limit` (optional, default: 20, max: 100)
+- `offset` (optional)
+- `active_only` (optional, default: true)
+
+### GET /tenants/{id}
+
+Retrieve a tenant.
+
+### PUT /tenants/{id}
+
+Update a tenant.
+
+### DELETE /tenants/{id}
+
+Delete a tenant.
+
+### POST /tenants/{id}/deactivate
+
+Deactivate a tenant.
+
+### POST /tenants/{id}/regenerate-secret
+
+Regenerate a tenant's API secret.
+
+---
+
+## Audit Logs
+
+### GET /audit-logs
+
+List audit logs.
+
+**Query Parameters:**
+- `user_id` (optional)
+- `action` (optional)
+- `resource_type` (optional)
+- `resource_id` (optional)
+- `limit` (optional, default: 100, max: 100)
+- `offset` (optional)
+- `start_date` (optional, ISO 8601)
+- `end_date` (optional, ISO 8601)
+
+### GET /audit-logs/{resource_type}/{resource_id}
+
+Get the audit history for a specific resource.
+
+**Query Parameters:**
+- `limit` (optional, default: 50, max: 100)
+
+---
+
+## Webhooks
+
+Conductor receives webhooks from payment providers at these endpoints. Each handler validates the signature using the provider's own format before processing.
+
+| Provider | Endpoint | Signature Header |
+|----------|----------|-----------------|
+| Stripe | `POST /v1/webhooks/stripe` | `Stripe-Signature` |
+| Xendit | `POST /v1/webhooks/xendit` | `x-callback-token` |
+| Razorpay | `POST /v1/webhooks/razorpay` | `X-Razorpay-Signature` |
+
+Conductor also sends outbound webhooks to tenant-configured URLs. Outbound webhooks include an `X-Webhook-Signature` header (HMAC-SHA256) for verification.
+
+### Webhook Events
+
+- `payment_intent.succeeded` / `payment.succeeded` — Payment completed
+- `payment_intent.payment_failed` / `payment.failed` — Payment failed
+- `charge.refunded` / `refund.succeeded` — Refund processed
+- `customer.subscription.created` — Subscription created
+- `customer.subscription.deleted` — Subscription canceled
+- `charge.dispute.created` — Dispute opened
+
+---
+
+## Currency Routing
+
+Conductor automatically routes payments to the best provider based on currency:
+
+| Provider | Currencies |
+|----------|-----------|
+| Stripe | USD, EUR, GBP, CAD, AUD, JPY, SGD, HKD |
+| Xendit | IDR, SGD, MYR, PHP, THB, VND |
+| Razorpay | INR |
+
+Just set the `currency` field in your charge request and Conductor handles the rest.
+
+## Amount Format
+
+All monetary amounts use the smallest currency unit:
+
+- **USD/EUR/GBP**: cents (`1000` = $10.00)
+- **IDR**: rupiah (`50000` = Rp 50,000)
+- **SGD**: cents (`1500` = S$15.00)
+- **INR**: paise (`100000` = ₹1,000.00)
+
+## Error Codes
+
+| Code | Meaning |
+|------|---------|
+| 400 | Bad request — invalid or missing parameters |
+| 401 | Unauthorized — missing or invalid authentication |
+| 404 | Not found — resource doesn't exist |
+| 405 | Method not allowed |
+| 429 | Rate limit exceeded |
+| 500 | Internal server error |
+| 503 | No payment provider available |
