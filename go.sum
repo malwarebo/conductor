@@ -35,8 +35,8 @@ github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/stripe/stripe-go/v84 v84.2.0 h1:ODgjKBFnCFM8fZ1plGdpykYk9VUyF0eKP34l6SxPyA0=
-github.com/stripe/stripe-go/v84 v84.2.0/go.mod h1:Z4gcKw1zl4geDG2+cjpSaJES9jaohGX6n7FP8/kHIqw=
+github.com/stripe/stripe-go/v84 v84.3.0 h1:77HH+ro7yzmyyF7Xkbkj6y5QtnU1WWHC6t2y4mq0Wvk=
+github.com/stripe/stripe-go/v84 v84.3.0/go.mod h1:Z4gcKw1zl4geDG2+cjpSaJES9jaohGX6n7FP8/kHIqw=
 github.com/xendit/xendit-go/v7 v7.0.0 h1:A7Nhaulk1a+mOI/KgRcvb5VSQEB6nhsUGkAhi+RkrEM=
 github.com/xendit/xendit-go/v7 v7.0.0/go.mod h1:W562aw0zhjzF/OUhZLc77q2iFQc9INa5tBy5xl6OLbo=
 golang.org/x/crypto v0.47.0 h1:V6e3FRj+n4dbpw86FJ8Fv7XVOql7TEwpHapKoMJ/GO8=
