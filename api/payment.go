@@ -12,8 +12,9 @@ import (
 )
 
 type PaymentHandler struct {
-	paymentService *services.PaymentService
-	webhookService *services.WebhookService
+	paymentService    *services.PaymentService
+	webhookService    *services.WebhookService
+	webhookValidators map[string]WebhookValidator
 }
 
 func CreatePaymentHandler(paymentService *services.PaymentService) *PaymentHandler {
@@ -22,15 +23,12 @@ func CreatePaymentHandler(paymentService *services.PaymentService) *PaymentHandl
 	}
 }
 
-func CreatePaymentHandlerWithWebhook(paymentService *services.PaymentService, webhookService *services.WebhookService) *PaymentHandler {
+func CreatePaymentHandlerWithWebhook(paymentService *services.PaymentService, webhookService *services.WebhookService, webhookValidators map[string]WebhookValidator) *PaymentHandler {
 	return &PaymentHandler{
-		paymentService: paymentService,
-		webhookService: webhookService,
+		paymentService:    paymentService,
+		webhookService:    webhookService,
+		webhookValidators: webhookValidators,
 	}
-}
-
-type ErrorResponse struct {
-	Error string `json:"error"`
 }
 
 func (h *PaymentHandler) HandleCharge(w http.ResponseWriter, r *http.Request) {
@@ -302,7 +300,7 @@ func (h *PaymentHandler) HandleListPaymentSessions(w http.ResponseWriter, r *htt
 
 	if limit := r.URL.Query().Get("limit"); limit != "" {
 		if l, err := strconv.Atoi(limit); err == nil {
-			req.Limit = l
+			req.Limit = clampLimit(l)
 		}
 	}
 
@@ -354,6 +352,14 @@ func (h *PaymentHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if validator, ok := h.webhookValidators["stripe"]; ok {
+		signature := r.Header.Get("Stripe-Signature")
+		if err := validator.ValidateWebhookSignature(payload, signature); err != nil {
+			writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Invalid webhook signature"})
+			return
+		}
+	}
+
 	var event map[string]interface{}
 	if err := json.Unmarshal(payload, &event); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid JSON payload"})
@@ -389,6 +395,14 @@ func (h *PaymentHandler) HandleXenditWebhook(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if validator, ok := h.webhookValidators["xendit"]; ok {
+		signature := r.Header.Get("x-callback-token")
+		if err := validator.ValidateWebhookSignature(payload, signature); err != nil {
+			writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Invalid webhook signature"})
+			return
+		}
+	}
+
 	var event map[string]interface{}
 	if err := json.Unmarshal(payload, &event); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid JSON payload"})
@@ -422,6 +436,14 @@ func (h *PaymentHandler) HandleRazorpayWebhook(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Failed to read request body"})
 		return
+	}
+
+	if validator, ok := h.webhookValidators["razorpay"]; ok {
+		signature := r.Header.Get("X-Razorpay-Signature")
+		if err := validator.ValidateWebhookSignature(payload, signature); err != nil {
+			writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Invalid webhook signature"})
+			return
+		}
 	}
 
 	var event map[string]interface{}
@@ -462,11 +484,3 @@ func (h *PaymentHandler) HandleRazorpayWebhook(w http.ResponseWriter, r *http.Re
 	})
 }
 
-func writeJSON(w http.ResponseWriter, status int, v interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
-}
