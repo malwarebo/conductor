@@ -7,10 +7,10 @@ toolchain go1.24.5
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/razorpay/razorpay-go v1.4.0
-	github.com/redis/go-redis/v9 v9.17.2
+	github.com/redis/go-redis/v9 v9.17.3
 	github.com/stripe/stripe-go/v84 v84.2.0
 	github.com/xendit/xendit-go/v7 v7.0.0
-	golang.org/x/crypto v0.46.0
+	golang.org/x/crypto v0.47.0
 	golang.org/x/time v0.14.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
