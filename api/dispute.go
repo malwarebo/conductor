@@ -196,7 +196,10 @@ func (h *DisputeHandler) handleListDisputes(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeJSON(w, http.StatusOK, disputes)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"data":  disputes,
+		"total": len(disputes),
+	})
 }
 
 func (h *DisputeHandler) handleGetStats(w http.ResponseWriter, r *http.Request) {
