@@ -10,7 +10,7 @@ require (
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/stripe/stripe-go/v84 v84.2.0
 	github.com/xendit/xendit-go/v7 v7.0.0
-	golang.org/x/crypto v0.47.0
+	golang.org/x/crypto v0.48.0
 	golang.org/x/time v0.14.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
@@ -27,5 +27,5 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/text v0.33.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
 )
