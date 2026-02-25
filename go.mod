@@ -7,7 +7,7 @@ toolchain go1.24.5
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/razorpay/razorpay-go v1.4.0
-	github.com/redis/go-redis/v9 v9.17.3
+	github.com/redis/go-redis/v9 v9.18.0
 	github.com/stripe/stripe-go/v84 v84.2.0
 	github.com/xendit/xendit-go/v7 v7.0.0
 	golang.org/x/crypto v0.47.0
@@ -25,6 +25,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 )
