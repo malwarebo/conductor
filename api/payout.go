@@ -58,7 +58,7 @@ func (h *PayoutHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 
 	if limit := r.URL.Query().Get("limit"); limit != "" {
 		if l, err := strconv.Atoi(limit); err == nil {
-			req.Limit = l
+			req.Limit = clampLimit(l)
 		}
 	}
 

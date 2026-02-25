@@ -168,8 +168,8 @@ func main() {
 	printSuccess("Stores initialized")
 
 	printStep("7/8", "Initializing payment providers...")
-	stripeProvider := providers.CreateStripeProvider(cfg.Stripe.Secret)
-	xenditProvider := providers.CreateXenditProvider(cfg.Xendit.Secret)
+	stripeProvider := providers.CreateStripeProviderWithWebhook(cfg.Stripe.Secret, cfg.Stripe.WebhookSecret)
+	xenditProvider := providers.CreateXenditProviderWithWebhook(cfg.Xendit.Secret, cfg.Xendit.WebhookSecret)
 
 	availableProviders := []providers.PaymentProvider{stripeProvider, xenditProvider}
 
@@ -205,7 +205,14 @@ func main() {
 	printSuccess("Services initialized")
 
 	printStep("8/8", "Setting up HTTP server...")
-	paymentHandler := api.CreatePaymentHandlerWithWebhook(paymentService, webhookService)
+	webhookValidators := map[string]api.WebhookValidator{
+		"stripe": stripeProvider,
+		"xendit": xenditProvider,
+	}
+	if razorpayProvider != nil {
+		webhookValidators["razorpay"] = razorpayProvider
+	}
+	paymentHandler := api.CreatePaymentHandlerWithWebhook(paymentService, webhookService, webhookValidators)
 	subscriptionHandler := api.CreateSubscriptionHandler(subscriptionService)
 	disputeHandler := api.CreateDisputeHandler(disputeService)
 	fraudHandler := api.CreateFraudHandler(fraudService)
