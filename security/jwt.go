@@ -73,7 +73,7 @@ func (j *JWTManager) ValidateToken(tokenString string) (*Claims, error) {
 
 	message := parts[0] + "." + parts[1]
 	expectedSignature := j.sign(message)
-	if !hmac.Equal([]byte(parts[2]), []byte(expectedSignature)) {
+	if parts[2] != expectedSignature {
 		return nil, fmt.Errorf("invalid signature")
 	}
 

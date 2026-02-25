@@ -44,7 +44,7 @@ func (h *AuditHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 	}
 	if limit := r.URL.Query().Get("limit"); limit != "" {
 		if parsed, err := strconv.Atoi(limit); err == nil {
-			filter.Limit = clampLimit(parsed)
+			filter.Limit = parsed
 		}
 	}
 	if offset := r.URL.Query().Get("offset"); offset != "" {
@@ -85,7 +85,7 @@ func (h *AuditHandler) HandleGetResourceHistory(w http.ResponseWriter, r *http.R
 	limit := 50
 	if l := r.URL.Query().Get("limit"); l != "" {
 		if parsed, err := strconv.Atoi(l); err == nil {
-			limit = clampLimit(parsed)
+			limit = parsed
 		}
 	}
 

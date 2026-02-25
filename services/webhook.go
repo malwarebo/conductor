@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
-	crand "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -546,8 +545,8 @@ func (s *WebhookService) signPayload(payload []byte, secret string) string {
 }
 
 func generateID() string {
-	b := make([]byte, 16)
-	crand.Read(b)
-	return fmt.Sprintf("evt_%x", b)
+	bytes := make([]byte, 16)
+	_, _ = hex.DecodeString(fmt.Sprintf("%032x", time.Now().UnixNano()))
+	return fmt.Sprintf("evt_%x", bytes)
 }
 

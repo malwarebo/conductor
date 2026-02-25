@@ -3,8 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
-	"github.com/gorilla/mux"
 	"github.com/malwarebo/conductor/models"
 	"github.com/malwarebo/conductor/services"
 )
@@ -20,29 +20,26 @@ func CreateSubscriptionHandler(subscriptionService *services.SubscriptionService
 }
 
 func (h *SubscriptionHandler) HandlePlans(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
 	switch r.Method {
 	case http.MethodPost:
 		h.handleCreatePlan(w, r)
 	case http.MethodGet:
-		if id != "" {
+		if id := strings.TrimPrefix(r.URL.Path, "/plans/"); id != "" {
 			h.handleGetPlan(w, r, id)
 		} else {
 			h.handleListPlans(w, r)
 		}
 	case http.MethodPut:
-		if id != "" {
+		if id := strings.TrimPrefix(r.URL.Path, "/plans/"); id != "" {
 			h.handleUpdatePlan(w, r, id)
 		} else {
-			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Plan ID required"})
+			http.Error(w, "Plan ID required", http.StatusBadRequest)
 		}
 	case http.MethodDelete:
-		if id != "" {
+		if id := strings.TrimPrefix(r.URL.Path, "/plans/"); id != "" {
 			h.handleDeletePlan(w, r, id)
 		} else {
-			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Plan ID required"})
+			http.Error(w, "Plan ID required", http.StatusBadRequest)
 		}
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -50,35 +47,33 @@ func (h *SubscriptionHandler) HandlePlans(w http.ResponseWriter, r *http.Request
 }
 
 func (h *SubscriptionHandler) HandleSubscriptions(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
 	switch r.Method {
 	case http.MethodPost:
 		h.handleCreateSubscription(w, r)
 	case http.MethodGet:
-		if id != "" {
+		if id := strings.TrimPrefix(r.URL.Path, "/subscriptions/"); id != "" {
 			h.handleGetSubscription(w, r, id)
 		} else {
 			h.handleListSubscriptions(w, r)
 		}
 	case http.MethodPut:
-		if id != "" {
+		if id := strings.TrimPrefix(r.URL.Path, "/subscriptions/"); id != "" {
 			h.handleUpdateSubscription(w, r, id)
 		} else {
-			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Subscription ID required"})
+			http.Error(w, "Subscription ID required", http.StatusBadRequest)
 		}
 	case http.MethodDelete:
-		if id != "" {
+		if id := strings.TrimPrefix(r.URL.Path, "/subscriptions/"); id != "" {
 			h.handleCancelSubscription(w, r, id)
 		} else {
-			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Subscription ID required"})
+			http.Error(w, "Subscription ID required", http.StatusBadRequest)
 		}
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
+// Plan handlers
 func (h *SubscriptionHandler) handleCreatePlan(w http.ResponseWriter, r *http.Request) {
 	var plan models.Plan
 	if err := json.NewDecoder(r.Body).Decode(&plan); err != nil {
@@ -137,12 +132,10 @@ func (h *SubscriptionHandler) handleListPlans(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"data":  plans,
-		"total": len(plans),
-	})
+	writeJSON(w, http.StatusOK, plans)
 }
 
+// Subscription handlers
 func (h *SubscriptionHandler) handleCreateSubscription(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateSubscriptionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -214,8 +207,5 @@ func (h *SubscriptionHandler) handleListSubscriptions(w http.ResponseWriter, r *
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"data":  subscriptions,
-		"total": len(subscriptions),
-	})
+	writeJSON(w, http.StatusOK, subscriptions)
 }

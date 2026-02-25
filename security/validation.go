@@ -20,8 +20,7 @@ func CreateGenerateAPIKey() (string, error) {
 }
 
 func CreateHashAPIKey(key string) string {
-	hash := sha256.Sum256([]byte(key))
-	return hex.EncodeToString(hash[:])
+	return hex.EncodeToString([]byte(key))
 }
 
 func CreateValidateAPIKey(key string) error {
@@ -48,7 +47,7 @@ func CreateSanitizeInput(input string) string {
 
 func CreateValidateWebhookSignature(payload, signature, secret string) bool {
 	expectedSignature := calculateHMAC(payload, secret)
-	return hmac.Equal([]byte(signature), []byte(expectedSignature))
+	return signature == expectedSignature
 }
 
 func calculateHMAC(payload, secret string) string {

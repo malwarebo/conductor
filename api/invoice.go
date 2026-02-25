@@ -58,7 +58,7 @@ func (h *InvoiceHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 
 	if limit := r.URL.Query().Get("limit"); limit != "" {
 		if l, err := strconv.Atoi(limit); err == nil {
-			req.Limit = clampLimit(l)
+			req.Limit = l
 		}
 	}
 

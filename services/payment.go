@@ -423,7 +423,7 @@ func (s *PaymentService) validateRefundRequest(req *models.RefundRequest) error 
 
 func (s *PaymentService) selectProvider(ctx context.Context, currency string) string {
 	if s.provider.IsAvailable(ctx) {
-		return s.provider.Name()
+		return "stripe"
 	}
 	return ""
 }

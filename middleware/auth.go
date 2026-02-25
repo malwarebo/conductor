@@ -1,14 +1,12 @@
 package middleware
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -87,6 +85,28 @@ func (am *AuthMiddleware) RateLimitMiddleware(next http.Handler) http.Handler {
 
 func (am *AuthMiddleware) WebhookMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/v1/webhooks/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		signature := r.Header.Get("X-Signature")
+		if signature == "" {
+			am.writeErrorResponse(w, http.StatusUnauthorized, "Webhook signature required")
+			return
+		}
+
+		body, err := am.readRequestBody(r)
+		if err != nil {
+			am.writeErrorResponse(w, http.StatusBadRequest, "Failed to read request body")
+			return
+		}
+
+		if !am.verifyWebhookSignature(body, signature) {
+			am.writeErrorResponse(w, http.StatusUnauthorized, "Invalid webhook signature")
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -162,12 +182,12 @@ func (am *AuthMiddleware) readRequestBody(r *http.Request) ([]byte, error) {
 		return nil, fmt.Errorf("request body is nil")
 	}
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
+	body := make([]byte, r.ContentLength)
+	_, err := r.Body.Read(body)
+	if err != nil && err.Error() != "EOF" {
 		return nil, err
 	}
 
-	r.Body = io.NopCloser(bytes.NewReader(body))
 	return body, nil
 }
 
