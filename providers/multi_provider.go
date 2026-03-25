@@ -138,7 +138,7 @@ func (m *MultiProviderSelector) selectProviderByCurrency(ctx context.Context, cu
 		return m.selectAvailableProvider(ctx, "xendit")
 	case "INR":
 		return m.selectAvailableProvider(ctx, "razorpay")
-	case "HKD", "CNY", "AUD", "NZD", "SGD":
+	case "HKD", "CNY", "AUD", "NZD", "SGD", "ILS", "JPY", "CHF", "KRW":
 		return m.selectAvailableProvider(ctx, "airwallex")
 	default:
 		return m.selectAvailableProvider(ctx, "")
