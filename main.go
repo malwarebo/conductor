@@ -192,7 +192,6 @@ func main() {
 	paymentService := services.CreatePaymentServiceFull(paymentRepo, idempotencyStore, auditStore, providerSelector, fraudService)
 	subscriptionService := services.CreateSubscriptionService(planRepo, subscriptionRepo, providerSelector)
 	disputeService := services.CreateDisputeService(disputeRepo, providerSelector)
-	routingService := services.CreateRoutingService(cfg.OpenAI.APIKey)
 	auditService := services.CreateAuditService(auditStore)
 	tenantService := services.CreateTenantService(tenantStore)
 	webhookService := services.CreateWebhookService(webhookStore, paymentRepo, tenantStore, auditStore)
@@ -216,7 +215,6 @@ func main() {
 	subscriptionHandler := api.CreateSubscriptionHandler(subscriptionService)
 	disputeHandler := api.CreateDisputeHandler(disputeService)
 	fraudHandler := api.CreateFraudHandler(fraudService)
-	routingHandler := api.CreateRoutingHandler(routingService)
 	tenantHandler := api.CreateTenantHandler(tenantService)
 	auditHandler := api.CreateAuditHandler(auditService)
 	invoiceHandler := api.CreateInvoiceHandler(invoiceService)
@@ -277,10 +275,6 @@ func main() {
 
 	apiRouter.HandleFunc("/fraud/analyze", fraudHandler.AnalyzeTransaction).Methods("POST")
 	apiRouter.HandleFunc("/fraud/stats", fraudHandler.GetStats).Methods("GET")
-
-	apiRouter.HandleFunc("/routing/select", routingHandler.HandleRouting).Methods("POST")
-	apiRouter.HandleFunc("/routing/stats", routingHandler.HandleProviderStats).Methods("GET")
-	apiRouter.HandleFunc("/routing/config", routingHandler.HandleRoutingConfig).Methods("GET", "PUT")
 
 	apiRouter.HandleFunc("/tenants", tenantHandler.HandleCreate).Methods("POST")
 	apiRouter.HandleFunc("/tenants", tenantHandler.HandleList).Methods("GET")
@@ -344,7 +338,6 @@ func main() {
 	fmt.Printf("  %s-%s Subscriptions: %shttp://localhost:%s/v1/subscriptions%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Printf("  %s-%s Disputes:     %shttp://localhost:%s/v1/disputes%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Printf("  %s-%s Fraud Detection: %shttp://localhost:%s/v1/fraud/analyze%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
-	fmt.Printf("  %s-%s AI Routing:     %shttp://localhost:%s/v1/routing/select%s\n", colorCyan, colorReset, colorYellow, cfg.Server.Port, colorReset)
 	fmt.Println()
 	fmt.Printf("%s%sEnvironment:%s %s%s%s\n", colorPurple, colorBold, colorReset, colorYellow, cfg.Environment, colorReset)
 	fmt.Printf("%s%sServer Port:%s %s%s%s\n", colorPurple, colorBold, colorReset, colorYellow, cfg.Server.Port, colorReset)

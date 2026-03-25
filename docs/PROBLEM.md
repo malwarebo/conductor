@@ -22,7 +22,7 @@ Conductor addresses these challenges by providing an intelligent, open-source pa
 
 **Unified Payment Interface:** Conductor provides a single, consistent API that abstracts away the complexity of multiple payment providers. Developers can integrate once and access all supported providers through standardized endpoints for payments, refunds, subscriptions, and disputes.
 
-**AI-Powered Intelligent Routing:** The system uses OpenAI GPT-4 to analyze transaction context, historical performance data, and real-time provider metrics to automatically select the optimal payment provider. This intelligent routing considers factors like success rates, processing costs, regional expertise, and transaction characteristics to maximize success rates while minimizing costs.
+**Smart Routing Engine:** The system uses a deterministic scoring engine with real-time metrics to automatically select the optimal payment provider. Routing considers weighted factors including success rates (35%), cost efficiency (20%), BIN-level performance (20%), latency (10%), circuit breaker health (10%), and volume targets (5%) to maximize success rates while minimizing costs.
 
 **Centralized Operations:** All payment data flows through a single system, providing unified reporting and analytics. Business teams can track performance across all providers, identify optimization opportunities, and make data-driven decisions from a single dashboard.
 
