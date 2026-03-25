@@ -12,11 +12,7 @@
 The system includes an `experimental` fraud detection with AI that analyzes transactions in real-time before processing payments. It uses OpenAI's LLM models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates easily into your payment flow, automatically trying to block high-risk transactions while allowing legitimate ones to proceed smoothly.
 
 > [!TIP]
-> Why I'm building this? Read: <https://github.com/malwarebo/conductor/blob/master/docs/PROBLEM.md>
-> 
-> Architecture diagram: <https://github.com/malwarebo/conductor/blob/master/docs/ARCHITECTURE.md>
->
-> API docs: <https://github.com/malwarebo/conductor/blob/master/docs/API_REFERENCE.md>
+> Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | API Reference: [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
 
 ## Setup
 

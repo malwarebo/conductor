@@ -678,18 +678,6 @@ Conductor also sends outbound webhooks to tenant-configured URLs. Outbound webho
 
 ---
 
-## Currency Routing
-
-Conductor automatically routes payments to the best provider based on currency:
-
-| Provider | Currencies |
-|----------|-----------|
-| Stripe | USD, EUR, GBP, CAD, AUD, JPY, SGD, HKD |
-| Xendit | IDR, SGD, MYR, PHP, THB, VND |
-| Razorpay | INR |
-
-Just set the `currency` field in your charge request and Conductor handles the rest.
-
 ## Amount Format
 
 All monetary amounts use the smallest currency unit:
