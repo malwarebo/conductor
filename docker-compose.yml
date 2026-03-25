@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   conductor:
     build:
@@ -8,23 +6,44 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Add environment variables for configuration
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=conductor
       - DB_PASSWORD=conductor_password
       - DB_NAME=conductor_db
-      - XENDIT_API_KEY=${XENDIT_API_KEY}
+      - REDIS_URL=redis:6379
       - STRIPE_API_KEY=${STRIPE_API_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - XENDIT_API_KEY=${XENDIT_API_KEY}
+      - XENDIT_WEBHOOK_SECRET=${XENDIT_WEBHOOK_SECRET}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+      - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET}
+      - AIRWALLEX_CLIENT_ID=${AIRWALLEX_CLIENT_ID}
+      - AIRWALLEX_API_KEY=${AIRWALLEX_API_KEY}
+      - AIRWALLEX_WEBHOOK_SECRET=${AIRWALLEX_WEBHOOK_SECRET}
+      - AIRWALLEX_USE_SANDBOX=${AIRWALLEX_USE_SANDBOX:-true}
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
 
   postgres:
-    image: postgres:13
+    image: postgres:16-alpine
     environment:
       - POSTGRES_DB=conductor_db
       - POSTGRES_USER=conductor
       - POSTGRES_PASSWORD=conductor_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  redis_data:

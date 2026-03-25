@@ -1,34 +1,21 @@
-# Start from the official Golang image
-FROM golang:1.26-alpine AS builder
+FROM golang:1.26.1-alpine AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy go mod and sum files
 COPY go.mod go.sum ./
-
-# Download all dependencies
 RUN go mod download
 
-# Copy the source code into the container
 COPY . .
-
-# Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o conductor .
 
-# Start a new stage from scratch
-FROM alpine:latest
+FROM alpine:3.21
 
-# Install CA certificates for HTTPS
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates tzdata
 
-WORKDIR /root/
+WORKDIR /app
 
-# Copy the pre-built binary file from the previous stage
 COPY --from=builder /app/conductor .
 
-# Expose port 8080 (adjust if your app uses a different port)
 EXPOSE 8080
 
-# Command to run the executable
 CMD ["./conductor"]
