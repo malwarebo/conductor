@@ -1,12 +1,11 @@
-# Git
 .git
 .gitignore
+.github
 
-# Docker
 Dockerfile
 docker-compose.yml
+.dockerignore
 
-# Go
 *.exe
 *.exe~
 *.dll
@@ -15,15 +14,22 @@ docker-compose.yml
 *.test
 *.out
 go.work
+go.work.sum
 
-# IDE
 .vscode/
 .idea/
+*.code-workspace
 
-# Misc
 .DS_Store
 *.swp
 *.swo
+*.log
+*.env
+.env.*
 
-# Dependency directories
 vendor/
+
+README.md
+LICENSE
+docs/
+*.md
