@@ -8,8 +8,10 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"time"
 
+	"github.com/malwarebo/conductor/internal/convert"
 	"github.com/malwarebo/conductor/internal/crypto"
 	"github.com/malwarebo/conductor/models"
 	xendit "github.com/xendit/xendit-go/v7"
@@ -21,7 +23,10 @@ import (
 	"github.com/xendit/xendit-go/v7/refund"
 )
 
-const xenditBaseURL = "https://api.xendit.co"
+const (
+	xenditBaseURL    = "https://api.xendit.co"
+	xenditAPIVersion = "2024-11-11"
+)
 
 type XenditProvider struct {
 	apiKey        string
@@ -49,106 +54,96 @@ func CreateXenditProviderWithWebhook(apiKey, webhookSecret string) *XenditProvid
 	}
 }
 
-// xenditRecurringSchedule represents a recurring schedule configuration
 type xenditRecurringSchedule struct {
-	ReferenceID        string `json:"reference_id"`
-	Interval           string `json:"interval"` // DAY, WEEK, MONTH
-	IntervalCount      int    `json:"interval_count"`
-	TotalRecurrence    *int   `json:"total_recurrence,omitempty"`
-	AnchorDate         string `json:"anchor_date,omitempty"`
-	RetryInterval      string `json:"retry_interval,omitempty"`
-	RetryIntervalCount int    `json:"retry_interval_count,omitempty"`
-	FailedAttemptNotifications []int `json:"failed_attempt_notifications,omitempty"`
+	ReferenceID                string `json:"reference_id"`
+	Interval                   string `json:"interval"`
+	IntervalCount              int    `json:"interval_count"`
+	TotalRecurrence            *int   `json:"total_recurrence,omitempty"`
+	AnchorDate                 string `json:"anchor_date,omitempty"`
+	RetryInterval              string `json:"retry_interval,omitempty"`
+	RetryIntervalCount         int    `json:"retry_interval_count,omitempty"`
+	FailedAttemptNotifications []int  `json:"failed_attempt_notifications,omitempty"`
 }
 
-// xenditRecurringPaymentMethod represents a payment method for recurring
 type xenditRecurringPaymentMethod struct {
 	PaymentMethodID string `json:"payment_method_id"`
 	Rank            int    `json:"rank"`
 }
 
-// xenditCreateRecurringPlanRequest is the request for creating a recurring plan
 type xenditCreateRecurringPlanRequest struct {
 	ReferenceID         string                         `json:"reference_id"`
 	CustomerID          string                         `json:"customer_id"`
-	RecurringAction     string                         `json:"recurring_action"` // PAYMENT
+	RecurringAction     string                         `json:"recurring_action"`
 	Currency            string                         `json:"currency"`
 	Amount              float64                        `json:"amount"`
 	Schedule            xenditRecurringSchedule        `json:"schedule"`
 	PaymentMethods      []xenditRecurringPaymentMethod `json:"payment_methods,omitempty"`
-	ImmediateActionType string                         `json:"immediate_action_type,omitempty"` // FULL_AMOUNT
-	FailedCycleAction   string                         `json:"failed_cycle_action,omitempty"`   // RESUME, STOP
+	ImmediateActionType string                         `json:"immediate_action_type,omitempty"`
+	FailedCycleAction   string                         `json:"failed_cycle_action,omitempty"`
 	Description         string                         `json:"description,omitempty"`
 	Metadata            map[string]interface{}         `json:"metadata,omitempty"`
 }
 
-// xenditRecurringPlanResponse is the response from recurring plan API
 type xenditRecurringPlanResponse struct {
-	ID              string                 `json:"id"`
-	ReferenceID     string                 `json:"reference_id"`
-	CustomerID      string                 `json:"customer_id"`
-	RecurringAction string                 `json:"recurring_action"`
-	Currency        string                 `json:"currency"`
-	Amount          float64                `json:"amount"`
-	Status          string                 `json:"status"` // REQUIRES_ACTION, PENDING, ACTIVE, INACTIVE
+	ID              string                  `json:"id"`
+	ReferenceID     string                  `json:"reference_id"`
+	CustomerID      string                  `json:"customer_id"`
+	RecurringAction string                  `json:"recurring_action"`
+	Currency        string                  `json:"currency"`
+	Amount          float64                 `json:"amount"`
+	Status          string                  `json:"status"`
 	Schedule        xenditRecurringSchedule `json:"schedule"`
-	Created         string                 `json:"created"`
-	Updated         string                 `json:"updated"`
-	Description     string                 `json:"description,omitempty"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty"`
-	Actions         []xenditAction         `json:"actions,omitempty"`
+	Created         string                  `json:"created"`
+	Updated         string                  `json:"updated"`
+	Description     string                  `json:"description,omitempty"`
+	Metadata        map[string]interface{}  `json:"metadata,omitempty"`
+	Actions         []xenditAction          `json:"actions,omitempty"`
 }
 
-// xenditAction represents an action required by the user
 type xenditAction struct {
 	Action string `json:"action"`
 	URL    string `json:"url"`
 	Method string `json:"method"`
 }
 
-// xenditUpdateRecurringPlanRequest is the request for updating a recurring plan
 type xenditUpdateRecurringPlanRequest struct {
-	CustomerID          string                         `json:"customer_id,omitempty"`
-	Currency            string                         `json:"currency,omitempty"`
-	Amount              float64                        `json:"amount,omitempty"`
-	PaymentMethods      []xenditRecurringPaymentMethod `json:"payment_methods,omitempty"`
-	Description         string                         `json:"description,omitempty"`
-	Metadata            map[string]interface{}         `json:"metadata,omitempty"`
-	Status              string                         `json:"status,omitempty"` // ACTIVE, INACTIVE
+	CustomerID     string                         `json:"customer_id,omitempty"`
+	Currency       string                         `json:"currency,omitempty"`
+	Amount         float64                        `json:"amount,omitempty"`
+	PaymentMethods []xenditRecurringPaymentMethod `json:"payment_methods,omitempty"`
+	Description    string                         `json:"description,omitempty"`
+	Metadata       map[string]interface{}         `json:"metadata,omitempty"`
+	Status         string                         `json:"status,omitempty"`
 }
 
-// xenditRecurringPlanListResponse is the list response
 type xenditRecurringPlanListResponse struct {
 	Data    []xenditRecurringPlanResponse `json:"data"`
 	HasMore bool                          `json:"has_more"`
 }
 
-// xenditTransaction represents a transaction from the transactions API
 type xenditTransaction struct {
-	ID              string                 `json:"id"`
-	ProductID       string                 `json:"product_id"`
-	Type            string                 `json:"type"` // PAYMENT, DISBURSEMENT, CHARGEBACK, etc.
-	Status          string                 `json:"status"`
-	ChannelCategory string                 `json:"channel_category"`
-	ChannelCode     string                 `json:"channel_code"`
-	ReferenceID     string                 `json:"reference_id"`
-	AccountID       string                 `json:"account_identifier"`
-	Currency        string                 `json:"currency"`
-	Amount          float64                `json:"amount"`
-	Cashflow        string                 `json:"cashflow"`
-	BusinessID      string                 `json:"business_id"`
-	Created         string                 `json:"created"`
-	Updated         string                 `json:"updated"`
+	ID              string  `json:"id"`
+	ProductID       string  `json:"product_id"`
+	Type            string  `json:"type"`
+	Status          string  `json:"status"`
+	ChannelCategory string  `json:"channel_category"`
+	ChannelCode     string  `json:"channel_code"`
+	ReferenceID     string  `json:"reference_id"`
+	AccountID       string  `json:"account_identifier"`
+	Currency        string  `json:"currency"`
+	Amount          float64 `json:"amount"`
+	Cashflow        string  `json:"cashflow"`
+	BusinessID      string  `json:"business_id"`
+	Created         string  `json:"created"`
+	Updated         string  `json:"updated"`
 }
 
-// xenditTransactionListResponse is the transactions list response
 type xenditTransactionListResponse struct {
 	Data    []xenditTransaction `json:"data"`
 	HasMore bool                `json:"has_more"`
 	Links   map[string]string   `json:"links"`
 }
 
-// doRequest performs an HTTP request with basic auth
 func (p *XenditProvider) doRequest(ctx context.Context, method, path string, body interface{}) ([]byte, error) {
 	var reqBody io.Reader
 	if body != nil {
@@ -166,6 +161,7 @@ func (p *XenditProvider) doRequest(ctx context.Context, method, path string, bod
 
 	req.SetBasicAuth(p.apiKey, "")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("api-version", xenditAPIVersion)
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
@@ -185,6 +181,22 @@ func (p *XenditProvider) doRequest(ctx context.Context, method, path string, bod
 	return respBody, nil
 }
 
+func (p *XenditProvider) buildListPath(basePath string, params map[string]string) string {
+	if len(params) == 0 {
+		return basePath
+	}
+	q := url.Values{}
+	for k, v := range params {
+		if v != "" {
+			q.Set(k, v)
+		}
+	}
+	if encoded := q.Encode(); encoded != "" {
+		return basePath + "?" + encoded
+	}
+	return basePath
+}
+
 func (p *XenditProvider) Name() string {
 	return "xendit"
 }
@@ -197,7 +209,7 @@ func (p *XenditProvider) Capabilities() ProviderCapabilities {
 		Supports3DS:             true,
 		SupportsManualCapture:   true,
 		SupportsBalance:         true,
-		SupportedCurrencies:     []string{"IDR", "PHP", "VND", "THB", "MYR", "SGD"},
+		SupportedCurrencies:     []string{"IDR", "PHP", "VND", "THB", "MYR", "SGD", "USD", "HKD", "AUD", "GBP", "EUR", "JPY", "MXN"},
 		SupportedPaymentMethods: []models.PaymentMethodType{models.PMTypeCard, models.PMTypeEWallet, models.PMTypeVirtualAccount, models.PMTypeQRCode, models.PMTypeDirectDebit, models.PMTypeRetail},
 	}
 }
@@ -263,20 +275,17 @@ func (p *XenditProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 }
 
 func (p *XenditProvider) mapPaymentStatus(status string) models.PaymentStatus {
-	switch status {
-	case "SUCCEEDED":
-		return models.PaymentStatusSuccess
-	case "FAILED":
-		return models.PaymentStatusFailed
-	case "PENDING":
-		return models.PaymentStatusPending
-	case "AWAITING_CAPTURE":
-		return models.PaymentStatusRequiresCapture
-	case "REQUIRES_ACTION":
-		return models.PaymentStatusRequiresAction
-	default:
-		return models.PaymentStatusPending
+	statusMap := map[string]models.PaymentStatus{
+		"SUCCEEDED":        models.PaymentStatusSuccess,
+		"FAILED":           models.PaymentStatusFailed,
+		"PENDING":          models.PaymentStatusPending,
+		"AWAITING_CAPTURE": models.PaymentStatusRequiresCapture,
+		"REQUIRES_ACTION":  models.PaymentStatusRequiresAction,
 	}
+	if s, ok := statusMap[status]; ok {
+		return s
+	}
+	return models.PaymentStatusPending
 }
 
 func (p *XenditProvider) CapturePayment(ctx context.Context, paymentID string, amount int64) error {
@@ -647,16 +656,16 @@ func (p *XenditProvider) mapPayout(po *payout.GetPayouts200ResponseDataInner) *m
 	}
 	pyt := po.Payout
 
+	statusMap := map[string]models.PayoutStatus{
+		"SUCCEEDED": models.PayoutStatusSucceeded,
+		"FAILED":    models.PayoutStatusFailed,
+		"CANCELLED": models.PayoutStatusCanceled,
+		"PENDING":   models.PayoutStatusPending,
+		"ACCEPTED":  models.PayoutStatusPending,
+	}
 	status := models.PayoutStatusPending
-	switch pyt.Status {
-	case "SUCCEEDED":
-		status = models.PayoutStatusSucceeded
-	case "FAILED":
-		status = models.PayoutStatusFailed
-	case "CANCELLED":
-		status = models.PayoutStatusCanceled
-	case "PENDING", "ACCEPTED":
-		status = models.PayoutStatusPending
+	if s, ok := statusMap[pyt.Status]; ok {
+		status = s
 	}
 
 	result := &models.Payout{
@@ -828,18 +837,21 @@ func (p *XenditProvider) mapPaymentMethod(pm *payment_method.PaymentMethod) *mod
 	return result
 }
 
-func (p *XenditProvider) CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
-	interval := "MONTH"
-	switch models.BillingPeriod(req.PlanID) {
-	case models.BillingPeriodDaily:
-		interval = "DAY"
-	case models.BillingPeriodWeekly:
-		interval = "WEEK"
-	case models.BillingPeriodMonthly:
-		interval = "MONTH"
-	case models.BillingPeriodYearly:
-		interval = "MONTH"
+func (p *XenditProvider) billingPeriodToInterval(period models.BillingPeriod) string {
+	intervals := map[models.BillingPeriod]string{
+		models.BillingPeriodDaily:   "DAY",
+		models.BillingPeriodWeekly:  "WEEK",
+		models.BillingPeriodMonthly: "MONTH",
+		models.BillingPeriodYearly:  "YEAR",
 	}
+	if interval, ok := intervals[period]; ok {
+		return interval
+	}
+	return "MONTH"
+}
+
+func (p *XenditProvider) CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
+	interval := p.billingPeriodToInterval(models.BillingPeriod(req.PlanID))
 
 	planReq := xenditCreateRecurringPlanRequest{
 		ReferenceID:     fmt.Sprintf("sub_%s_%d", req.CustomerID, time.Now().Unix()),
@@ -968,10 +980,9 @@ func (p *XenditProvider) GetSubscription(ctx context.Context, subscriptionID str
 }
 
 func (p *XenditProvider) ListSubscriptions(ctx context.Context, customerID string) ([]*models.Subscription, error) {
-	path := "/recurring/plans"
-	if customerID != "" {
-		path += "?customer_id=" + customerID
-	}
+	path := p.buildListPath("/recurring/plans", map[string]string{
+		"customer_id": customerID,
+	})
 
 	respBody, err := p.doRequest(ctx, "GET", path, nil)
 	if err != nil {
@@ -983,9 +994,9 @@ func (p *XenditProvider) ListSubscriptions(ctx context.Context, customerID strin
 		return nil, fmt.Errorf("failed to parse subscriptions response: %w", err)
 	}
 
-	var subscriptions []*models.Subscription
-	for _, plan := range listResp.Data {
-		subscriptions = append(subscriptions, p.mapRecurringPlanToSubscription(&plan, ""))
+	subscriptions := make([]*models.Subscription, 0, len(listResp.Data))
+	for i := range listResp.Data {
+		subscriptions = append(subscriptions, p.mapRecurringPlanToSubscription(&listResp.Data[i], ""))
 	}
 
 	return subscriptions, nil
@@ -993,9 +1004,8 @@ func (p *XenditProvider) ListSubscriptions(ctx context.Context, customerID strin
 
 func (p *XenditProvider) mapRecurringPlanToSubscription(plan *xenditRecurringPlanResponse, planID string) *models.Subscription {
 	status := p.mapRecurringPlanStatus(plan.Status)
-
-	created, _ := time.Parse(time.RFC3339, plan.Created)
-	updated, _ := time.Parse(time.RFC3339, plan.Updated)
+	created := convert.ParseTime(plan.Created)
+	updated := convert.ParseTime(plan.Updated)
 
 	quantity := 1
 	if plan.Metadata != nil {
@@ -1010,7 +1020,7 @@ func (p *XenditProvider) mapRecurringPlanToSubscription(plan *xenditRecurringPla
 		PlanID:             planID,
 		Status:             status,
 		CurrentPeriodStart: created,
-		CurrentPeriodEnd:   created.AddDate(0, 1, 0), // Approximate based on schedule
+		CurrentPeriodEnd:   created.AddDate(0, 1, 0),
 		Quantity:           quantity,
 		ProviderName:       "xendit",
 		CreatedAt:          created,
@@ -1025,32 +1035,21 @@ func (p *XenditProvider) mapRecurringPlanToSubscription(plan *xenditRecurringPla
 }
 
 func (p *XenditProvider) mapRecurringPlanStatus(status string) models.SubscriptionStatus {
-	switch status {
-	case "ACTIVE":
-		return models.SubscriptionStatusActive
-	case "INACTIVE":
-		return models.SubscriptionStatusCanceled
-	case "PENDING", "REQUIRES_ACTION":
-		return models.SubscriptionStatus("pending")
-	default:
-		return models.SubscriptionStatus("pending")
+	statusMap := map[string]models.SubscriptionStatus{
+		"ACTIVE":          models.SubscriptionStatusActive,
+		"INACTIVE":        models.SubscriptionStatusCanceled,
+		"PENDING":         models.SubscriptionStatus("pending"),
+		"REQUIRES_ACTION": models.SubscriptionStatus("pending"),
 	}
+	if s, ok := statusMap[status]; ok {
+		return s
+	}
+	return models.SubscriptionStatus("pending")
 }
 
 func (p *XenditProvider) CreatePlan(ctx context.Context, planReq *models.Plan) (*models.Plan, error) {
 	planID := fmt.Sprintf("xnd_plan_%d", time.Now().UnixNano())
-
-	interval := "MONTH"
-	switch planReq.BillingPeriod {
-	case models.BillingPeriodDaily:
-		interval = "DAY"
-	case models.BillingPeriodWeekly:
-		interval = "WEEK"
-	case models.BillingPeriodMonthly:
-		interval = "MONTH"
-	case models.BillingPeriodYearly:
-		interval = "YEAR"
-	}
+	interval := p.billingPeriodToInterval(planReq.BillingPeriod)
 
 	metadata := make(map[string]interface{})
 	if planReq.Metadata != nil {
@@ -1221,20 +1220,20 @@ func (p *XenditProvider) GetDisputeStats(ctx context.Context) (*models.DisputeSt
 }
 
 func (p *XenditProvider) mapTransactionToDispute(txn *xenditTransaction) *models.Dispute {
-	created, _ := time.Parse(time.RFC3339, txn.Created)
-	updated, _ := time.Parse(time.RFC3339, txn.Updated)
+	created := convert.ParseTime(txn.Created)
+	updated := convert.ParseTime(txn.Updated)
 
-	status := models.DisputeStatusOpen
-	switch txn.Status {
-	case "SUCCESS", "SETTLED":
-		status = models.DisputeStatusLost
-	case "FAILED", "VOIDED":
-		status = models.DisputeStatusWon
-	case "PENDING":
-		status = models.DisputeStatusOpen
+	statusMap := map[string]models.DisputeStatus{
+		"SUCCESS": models.DisputeStatusLost,
+		"SETTLED": models.DisputeStatusLost,
+		"FAILED":  models.DisputeStatusWon,
+		"VOIDED":  models.DisputeStatusWon,
+		"PENDING": models.DisputeStatusOpen,
 	}
-
-	dueBy := created.AddDate(0, 0, 7)
+	status := models.DisputeStatusOpen
+	if s, ok := statusMap[txn.Status]; ok {
+		status = s
+	}
 
 	return &models.Dispute{
 		ID:            txn.ID,
@@ -1244,7 +1243,7 @@ func (p *XenditProvider) mapTransactionToDispute(txn *xenditTransaction) *models
 		Reason:        "chargeback",
 		Status:        status,
 		Evidence:      make(map[string]interface{}),
-		DueBy:         dueBy,
+		DueBy:         created.AddDate(0, 0, 7),
 		CreatedAt:     created,
 		UpdatedAt:     updated,
 	}
