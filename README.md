@@ -12,7 +12,7 @@
 The system includes an `experimental` fraud detection with AI that analyzes transactions in real-time before processing payments. It uses OpenAI's LLM models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates easily into your payment flow, automatically trying to block high-risk transactions while allowing legitimate ones to proceed smoothly.
 
 > [!TIP]
-> Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | API Reference: [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
+> Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | API Reference: [docs/api.html](docs/api.html) (OpenAPI)
 
 ## Setup
 
@@ -90,6 +90,16 @@ go run main.go
 
 Your API will be live at `http://localhost:8080`
 
+## API Documentation
+
+Interactive API docs (Swagger UI):
+
+```bash
+make api-docs
+```
+
+Opens at http://localhost:8090/api.html. OpenAPI spec available at `docs/openapi.yaml`.
+
 ## Docker setup
 
 ### Environment Variables (optional)
@@ -161,9 +171,9 @@ The system routes payments using a weighted scoring engine:
 
 | Document | Description |
 |----------|-------------|
-| [API Reference](docs/API_REFERENCE.md) | Endpoints, examples, authentication |
-| [Architecture](docs/ARCHITECTURE.md) | System design and diagrams (`make diagram` for interactive) |
-| [Smart Routing](docs/SMART_ROUTING.md) | How currency routing works |
+| [API Reference](docs/api.html) | Interactive OpenAPI docs (`make api-docs`) |
+| [Architecture](docs/ARCHITECTURE.md) | System design (`make diagram` for interactive) |
+| [Smart Routing](docs/SMART_ROUTING.md) | Routing engine details |
 | [Fraud Detection](docs/FRAUD_DETECTION.md) | AI-powered fraud prevention |
-| [Security Guide](docs/SECURITY_GUIDE.md) | Security best practices |
-| [Development Guide](docs/DEVELOPMENT.md) | Database scripts, caching, dev tips |
+| [Security Guide](docs/SECURITY_GUIDE.md) | Security checklist |
+| [Development Guide](docs/DEVELOPMENT.md) | Database setup, caching |

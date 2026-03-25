@@ -1,0 +1,1353 @@
+openapi: 3.0.3
+info:
+  title: Conductor API
+  description: Payment orchestration API supporting Stripe, Xendit, Razorpay, and Airwallex
+  version: 1.0.0
+  contact:
+    url: https://github.com/malwarebo/conductor
+
+servers:
+  - url: http://localhost:8080/v1
+    description: Local development
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+tags:
+  - name: Health
+  - name: Payments
+  - name: Refunds
+  - name: Payment Sessions
+  - name: Plans
+  - name: Subscriptions
+  - name: Disputes
+  - name: Fraud
+  - name: Invoices
+  - name: Payouts
+  - name: Customers
+  - name: Payment Methods
+  - name: Balance
+  - name: Tenants
+  - name: Audit Logs
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /charges:
+    post:
+      tags: [Payments]
+      summary: Create a charge
+      description: Routes automatically to optimal provider based on currency and scoring
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeRequest'
+      responses:
+        '200':
+          description: Charge created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /authorize:
+    post:
+      tags: [Payments]
+      summary: Authorize a payment
+      description: Create authorization for manual capture
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeRequest'
+      responses:
+        '200':
+          description: Authorization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeResponse'
+
+  /payments/{id}:
+    get:
+      tags: [Payments]
+      summary: Get payment
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      responses:
+        '200':
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /payments/{id}/capture:
+    post:
+      tags: [Payments]
+      summary: Capture payment
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: integer
+                  description: Amount to capture (omit for full amount)
+      responses:
+        '200':
+          description: Payment captured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeResponse'
+
+  /payments/{id}/void:
+    post:
+      tags: [Payments]
+      summary: Void payment
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      responses:
+        '200':
+          description: Payment voided
+
+  /payments/{id}/confirm:
+    post:
+      tags: [Payments]
+      summary: Confirm 3DS payment
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      responses:
+        '200':
+          description: Payment confirmed
+
+  /refunds:
+    post:
+      tags: [Refunds]
+      summary: Create refund
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        '200':
+          description: Refund created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResponse'
+
+  /payment-sessions:
+    post:
+      tags: [Payment Sessions]
+      summary: Create payment session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentSessionRequest'
+      responses:
+        '200':
+          description: Session created
+    get:
+      tags: [Payment Sessions]
+      summary: List payment sessions
+      parameters:
+        - name: customer_id
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Payment sessions list
+
+  /payment-sessions/{id}:
+    get:
+      tags: [Payment Sessions]
+      summary: Get payment session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session details
+    patch:
+      tags: [Payment Sessions]
+      summary: Update payment session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentSessionRequest'
+      responses:
+        '200':
+          description: Session updated
+
+  /payment-sessions/{id}/confirm:
+    post:
+      tags: [Payment Sessions]
+      summary: Confirm payment session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session confirmed
+
+  /payment-sessions/{id}/capture:
+    post:
+      tags: [Payment Sessions]
+      summary: Capture payment session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: integer
+      responses:
+        '200':
+          description: Session captured
+
+  /payment-sessions/{id}/cancel:
+    post:
+      tags: [Payment Sessions]
+      summary: Cancel payment session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session canceled
+
+  /plans:
+    post:
+      tags: [Plans]
+      summary: Create plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+      responses:
+        '200':
+          description: Plan created
+    get:
+      tags: [Plans]
+      summary: List plans
+      responses:
+        '200':
+          description: Plans list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListResponse'
+
+  /plans/{id}:
+    get:
+      tags: [Plans]
+      summary: Get plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Plan details
+    put:
+      tags: [Plans]
+      summary: Update plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+      responses:
+        '200':
+          description: Plan updated
+    delete:
+      tags: [Plans]
+      summary: Delete plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Plan deleted
+
+  /subscriptions:
+    post:
+      tags: [Subscriptions]
+      summary: Create subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionRequest'
+      responses:
+        '200':
+          description: Subscription created
+    get:
+      tags: [Subscriptions]
+      summary: List subscriptions
+      parameters:
+        - name: customer_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscriptions list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListResponse'
+
+  /subscriptions/{id}:
+    get:
+      tags: [Subscriptions]
+      summary: Get subscription
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscription details
+    put:
+      tags: [Subscriptions]
+      summary: Update subscription
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionRequest'
+      responses:
+        '200':
+          description: Subscription updated
+    delete:
+      tags: [Subscriptions]
+      summary: Cancel subscription
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cancel_at_period_end:
+                  type: boolean
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Subscription canceled
+
+  /disputes:
+    post:
+      tags: [Disputes]
+      summary: Create dispute
+      responses:
+        '200':
+          description: Dispute created
+    get:
+      tags: [Disputes]
+      summary: List disputes
+      parameters:
+        - name: customer_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Disputes list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListResponse'
+
+  /disputes/{id}:
+    get:
+      tags: [Disputes]
+      summary: Get dispute
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dispute details
+    put:
+      tags: [Disputes]
+      summary: Update dispute
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dispute updated
+
+  /disputes/{id}/accept:
+    post:
+      tags: [Disputes]
+      summary: Accept dispute
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dispute accepted
+
+  /disputes/{id}/contest:
+    post:
+      tags: [Disputes]
+      summary: Contest dispute
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContestRequest'
+      responses:
+        '200':
+          description: Dispute contested
+
+  /disputes/{id}/evidence:
+    post:
+      tags: [Disputes]
+      summary: Submit evidence
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvidenceRequest'
+      responses:
+        '200':
+          description: Evidence submitted
+
+  /disputes/stats:
+    get:
+      tags: [Disputes]
+      summary: Get dispute statistics
+      responses:
+        '200':
+          description: Dispute stats
+
+  /fraud/analyze:
+    post:
+      tags: [Fraud]
+      summary: Analyze transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FraudAnalyzeRequest'
+      responses:
+        '200':
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudAnalyzeResponse'
+
+  /fraud/stats:
+    get:
+      tags: [Fraud]
+      summary: Get fraud statistics
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Fraud stats
+
+  /invoices:
+    post:
+      tags: [Invoices]
+      summary: Create invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceRequest'
+      responses:
+        '200':
+          description: Invoice created
+    get:
+      tags: [Invoices]
+      summary: List invoices
+      parameters:
+        - name: customer_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Invoices list
+
+  /invoices/{id}:
+    get:
+      tags: [Invoices]
+      summary: Get invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invoice details
+
+  /invoices/{id}/cancel:
+    post:
+      tags: [Invoices]
+      summary: Cancel invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invoice canceled
+
+  /payouts:
+    post:
+      tags: [Payouts]
+      summary: Create payout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayoutRequest'
+      responses:
+        '200':
+          description: Payout created
+    get:
+      tags: [Payouts]
+      summary: List payouts
+      parameters:
+        - name: reference_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Payouts list
+
+  /payouts/{id}:
+    get:
+      tags: [Payouts]
+      summary: Get payout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payout details
+
+  /payouts/{id}/cancel:
+    post:
+      tags: [Payouts]
+      summary: Cancel payout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payout canceled
+
+  /payout-channels:
+    get:
+      tags: [Payouts]
+      summary: List payout channels
+      parameters:
+        - name: currency
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payout channels
+
+  /customers:
+    post:
+      tags: [Customers]
+      summary: Create customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+      responses:
+        '200':
+          description: Customer created
+
+  /customers/{id}:
+    get:
+      tags: [Customers]
+      summary: Get customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Customer details
+    put:
+      tags: [Customers]
+      summary: Update customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+      responses:
+        '200':
+          description: Customer updated
+    delete:
+      tags: [Customers]
+      summary: Delete customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Customer deleted
+
+  /payment-methods:
+    post:
+      tags: [Payment Methods]
+      summary: Create payment method
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethodRequest'
+      responses:
+        '200':
+          description: Payment method created
+    get:
+      tags: [Payment Methods]
+      summary: List payment methods
+      parameters:
+        - name: customer_id
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment methods list
+
+  /payment-methods/{id}:
+    get:
+      tags: [Payment Methods]
+      summary: Get payment method
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment method details
+
+  /payment-methods/{id}/attach:
+    post:
+      tags: [Payment Methods]
+      summary: Attach to customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer_id]
+              properties:
+                customer_id:
+                  type: string
+      responses:
+        '200':
+          description: Attached
+
+  /payment-methods/{id}/detach:
+    post:
+      tags: [Payment Methods]
+      summary: Detach from customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detached
+
+  /payment-methods/{id}/expire:
+    post:
+      tags: [Payment Methods]
+      summary: Expire payment method
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Expired
+
+  /balance:
+    get:
+      tags: [Balance]
+      summary: Get balance
+      parameters:
+        - name: currency
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Balance details
+
+  /tenants:
+    post:
+      tags: [Tenants]
+      summary: Create tenant
+      responses:
+        '200':
+          description: Tenant created
+    get:
+      tags: [Tenants]
+      summary: List tenants
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Tenants list
+
+  /tenants/{id}:
+    get:
+      tags: [Tenants]
+      summary: Get tenant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tenant details
+    put:
+      tags: [Tenants]
+      summary: Update tenant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tenant updated
+    delete:
+      tags: [Tenants]
+      summary: Delete tenant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Tenant deleted
+
+  /tenants/{id}/deactivate:
+    post:
+      tags: [Tenants]
+      summary: Deactivate tenant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tenant deactivated
+
+  /tenants/{id}/regenerate-secret:
+    post:
+      tags: [Tenants]
+      summary: Regenerate API secret
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Secret regenerated
+
+  /audit-logs:
+    get:
+      tags: [Audit Logs]
+      summary: List audit logs
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: resource_type
+          in: query
+          schema:
+            type: string
+        - name: resource_id
+          in: query
+          schema:
+            type: string
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Audit logs
+
+  /audit-logs/{resource_type}/{resource_id}:
+    get:
+      tags: [Audit Logs]
+      summary: Get resource audit history
+      parameters:
+        - name: resource_type
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: resource_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Resource audit history
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      schema:
+        type: string
+    PaymentId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+        maximum: 100
+    Offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        default: 0
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: string
+
+    ChargeRequest:
+      type: object
+      required: [customer_id, amount, currency]
+      properties:
+        customer_id:
+          type: string
+        amount:
+          type: integer
+          description: Amount in smallest currency unit
+        currency:
+          type: string
+          example: USD
+        payment_method:
+          type: string
+        description:
+          type: string
+        capture_method:
+          type: string
+          enum: [automatic, manual]
+          default: automatic
+        metadata:
+          type: object
+
+    ChargeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        customer_id:
+          type: string
+        amount:
+          type: integer
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, succeeded, failed, canceled]
+        payment_method:
+          type: string
+        provider_name:
+          type: string
+        provider_charge_id:
+          type: string
+        capture_method:
+          type: string
+        captured_amount:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    RefundRequest:
+      type: object
+      required: [payment_id]
+      properties:
+        payment_id:
+          type: string
+        amount:
+          type: integer
+        reason:
+          type: string
+        metadata:
+          type: object
+
+    RefundResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        payment_id:
+          type: string
+        amount:
+          type: integer
+        currency:
+          type: string
+        status:
+          type: string
+        reason:
+          type: string
+        provider_name:
+          type: string
+        provider_refund_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    PaymentSessionRequest:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: integer
+        currency:
+          type: string
+        customer_id:
+          type: string
+        description:
+          type: string
+        capture_method:
+          type: string
+          enum: [automatic, manual]
+        return_url:
+          type: string
+        metadata:
+          type: object
+
+    PlanRequest:
+      type: object
+      required: [name, amount, currency, billing_period]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        billing_period:
+          type: string
+          enum: [day, week, month, year]
+        trial_days:
+          type: integer
+        features:
+          type: array
+          items:
+            type: string
+
+    SubscriptionRequest:
+      type: object
+      required: [customer_id, plan_id]
+      properties:
+        customer_id:
+          type: string
+        plan_id:
+          type: string
+        quantity:
+          type: integer
+          default: 1
+        trial_days:
+          type: integer
+        payment_method_id:
+          type: string
+
+    ContestRequest:
+      type: object
+      properties:
+        uncategorized_text:
+          type: string
+        product_description:
+          type: string
+        customer_name:
+          type: string
+        customer_email_address:
+          type: string
+
+    EvidenceRequest:
+      type: object
+      properties:
+        type:
+          type: string
+        description:
+          type: string
+        files:
+          type: array
+          items:
+            type: string
+
+    FraudAnalyzeRequest:
+      type: object
+      required: [transaction_id, user_id, transaction_amount]
+      properties:
+        transaction_id:
+          type: string
+        user_id:
+          type: string
+        transaction_amount:
+          type: number
+        billing_country:
+          type: string
+        shipping_country:
+          type: string
+        ip_address:
+          type: string
+        transaction_velocity:
+          type: integer
+
+    FraudAnalyzeResponse:
+      type: object
+      properties:
+        allow:
+          type: boolean
+        reason:
+          type: string
+
+    InvoiceRequest:
+      type: object
+      required: [customer_id, amount, currency]
+      properties:
+        customer_id:
+          type: string
+        amount:
+          type: integer
+        currency:
+          type: string
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+
+    PayoutRequest:
+      type: object
+      required: [amount, currency, destination_account]
+      properties:
+        amount:
+          type: integer
+        currency:
+          type: string
+        destination_account:
+          type: string
+        description:
+          type: string
+
+    CustomerRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        phone:
+          type: string
+
+    PaymentMethodRequest:
+      type: object
+      required: [customer_id, type]
+      properties:
+        customer_id:
+          type: string
+        card_token:
+          type: string
+        type:
+          type: string
+          enum: [card, bank_account, ewallet]
+        reusable:
+          type: boolean
+          default: true
+        is_default:
+          type: boolean
+
+    ListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+        total:
+          type: integer
