@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/malwarebo/conductor/internal/convert"
 	"github.com/malwarebo/conductor/models"
 	"github.com/stripe/stripe-go/v84"
 	stripeBalance "github.com/stripe/stripe-go/v84/balance"
@@ -120,7 +121,7 @@ func (p *StripeProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 		CapturedAmount:   pi.AmountReceived,
 		ClientSecret:     pi.ClientSecret,
 		Metadata:         metadata,
-		CreatedAt:        time.Unix(pi.Created, 0),
+		CreatedAt:        convert.UnixToTime(pi.Created),
 	}
 
 	if pi.NextAction != nil {

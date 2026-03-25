@@ -2,12 +2,11 @@ package providers
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"time"
 
+	"github.com/malwarebo/conductor/internal/convert"
+	"github.com/malwarebo/conductor/internal/crypto"
 	"github.com/malwarebo/conductor/models"
 	razorpay "github.com/razorpay/razorpay-go"
 )
@@ -89,8 +88,8 @@ func (p *RazorpayProvider) Charge(ctx context.Context, req *models.ChargeRequest
 		return nil, fmt.Errorf("razorpay order creation failed: %w", err)
 	}
 
-	orderID := p.getStringValue(order, "id")
-	status := p.mapOrderStatus(p.getStringValue(order, "status"))
+	orderID := convert.StringFromMap(order, "id")
+	status := p.mapOrderStatus(convert.StringFromMap(order, "status"))
 
 	captureMethod := models.CaptureMethodAutomatic
 	if req.CaptureMethod == models.CaptureMethodManual || (req.Capture != nil && !*req.Capture) {
@@ -188,8 +187,8 @@ func (p *RazorpayProvider) Refund(ctx context.Context, req *models.RefundRequest
 		return nil, fmt.Errorf("razorpay refund failed: %w", err)
 	}
 
-	refundID := p.getStringValue(ref, "id")
-	status := p.getStringValue(ref, "status")
+	refundID := convert.StringFromMap(ref, "id")
+	status := convert.StringFromMap(ref, "status")
 	if status == "" {
 		status = "processed"
 	}
@@ -274,7 +273,7 @@ func (p *RazorpayProvider) CapturePaymentSession(ctx context.Context, sessionID 
 	if !ok {
 		return nil, fmt.Errorf("razorpay invalid payment response")
 	}
-	paymentID := p.getStringValue(payment, "id")
+	paymentID := convert.StringFromMap(payment, "id")
 
 	captureAmount := int64(0)
 	if amount != nil {
@@ -323,11 +322,11 @@ func (p *RazorpayProvider) ListPaymentSessions(ctx context.Context, req *models.
 }
 
 func (p *RazorpayProvider) mapOrderToPaymentSession(order map[string]interface{}, customerID string) *models.PaymentSession {
-	orderID := p.getStringValue(order, "id")
-	status := p.mapOrderStatus(p.getStringValue(order, "status"))
-	amount := p.getInt64Value(order, "amount")
-	currency := p.getStringValue(order, "currency")
-	receipt := p.getStringValue(order, "receipt")
+	orderID := convert.StringFromMap(order, "id")
+	status := p.mapOrderStatus(convert.StringFromMap(order, "status"))
+	amount := convert.Int64FromMap(order, "amount")
+	currency := convert.StringFromMap(order, "currency")
+	receipt := convert.StringFromMap(order, "receipt")
 
 	session := &models.PaymentSession{
 		ProviderID:     orderID,
@@ -440,12 +439,12 @@ func (p *RazorpayProvider) CancelInvoice(ctx context.Context, invoiceID string) 
 }
 
 func (p *RazorpayProvider) mapInvoice(inv map[string]interface{}) *models.Invoice {
-	invoiceID := p.getStringValue(inv, "id")
-	status := p.mapInvoiceStatus(p.getStringValue(inv, "status"))
-	amount := p.getInt64Value(inv, "amount")
-	currency := p.getStringValue(inv, "currency")
-	description := p.getStringValue(inv, "description")
-	shortURL := p.getStringValue(inv, "short_url")
+	invoiceID := convert.StringFromMap(inv, "id")
+	status := p.mapInvoiceStatus(convert.StringFromMap(inv, "status"))
+	amount := convert.Int64FromMap(inv, "amount")
+	currency := convert.StringFromMap(inv, "currency")
+	description := convert.StringFromMap(inv, "description")
+	shortURL := convert.StringFromMap(inv, "short_url")
 
 	result := &models.Invoice{
 		ProviderID:   invoiceID,
@@ -460,8 +459,8 @@ func (p *RazorpayProvider) mapInvoice(inv map[string]interface{}) *models.Invoic
 	}
 
 	if customer, ok := inv["customer"].(map[string]interface{}); ok {
-		result.CustomerID = p.getStringValue(customer, "id")
-		result.CustomerEmail = p.getStringValue(customer, "email")
+		result.CustomerID = convert.StringFromMap(customer, "id")
+		result.CustomerEmail = convert.StringFromMap(customer, "email")
 	}
 
 	if expireBy, ok := inv["expire_by"].(float64); ok && expireBy > 0 {
@@ -582,14 +581,14 @@ func (p *RazorpayProvider) GetPayoutChannels(ctx context.Context, currency strin
 }
 
 func (p *RazorpayProvider) mapPayout(po map[string]interface{}) *models.Payout {
-	payoutID := p.getStringValue(po, "id")
-	referenceID := p.getStringValue(po, "reference_id")
-	amount := p.getInt64Value(po, "amount")
-	currency := p.getStringValue(po, "currency")
-	status := p.mapPayoutStatus(p.getStringValue(po, "status"))
-	narration := p.getStringValue(po, "narration")
-	mode := p.getStringValue(po, "mode")
-	fundAccountID := p.getStringValue(po, "fund_account_id")
+	payoutID := convert.StringFromMap(po, "id")
+	referenceID := convert.StringFromMap(po, "reference_id")
+	amount := convert.Int64FromMap(po, "amount")
+	currency := convert.StringFromMap(po, "currency")
+	status := p.mapPayoutStatus(convert.StringFromMap(po, "status"))
+	narration := convert.StringFromMap(po, "narration")
+	mode := convert.StringFromMap(po, "mode")
+	fundAccountID := convert.StringFromMap(po, "fund_account_id")
 
 	result := &models.Payout{
 		ProviderID:         payoutID,
@@ -736,11 +735,11 @@ func (p *RazorpayProvider) ListSubscriptions(ctx context.Context, customerID str
 }
 
 func (p *RazorpayProvider) mapSubscription(sub map[string]interface{}) *models.Subscription {
-	subID := p.getStringValue(sub, "id")
-	customerID := p.getStringValue(sub, "customer_id")
-	planID := p.getStringValue(sub, "plan_id")
-	status := p.mapSubscriptionStatus(p.getStringValue(sub, "status"))
-	quantity := int(p.getInt64Value(sub, "quantity"))
+	subID := convert.StringFromMap(sub, "id")
+	customerID := convert.StringFromMap(sub, "customer_id")
+	planID := convert.StringFromMap(sub, "plan_id")
+	status := p.mapSubscriptionStatus(convert.StringFromMap(sub, "status"))
+	quantity := int(convert.Int64FromMap(sub, "quantity"))
 	if quantity == 0 {
 		quantity = 1
 	}
@@ -876,8 +875,8 @@ func (p *RazorpayProvider) ListPlans(ctx context.Context) ([]*models.Plan, error
 }
 
 func (p *RazorpayProvider) mapPlan(plan map[string]interface{}, originalReq *models.Plan) *models.Plan {
-	planID := p.getStringValue(plan, "id")
-	period := p.getStringValue(plan, "period")
+	planID := convert.StringFromMap(plan, "id")
+	period := convert.StringFromMap(plan, "period")
 
 	var billingPeriod models.BillingPeriod
 	switch period {
@@ -902,8 +901,8 @@ func (p *RazorpayProvider) mapPlan(plan map[string]interface{}, originalReq *mod
 	}
 
 	if item, ok := plan["item"].(map[string]interface{}); ok {
-		result.Name = p.getStringValue(item, "name")
-		result.Currency = p.getStringValue(item, "currency")
+		result.Name = convert.StringFromMap(item, "name")
+		result.Currency = convert.StringFromMap(item, "currency")
 		if amount, ok := item["amount"].(float64); ok {
 			result.Amount = amount / 100
 		}
@@ -1038,7 +1037,7 @@ func (p *RazorpayProvider) GetDisputeStats(ctx context.Context) (*models.Dispute
 		}
 
 		stats.Total++
-		status := p.getStringValue(disputeMap, "status")
+		status := convert.StringFromMap(disputeMap, "status")
 
 		switch status {
 		case "open", "under_review":
@@ -1056,11 +1055,11 @@ func (p *RazorpayProvider) GetDisputeStats(ctx context.Context) (*models.Dispute
 }
 
 func (p *RazorpayProvider) mapDispute(d map[string]interface{}) *models.Dispute {
-	disputeID := p.getStringValue(d, "id")
-	paymentID := p.getStringValue(d, "payment_id")
-	amount := p.getInt64Value(d, "amount")
-	reasonCode := p.getStringValue(d, "reason_code")
-	status := p.mapDisputeStatus(p.getStringValue(d, "status"))
+	disputeID := convert.StringFromMap(d, "id")
+	paymentID := convert.StringFromMap(d, "payment_id")
+	amount := convert.Int64FromMap(d, "amount")
+	reasonCode := convert.StringFromMap(d, "reason_code")
+	status := p.mapDisputeStatus(convert.StringFromMap(d, "status"))
 
 	result := &models.Dispute{
 		ID:            disputeID,
@@ -1119,7 +1118,7 @@ func (p *RazorpayProvider) CreateCustomer(ctx context.Context, req *models.Creat
 		return "", fmt.Errorf("razorpay customer creation failed: %w", err)
 	}
 
-	return p.getStringValue(customer, "id"), nil
+	return convert.StringFromMap(customer, "id"), nil
 }
 
 func (p *RazorpayProvider) UpdateCustomer(ctx context.Context, customerID string, req *models.UpdateCustomerRequest) error {
@@ -1149,10 +1148,10 @@ func (p *RazorpayProvider) GetCustomer(ctx context.Context, customerID string) (
 	}
 
 	return &models.Customer{
-		ExternalID: p.getStringValue(customer, "id"),
-		Email:      p.getStringValue(customer, "email"),
-		Name:       p.getStringValue(customer, "name"),
-		Phone:      p.getStringValue(customer, "contact"),
+		ExternalID: convert.StringFromMap(customer, "id"),
+		Email:      convert.StringFromMap(customer, "email"),
+		Name:       convert.StringFromMap(customer, "name"),
+		Phone:      convert.StringFromMap(customer, "contact"),
 		CreatedAt:  time.Now(),
 	}, nil
 }
@@ -1186,19 +1185,7 @@ func (p *RazorpayProvider) ExpirePaymentMethod(ctx context.Context, paymentMetho
 }
 
 func (p *RazorpayProvider) ValidateWebhookSignature(payload []byte, signature string) error {
-	if p.webhookSecret == "" {
-		return fmt.Errorf("webhook secret not configured")
-	}
-
-	mac := hmac.New(sha256.New, []byte(p.webhookSecret))
-	mac.Write(payload)
-	expectedSignature := hex.EncodeToString(mac.Sum(nil))
-
-	if !hmac.Equal([]byte(signature), []byte(expectedSignature)) {
-		return fmt.Errorf("webhook signature verification failed")
-	}
-
-	return nil
+	return crypto.ValidateHMACSHA256(payload, signature, p.webhookSecret)
 }
 
 func (p *RazorpayProvider) IsAvailable(ctx context.Context) bool {
@@ -1210,22 +1197,3 @@ func (p *RazorpayProvider) IsAvailable(ctx context.Context) bool {
 	return err == nil
 }
 
-func (p *RazorpayProvider) getStringValue(m map[string]interface{}, key string) string {
-	if val, ok := m[key].(string); ok {
-		return val
-	}
-	return ""
-}
-
-func (p *RazorpayProvider) getInt64Value(m map[string]interface{}, key string) int64 {
-	if val, ok := m[key].(float64); ok {
-		return int64(val)
-	}
-	if val, ok := m[key].(int); ok {
-		return int64(val)
-	}
-	if val, ok := m[key].(int64); ok {
-		return val
-	}
-	return 0
-}

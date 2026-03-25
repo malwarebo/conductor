@@ -3,9 +3,6 @@ package providers
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/malwarebo/conductor/internal/convert"
+	"github.com/malwarebo/conductor/internal/crypto"
 	"github.com/malwarebo/conductor/models"
 )
 
@@ -340,27 +339,6 @@ func (p *AirwallexProvider) requestID(prefix string) string {
 	return fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
 }
 
-func (p *AirwallexProvider) parseTime(s string) time.Time {
-	t, _ := time.Parse(time.RFC3339, s)
-	return t
-}
-
-func (p *AirwallexProvider) parseTimePtr(s string) *time.Time {
-	if s == "" {
-		return nil
-	}
-	t := p.parseTime(s)
-	return &t
-}
-
-func (p *AirwallexProvider) amountToFloat(cents int64) float64 {
-	return float64(cents) / 100
-}
-
-func (p *AirwallexProvider) amountToCents(amount float64) int64 {
-	return int64(amount * 100)
-}
-
 func (p *AirwallexProvider) buildListPath(basePath string, params map[string]string) string {
 	if len(params) == 0 {
 		return basePath
@@ -397,7 +375,7 @@ func (p *AirwallexProvider) Capabilities() ProviderCapabilities {
 func (p *AirwallexProvider) Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error) {
 	piReq := awxPaymentIntentRequest{
 		RequestID:       p.requestID("pi"),
-		Amount:          p.amountToFloat(req.Amount),
+		Amount:          convert.CentsToFloat(req.Amount),
 		Currency:        req.Currency,
 		MerchantOrderID: req.CustomerID,
 		CustomerID:      req.CustomerID,
@@ -439,17 +417,17 @@ func (p *AirwallexProvider) mapChargeResponse(pi *awxPaymentIntentResponse, req 
 	resp := &models.ChargeResponse{
 		ID:               pi.ID,
 		CustomerID:       pi.CustomerID,
-		Amount:           p.amountToCents(pi.Amount),
+		Amount:           convert.FloatToCents(pi.Amount),
 		Currency:         pi.Currency,
 		Status:           p.mapPaymentStatus(pi.Status),
 		Description:      pi.Descriptor,
 		ProviderName:     "airwallex",
 		ProviderChargeID: pi.ID,
 		CaptureMethod:    captureMethod,
-		CapturedAmount:   p.amountToCents(pi.CapturedAmount),
+		CapturedAmount:   convert.FloatToCents(pi.CapturedAmount),
 		ClientSecret:     pi.ClientSecret,
 		Metadata:         pi.Metadata,
-		CreatedAt:        p.parseTime(pi.CreatedAt),
+		CreatedAt:        convert.ParseTime(pi.CreatedAt),
 	}
 
 	if pi.NextAction != nil {
@@ -481,7 +459,7 @@ func (p *AirwallexProvider) mapPaymentStatus(status string) models.PaymentStatus
 func (p *AirwallexProvider) CapturePayment(ctx context.Context, paymentID string, amount int64) error {
 	reqBody := map[string]interface{}{"request_id": p.requestID("cap")}
 	if amount > 0 {
-		reqBody["amount"] = p.amountToFloat(amount)
+		reqBody["amount"] = convert.CentsToFloat(amount)
 	}
 	_, err := p.doRequest(ctx, "POST", "/api/v1/pa/payment_intents/"+paymentID+"/capture", reqBody)
 	return err
@@ -537,7 +515,7 @@ func (p *AirwallexProvider) Refund(ctx context.Context, req *models.RefundReques
 	refundReq := awxRefundRequest{
 		RequestID:       p.requestID("ref"),
 		PaymentIntentID: req.PaymentID,
-		Amount:          p.amountToFloat(req.Amount),
+		Amount:          convert.CentsToFloat(req.Amount),
 		Reason:          req.Reason,
 	}
 
@@ -558,14 +536,14 @@ func (p *AirwallexProvider) Refund(ctx context.Context, req *models.RefundReques
 	return &models.RefundResponse{
 		ID:               refundResp.ID,
 		PaymentID:        req.PaymentID,
-		Amount:           p.amountToCents(refundResp.Amount),
+		Amount:           convert.FloatToCents(refundResp.Amount),
 		Currency:         refundResp.Currency,
 		Status:           p.mapRefundStatus(refundResp.Status),
 		Reason:           refundResp.Reason,
 		ProviderName:     "airwallex",
 		ProviderRefundID: refundResp.ID,
 		Metadata:         refundResp.Metadata,
-		CreatedAt:        p.parseTime(refundResp.CreatedAt),
+		CreatedAt:        convert.ParseTime(refundResp.CreatedAt),
 	}, nil
 }
 
@@ -585,7 +563,7 @@ func (p *AirwallexProvider) mapRefundStatus(status string) string {
 func (p *AirwallexProvider) CreatePaymentSession(ctx context.Context, req *models.CreatePaymentSessionRequest) (*models.PaymentSession, error) {
 	piReq := awxPaymentIntentRequest{
 		RequestID:     p.requestID("ps"),
-		Amount:        p.amountToFloat(req.Amount),
+		Amount:        convert.CentsToFloat(req.Amount),
 		Currency:      req.Currency,
 		CustomerID:    req.CustomerID,
 		Descriptor:    req.Description,
@@ -648,7 +626,7 @@ func (p *AirwallexProvider) ConfirmPaymentSession(ctx context.Context, sessionID
 func (p *AirwallexProvider) CapturePaymentSession(ctx context.Context, sessionID string, amount *int64) (*models.PaymentSession, error) {
 	captureReq := map[string]interface{}{"request_id": p.requestID("cap")}
 	if amount != nil {
-		captureReq["amount"] = p.amountToFloat(*amount)
+		captureReq["amount"] = convert.CentsToFloat(*amount)
 	}
 
 	if _, err := p.doRequest(ctx, "POST", "/api/v1/pa/payment_intents/"+sessionID+"/capture", captureReq); err != nil {
@@ -703,16 +681,16 @@ func (p *AirwallexProvider) mapPaymentSession(pi *awxPaymentIntentResponse) *mod
 		ProviderID:     pi.ID,
 		ProviderName:   "airwallex",
 		ExternalID:     pi.MerchantOrderID,
-		Amount:         p.amountToCents(pi.Amount),
+		Amount:         convert.FloatToCents(pi.Amount),
 		Currency:       pi.Currency,
 		Status:         p.mapPaymentStatus(pi.Status),
 		CustomerID:     pi.CustomerID,
 		Description:    pi.Descriptor,
 		ClientSecret:   pi.ClientSecret,
-		CapturedAmount: p.amountToCents(pi.CapturedAmount),
+		CapturedAmount: convert.FloatToCents(pi.CapturedAmount),
 		Metadata:       pi.Metadata,
-		CreatedAt:      p.parseTime(pi.CreatedAt),
-		UpdatedAt:      p.parseTime(pi.UpdatedAt),
+		CreatedAt:      convert.ParseTime(pi.CreatedAt),
+		UpdatedAt:      convert.ParseTime(pi.UpdatedAt),
 	}
 
 	if pi.NextAction != nil {
@@ -796,7 +774,7 @@ func (p *AirwallexProvider) GetCustomer(ctx context.Context, customerID string) 
 		Name:       name,
 		Phone:      custResp.PhoneNumber,
 		Metadata:   custResp.Metadata,
-		CreatedAt:  p.parseTime(custResp.CreatedAt),
+		CreatedAt:  convert.ParseTime(custResp.CreatedAt),
 	}, nil
 }
 
@@ -951,15 +929,15 @@ func (p *AirwallexProvider) mapSubscription(sub *awxSubscriptionResponse, planID
 		CustomerID:         sub.BillingCustomerID,
 		PlanID:             planID,
 		Status:             p.mapSubscriptionStatus(sub.Status),
-		CurrentPeriodStart: p.parseTime(sub.CurrentPeriodStartsAt),
-		CurrentPeriodEnd:   p.parseTime(sub.CurrentPeriodEndsAt),
+		CurrentPeriodStart: convert.ParseTime(sub.CurrentPeriodStartsAt),
+		CurrentPeriodEnd:   convert.ParseTime(sub.CurrentPeriodEndsAt),
 		Quantity:           1,
 		ProviderName:       "airwallex",
 		Metadata:           sub.Metadata,
-		CreatedAt:          p.parseTime(sub.CreatedAt),
-		UpdatedAt:          p.parseTime(sub.UpdatedAt),
-		TrialEnd:           p.parseTimePtr(sub.TrialEndsAt),
-		CanceledAt:         p.parseTimePtr(sub.EndsAt),
+		CreatedAt:          convert.ParseTime(sub.CreatedAt),
+		UpdatedAt:          convert.ParseTime(sub.UpdatedAt),
+		TrialEnd:           convert.ParseTimePtr(sub.TrialEndsAt),
+		CanceledAt:         convert.ParseTimePtr(sub.EndsAt),
 	}
 	return result
 }
@@ -1118,16 +1096,16 @@ func (p *AirwallexProvider) mapInvoice(inv *awxInvoiceResponse) *models.Invoice 
 		ProviderID:   inv.ID,
 		ProviderName: "airwallex",
 		CustomerID:   inv.BillingCustomerID,
-		Amount:       p.amountToCents(inv.Amount),
+		Amount:       convert.FloatToCents(inv.Amount),
 		Currency:     inv.Currency,
 		Status:       p.mapInvoiceStatus(inv.Status, inv.PaymentStatus),
 		Description:  inv.Memo,
 		InvoiceURL:   inv.HostedURL,
 		Metadata:     inv.Metadata,
-		CreatedAt:    p.parseTime(inv.CreatedAt),
-		UpdatedAt:    p.parseTime(inv.UpdatedAt),
-		DueDate:      p.parseTimePtr(inv.DueAt),
-		PaidAt:       p.parseTimePtr(inv.PaidAt),
+		CreatedAt:    convert.ParseTime(inv.CreatedAt),
+		UpdatedAt:    convert.ParseTime(inv.UpdatedAt),
+		DueDate:      convert.ParseTimePtr(inv.DueAt),
+		PaidAt:       convert.ParseTimePtr(inv.PaidAt),
 	}
 	return result
 }
@@ -1154,7 +1132,7 @@ func (p *AirwallexProvider) CreatePayout(ctx context.Context, req *models.Create
 	transferReq := awxTransferRequest{
 		RequestID:        p.requestID("transfer"),
 		BeneficiaryID:    req.DestinationAccount,
-		TransferAmount:   p.amountToFloat(req.Amount),
+		TransferAmount:   convert.CentsToFloat(req.Amount),
 		TransferCurrency: req.Currency,
 		TransferMethod:   "LOCAL",
 		Reference:        req.ReferenceID,
@@ -1241,7 +1219,7 @@ func (p *AirwallexProvider) mapPayout(t *awxTransferResponse, description string
 		ProviderID:         t.ID,
 		ProviderName:       "airwallex",
 		ReferenceID:        t.Reference,
-		Amount:             p.amountToCents(t.Amount),
+		Amount:             convert.FloatToCents(t.Amount),
 		Currency:           t.Currency,
 		Status:             p.mapPayoutStatus(t.Status),
 		Description:        description,
@@ -1249,8 +1227,8 @@ func (p *AirwallexProvider) mapPayout(t *awxTransferResponse, description string
 		DestinationAccount: t.BeneficiaryID,
 		FailureReason:      t.FailureReason,
 		Metadata:           t.Metadata,
-		CreatedAt:          p.parseTime(t.CreatedAt),
-		UpdatedAt:          p.parseTime(t.UpdatedAt),
+		CreatedAt:          convert.ParseTime(t.CreatedAt),
+		UpdatedAt:          convert.ParseTime(t.UpdatedAt),
 	}
 }
 
@@ -1286,8 +1264,8 @@ func (p *AirwallexProvider) GetBalance(ctx context.Context, currency string) (*m
 	}
 
 	return &models.Balance{
-		Available:    p.amountToCents(balResp.AvailableAmount),
-		Pending:      p.amountToCents(balResp.PendingAmount),
+		Available:    convert.FloatToCents(balResp.AvailableAmount),
+		Pending:      convert.FloatToCents(balResp.PendingAmount),
 		ProviderName: "airwallex",
 		Currency:     balResp.Currency,
 	}, nil
@@ -1326,19 +1304,7 @@ func (p *AirwallexProvider) GetDisputeStats(ctx context.Context) (*models.Disput
 }
 
 func (p *AirwallexProvider) ValidateWebhookSignature(payload []byte, signature string) error {
-	if p.webhookSecret == "" {
-		return fmt.Errorf("webhook secret not configured")
-	}
-
-	mac := hmac.New(sha256.New, []byte(p.webhookSecret))
-	mac.Write(payload)
-	expectedSignature := hex.EncodeToString(mac.Sum(nil))
-
-	if !hmac.Equal([]byte(signature), []byte(expectedSignature)) {
-		return fmt.Errorf("webhook signature verification failed")
-	}
-
-	return nil
+	return crypto.ValidateHMACSHA256(payload, signature, p.webhookSecret)
 }
 
 func (p *AirwallexProvider) IsAvailable(ctx context.Context) bool {
