@@ -44,12 +44,12 @@ func (p *RazorpayProvider) Name() string {
 func (p *RazorpayProvider) Capabilities() ProviderCapabilities {
 	return ProviderCapabilities{
 		SupportsInvoices:        true,
-		SupportsPayouts:         true, // set this to false if you don't want to support payouts
+		SupportsPayouts:         true,
 		SupportsPaymentSessions: true,
 		Supports3DS:             true,
 		SupportsManualCapture:   true,
 		SupportsBalance:         false,
-		SupportedCurrencies:     []string{"INR"},
+		SupportedCurrencies:     []string{"INR", "USD", "EUR", "GBP", "SGD", "AED", "AUD", "CAD", "HKD", "JPY", "MYR", "SAR"},
 		SupportedPaymentMethods: []models.PaymentMethodType{
 			models.PMTypeCard,
 			models.PMTypeUPI,
@@ -115,34 +115,32 @@ func (p *RazorpayProvider) Charge(ctx context.Context, req *models.ChargeRequest
 	}, nil
 }
 
+var razorpayOrderStatusMap = map[string]models.PaymentStatus{
+	"paid":      models.PaymentStatusSuccess,
+	"attempted": models.PaymentStatusProcessing,
+	"created":   models.PaymentStatusPending,
+}
+
 func (p *RazorpayProvider) mapOrderStatus(status string) models.PaymentStatus {
-	switch status {
-	case "paid":
-		return models.PaymentStatusSuccess
-	case "attempted":
-		return models.PaymentStatusProcessing
-	case "created":
-		return models.PaymentStatusPending
-	default:
-		return models.PaymentStatusPending
+	if s, ok := razorpayOrderStatusMap[status]; ok {
+		return s
 	}
+	return models.PaymentStatusPending
+}
+
+var razorpayPaymentStatusMap = map[string]models.PaymentStatus{
+	"captured":   models.PaymentStatusSuccess,
+	"authorized": models.PaymentStatusRequiresCapture,
+	"refunded":   models.PaymentStatusRefunded,
+	"failed":     models.PaymentStatusFailed,
+	"created":    models.PaymentStatusPending,
 }
 
 func (p *RazorpayProvider) mapPaymentStatus(status string) models.PaymentStatus {
-	switch status {
-	case "captured":
-		return models.PaymentStatusSuccess
-	case "authorized":
-		return models.PaymentStatusRequiresCapture
-	case "refunded":
-		return models.PaymentStatusRefunded
-	case "failed":
-		return models.PaymentStatusFailed
-	case "created":
-		return models.PaymentStatusPending
-	default:
-		return models.PaymentStatusPending
+	if s, ok := razorpayPaymentStatusMap[status]; ok {
+		return s
 	}
+	return models.PaymentStatusPending
 }
 
 func (p *RazorpayProvider) CapturePayment(ctx context.Context, paymentID string, amount int64) error {
@@ -463,36 +461,26 @@ func (p *RazorpayProvider) mapInvoice(inv map[string]interface{}) *models.Invoic
 		result.CustomerEmail = convert.StringFromMap(customer, "email")
 	}
 
-	if expireBy, ok := inv["expire_by"].(float64); ok && expireBy > 0 {
-		dueDate := time.Unix(int64(expireBy), 0)
-		result.DueDate = &dueDate
-	}
-
-	if paidAt, ok := inv["paid_at"].(float64); ok && paidAt > 0 {
-		paid := time.Unix(int64(paidAt), 0)
-		result.PaidAt = &paid
-	}
+	result.DueDate = convert.UnixToTimePtr(convert.Int64FromMap(inv, "expire_by"))
+	result.PaidAt = convert.UnixToTimePtr(convert.Int64FromMap(inv, "paid_at"))
 
 	return result
 }
 
+var razorpayInvoiceStatusMap = map[string]models.InvoiceStatus{
+	"draft":          models.InvoiceStatusDraft,
+	"issued":         models.InvoiceStatusPending,
+	"partially_paid": models.InvoiceStatusPending,
+	"paid":           models.InvoiceStatusPaid,
+	"cancelled":      models.InvoiceStatusCanceled,
+	"expired":        models.InvoiceStatusExpired,
+}
+
 func (p *RazorpayProvider) mapInvoiceStatus(status string) models.InvoiceStatus {
-	switch status {
-	case "draft":
-		return models.InvoiceStatusDraft
-	case "issued":
-		return models.InvoiceStatusPending
-	case "partially_paid":
-		return models.InvoiceStatusPending
-	case "paid":
-		return models.InvoiceStatusPaid
-	case "cancelled":
-		return models.InvoiceStatusCanceled
-	case "expired":
-		return models.InvoiceStatusExpired
-	default:
-		return models.InvoiceStatusPending
+	if s, ok := razorpayInvoiceStatusMap[status]; ok {
+		return s
 	}
+	return models.InvoiceStatusPending
 }
 
 func (p *RazorpayProvider) CreatePayout(ctx context.Context, req *models.CreatePayoutRequest) (*models.Payout, error) {
@@ -590,7 +578,12 @@ func (p *RazorpayProvider) mapPayout(po map[string]interface{}) *models.Payout {
 	mode := convert.StringFromMap(po, "mode")
 	fundAccountID := convert.StringFromMap(po, "fund_account_id")
 
-	result := &models.Payout{
+	createdAt := convert.UnixToTime(convert.Int64FromMap(po, "created_at"))
+	if createdAt.IsZero() {
+		createdAt = time.Now()
+	}
+
+	return &models.Payout{
 		ProviderID:         payoutID,
 		ProviderName:       "razorpay",
 		ReferenceID:        referenceID,
@@ -601,36 +594,28 @@ func (p *RazorpayProvider) mapPayout(po map[string]interface{}) *models.Payout {
 		DestinationType:    models.DestinationBankAccount,
 		DestinationChannel: mode,
 		DestinationAccount: fundAccountID,
-		CreatedAt:          time.Now(),
-		UpdatedAt:          time.Now(),
+		FailureReason:      convert.StringFromMap(po, "failure_reason"),
+		CreatedAt:          createdAt,
+		UpdatedAt:          createdAt,
 	}
+}
 
-	if createdAt, ok := po["created_at"].(float64); ok && createdAt > 0 {
-		result.CreatedAt = time.Unix(int64(createdAt), 0)
-	}
-
-	if failureReason, ok := po["failure_reason"].(string); ok {
-		result.FailureReason = failureReason
-	}
-
-	return result
+var razorpayPayoutStatusMap = map[string]models.PayoutStatus{
+	"processed":  models.PayoutStatusSucceeded,
+	"processing": models.PayoutStatusProcessing,
+	"queued":     models.PayoutStatusPending,
+	"pending":    models.PayoutStatusPending,
+	"cancelled":  models.PayoutStatusCanceled,
+	"failed":     models.PayoutStatusFailed,
+	"rejected":   models.PayoutStatusFailed,
+	"reversed":   models.PayoutStatusFailed,
 }
 
 func (p *RazorpayProvider) mapPayoutStatus(status string) models.PayoutStatus {
-	switch status {
-	case "processed":
-		return models.PayoutStatusSucceeded
-	case "processing":
-		return models.PayoutStatusProcessing
-	case "queued", "pending":
-		return models.PayoutStatusPending
-	case "cancelled":
-		return models.PayoutStatusCanceled
-	case "failed", "rejected", "reversed":
-		return models.PayoutStatusFailed
-	default:
-		return models.PayoutStatusPending
+	if s, ok := razorpayPayoutStatusMap[status]; ok {
+		return s
 	}
+	return models.PayoutStatusPending
 }
 
 func (p *RazorpayProvider) CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
@@ -735,88 +720,70 @@ func (p *RazorpayProvider) ListSubscriptions(ctx context.Context, customerID str
 }
 
 func (p *RazorpayProvider) mapSubscription(sub map[string]interface{}) *models.Subscription {
-	subID := convert.StringFromMap(sub, "id")
-	customerID := convert.StringFromMap(sub, "customer_id")
-	planID := convert.StringFromMap(sub, "plan_id")
-	status := p.mapSubscriptionStatus(convert.StringFromMap(sub, "status"))
 	quantity := int(convert.Int64FromMap(sub, "quantity"))
 	if quantity == 0 {
 		quantity = 1
 	}
 
-	result := &models.Subscription{
-		ID:           subID,
-		CustomerID:   customerID,
-		PlanID:       planID,
-		Status:       status,
-		Quantity:     quantity,
-		ProviderName: "razorpay",
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+	return &models.Subscription{
+		ID:                 convert.StringFromMap(sub, "id"),
+		CustomerID:         convert.StringFromMap(sub, "customer_id"),
+		PlanID:             convert.StringFromMap(sub, "plan_id"),
+		Status:             p.mapSubscriptionStatus(convert.StringFromMap(sub, "status")),
+		Quantity:           quantity,
+		ProviderName:       "razorpay",
+		CurrentPeriodStart: convert.UnixToTime(convert.Int64FromMap(sub, "start_at")),
+		CurrentPeriodEnd:   convert.UnixToTime(convert.Int64FromMap(sub, "end_at")),
+		CanceledAt:         convert.UnixToTimePtr(convert.Int64FromMap(sub, "cancelled_at")),
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
 	}
+}
 
-	if startAt, ok := sub["start_at"].(float64); ok && startAt > 0 {
-		start := time.Unix(int64(startAt), 0)
-		result.CurrentPeriodStart = start
-	}
-
-	if endAt, ok := sub["end_at"].(float64); ok && endAt > 0 {
-		end := time.Unix(int64(endAt), 0)
-		result.CurrentPeriodEnd = end
-	}
-
-	if cancelledAt, ok := sub["cancelled_at"].(float64); ok && cancelledAt > 0 {
-		cancelled := time.Unix(int64(cancelledAt), 0)
-		result.CanceledAt = &cancelled
-	}
-
-	return result
+var razorpaySubscriptionStatusMap = map[string]models.SubscriptionStatus{
+	"created":       models.SubscriptionStatus("pending"),
+	"authenticated": models.SubscriptionStatus("active"),
+	"active":        models.SubscriptionStatus("active"),
+	"pending":       models.SubscriptionStatus("pending"),
+	"halted":        models.SubscriptionStatus("paused"),
+	"cancelled":     models.SubscriptionStatus("canceled"),
+	"completed":     models.SubscriptionStatus("canceled"),
+	"expired":       models.SubscriptionStatus("canceled"),
 }
 
 func (p *RazorpayProvider) mapSubscriptionStatus(status string) models.SubscriptionStatus {
-	switch status {
-	case "created":
-		return models.SubscriptionStatus("pending")
-	case "authenticated":
-		return models.SubscriptionStatus("active")
-	case "active":
-		return models.SubscriptionStatus("active")
-	case "pending":
-		return models.SubscriptionStatus("pending")
-	case "halted":
-		return models.SubscriptionStatus("paused")
-	case "cancelled":
-		return models.SubscriptionStatus("canceled")
-	case "completed":
-		return models.SubscriptionStatus("canceled")
-	case "expired":
-		return models.SubscriptionStatus("canceled")
-	default:
-		return models.SubscriptionStatus("pending")
+	if s, ok := razorpaySubscriptionStatusMap[status]; ok {
+		return s
 	}
+	return models.SubscriptionStatus("pending")
+}
+
+var billingPeriodToRazorpay = map[models.BillingPeriod]string{
+	models.BillingPeriodDaily:   "daily",
+	models.BillingPeriodWeekly:  "weekly",
+	models.BillingPeriodMonthly: "monthly",
+	models.BillingPeriodYearly:  "yearly",
+}
+
+var razorpayToBillingPeriod = map[string]models.BillingPeriod{
+	"daily":   models.BillingPeriodDaily,
+	"weekly":  models.BillingPeriodWeekly,
+	"monthly": models.BillingPeriodMonthly,
+	"yearly":  models.BillingPeriodYearly,
 }
 
 func (p *RazorpayProvider) CreatePlan(ctx context.Context, planReq *models.Plan) (*models.Plan, error) {
-	period := "monthly"
-	interval := 1
-
-	switch planReq.BillingPeriod {
-	case models.BillingPeriodDaily:
-		period = "daily"
-	case models.BillingPeriodWeekly:
-		period = "weekly"
-	case models.BillingPeriodMonthly:
+	period := billingPeriodToRazorpay[planReq.BillingPeriod]
+	if period == "" {
 		period = "monthly"
-	case models.BillingPeriodYearly:
-		period = "yearly"
 	}
 
 	planData := map[string]interface{}{
 		"period":   period,
-		"interval": interval,
+		"interval": 1,
 		"item": map[string]interface{}{
 			"name":     planReq.Name,
-			"amount":   int(planReq.Amount * 100),
+			"amount":   convert.FloatToCents(planReq.Amount),
 			"currency": planReq.Currency,
 		},
 	}
@@ -878,17 +845,8 @@ func (p *RazorpayProvider) mapPlan(plan map[string]interface{}, originalReq *mod
 	planID := convert.StringFromMap(plan, "id")
 	period := convert.StringFromMap(plan, "period")
 
-	var billingPeriod models.BillingPeriod
-	switch period {
-	case "daily":
-		billingPeriod = models.BillingPeriodDaily
-	case "weekly":
-		billingPeriod = models.BillingPeriodWeekly
-	case "monthly":
-		billingPeriod = models.BillingPeriodMonthly
-	case "yearly":
-		billingPeriod = models.BillingPeriodYearly
-	default:
+	billingPeriod := razorpayToBillingPeriod[period]
+	if billingPeriod == "" {
 		billingPeriod = models.BillingPeriodMonthly
 	}
 
@@ -903,9 +861,7 @@ func (p *RazorpayProvider) mapPlan(plan map[string]interface{}, originalReq *mod
 	if item, ok := plan["item"].(map[string]interface{}); ok {
 		result.Name = convert.StringFromMap(item, "name")
 		result.Currency = convert.StringFromMap(item, "currency")
-		if amount, ok := item["amount"].(float64); ok {
-			result.Amount = amount / 100
-		}
+		result.Amount = convert.CentsToFloat(convert.Int64FromMap(item, "amount"))
 	}
 
 	if originalReq != nil {
@@ -1055,48 +1011,39 @@ func (p *RazorpayProvider) GetDisputeStats(ctx context.Context) (*models.Dispute
 }
 
 func (p *RazorpayProvider) mapDispute(d map[string]interface{}) *models.Dispute {
-	disputeID := convert.StringFromMap(d, "id")
-	paymentID := convert.StringFromMap(d, "payment_id")
-	amount := convert.Int64FromMap(d, "amount")
-	reasonCode := convert.StringFromMap(d, "reason_code")
-	status := p.mapDisputeStatus(convert.StringFromMap(d, "status"))
+	createdAt := convert.UnixToTime(convert.Int64FromMap(d, "created_at"))
+	if createdAt.IsZero() {
+		createdAt = time.Now()
+	}
 
-	result := &models.Dispute{
-		ID:            disputeID,
-		TransactionID: paymentID,
-		Amount:        amount,
+	return &models.Dispute{
+		ID:            convert.StringFromMap(d, "id"),
+		TransactionID: convert.StringFromMap(d, "payment_id"),
+		Amount:        convert.Int64FromMap(d, "amount"),
 		Currency:      "INR",
-		Reason:        reasonCode,
-		Status:        status,
+		Reason:        convert.StringFromMap(d, "reason_code"),
+		Status:        p.mapDisputeStatus(convert.StringFromMap(d, "status")),
 		Evidence:      make(map[string]interface{}),
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		DueBy:         convert.UnixToTime(convert.Int64FromMap(d, "respond_by")),
+		CreatedAt:     createdAt,
+		UpdatedAt:     createdAt,
 	}
+}
 
-	if createdAt, ok := d["created_at"].(float64); ok && createdAt > 0 {
-		result.CreatedAt = time.Unix(int64(createdAt), 0)
-	}
-
-	if respondBy, ok := d["respond_by"].(float64); ok && respondBy > 0 {
-		result.DueBy = time.Unix(int64(respondBy), 0)
-	}
-
-	return result
+var razorpayDisputeStatusMap = map[string]models.DisputeStatus{
+	"open":         models.DisputeStatusOpen,
+	"under_review": models.DisputeStatusOpen,
+	"won":          models.DisputeStatusWon,
+	"lost":         models.DisputeStatusLost,
+	"closed":       models.DisputeStatusCanceled,
+	"accepted":     models.DisputeStatusCanceled,
 }
 
 func (p *RazorpayProvider) mapDisputeStatus(status string) models.DisputeStatus {
-	switch status {
-	case "open", "under_review":
-		return models.DisputeStatusOpen
-	case "won":
-		return models.DisputeStatusWon
-	case "lost":
-		return models.DisputeStatusLost
-	case "closed", "accepted":
-		return models.DisputeStatusCanceled
-	default:
-		return models.DisputeStatusOpen
+	if s, ok := razorpayDisputeStatusMap[status]; ok {
+		return s
 	}
+	return models.DisputeStatusOpen
 }
 
 func (p *RazorpayProvider) CreateCustomer(ctx context.Context, req *models.CreateCustomerRequest) (string, error) {
