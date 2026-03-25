@@ -423,36 +423,6 @@ Get fraud detection statistics for a date range.
 
 ---
 
-## AI Routing
-
-### POST /routing/select
-
-Get an AI-powered recommendation for which payment provider to use.
-
-**Request:**
-```json
-{
-  "amount": 1000,
-  "currency": "USD",
-  "country": "US",
-  "payment_method": "card"
-}
-```
-
-### GET /routing/stats
-
-Get provider performance statistics.
-
-### GET /routing/config
-
-Get current routing configuration.
-
-### PUT /routing/config
-
-Update routing configuration (AI routing toggle, cache TTL, confidence threshold, fallback provider).
-
----
-
 ## Invoices
 
 ### POST /invoices
