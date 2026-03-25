@@ -140,15 +140,23 @@ All API endpoints (except health check) require authentication using an API key.
 
 **Note**: Replace `your_api_key_here` with your actual API key. For development, you can use any string with at least 10 characters.
 
-## How Currency Routing Works
+## How Routing Works
 
-The system is smart about routing your payments to the right provider:
+The system routes payments using a weighted scoring engine:
 
-- **Stripe**: USD, EUR, GBP (perfect for international payments)
-- **Xendit**: IDR, SGD, MYR, PHP, THB, VND (great for Southeast Asia)
-- **Razorpay**: INR (optimized for India with UPI and Netbanking support)
+| Provider | Currencies | Best For |
+|----------|------------|----------|
+| Stripe | USD, EUR, GBP, CAD | International payments |
+| Xendit | IDR, SGD, MYR, PHP, THB, VND | Southeast Asia |
+| Razorpay | INR | India (UPI, Netbanking) |
+| Airwallex | HKD, CNY, AUD, NZD, JPY, KRW | APAC cross-border |
 
-Just specify the currency in your request, and the system automatically picks the best provider.
+**Routing Features:**
+- **Circuit Breakers** - Auto-failover when providers degrade
+- **BIN/IIN Routing** - Route cards to historically best-performing provider
+- **Smart Retry** - Automatic retry with exponential backoff and provider failover
+- **Real-time Scoring** - Weighted by success rate, cost, latency, and health
+- **Merchant Config** - Per-merchant provider preferences and volume targets
 
 > [!TIP]
 > For more details on smart routing, see the [Smart Routing Guide](docs/SMART_ROUTING.md).
