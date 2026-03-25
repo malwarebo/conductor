@@ -3,13 +3,28 @@ package providers
 import (
 	"context"
 	"errors"
-	"fmt"
 
+	"github.com/malwarebo/conductor/internal/convert"
 	"github.com/malwarebo/conductor/models"
 )
 
 var (
 	ErrNotSupported = errors.New("feature not supported by provider")
+)
+
+var (
+	MetadataToStringMap     = convert.MetadataToStringMap
+	InterfaceToStringMap    = convert.InterfaceToStringMap
+	StringMapToMetadata     = convert.StringMapToMetadata
+	CentsToFloat            = convert.CentsToFloat
+	FloatToCents            = convert.FloatToCents
+	ParseTime               = convert.ParseTime
+	ParseTimePtr            = convert.ParseTimePtr
+	UnixToTime              = convert.UnixToTime
+	UnixToTimePtr           = convert.UnixToTimePtr
+	StringFromMap           = convert.StringFromMap
+	Int64FromMap            = convert.Int64FromMap
+	Float64FromMap          = convert.Float64FromMap
 )
 
 type ProviderCapabilities struct {
@@ -156,37 +171,13 @@ type RefundResponse struct {
 }
 
 func ConvertMetadataToStringMap(m map[string]interface{}) map[string]string {
-	if m == nil {
-		return nil
-	}
-	result := make(map[string]string)
-	for k, v := range m {
-		if str, ok := v.(string); ok {
-			result[k] = str
-		} else {
-			result[k] = fmt.Sprintf("%v", v)
-		}
-	}
-	return result
+	return convert.MetadataToStringMap(m)
 }
 
 func ConvertInterfaceMetadataToStringMap(m interface{}) map[string]string {
-	if m == nil {
-		return nil
-	}
-	if metadataMap, ok := m.(map[string]interface{}); ok {
-		return ConvertMetadataToStringMap(metadataMap)
-	}
-	return nil
+	return convert.InterfaceToStringMap(m)
 }
 
 func ConvertStringMapToMetadata(m map[string]string) map[string]interface{} {
-	if m == nil {
-		return nil
-	}
-	result := make(map[string]interface{})
-	for k, v := range m {
-		result[k] = v
-	}
-	return result
+	return convert.StringMapToMetadata(m)
 }

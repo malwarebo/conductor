@@ -3,9 +3,6 @@ package providers
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/malwarebo/conductor/internal/crypto"
 	"github.com/malwarebo/conductor/models"
 	xendit "github.com/xendit/xendit-go/v7"
 	"github.com/xendit/xendit-go/v7/customer"
@@ -1253,19 +1251,7 @@ func (p *XenditProvider) mapTransactionToDispute(txn *xenditTransaction) *models
 }
 
 func (p *XenditProvider) ValidateWebhookSignature(payload []byte, signature string) error {
-	if p.webhookSecret == "" {
-		return fmt.Errorf("webhook secret not configured")
-	}
-
-	mac := hmac.New(sha256.New, []byte(p.webhookSecret))
-	mac.Write(payload)
-	expectedSignature := hex.EncodeToString(mac.Sum(nil))
-
-	if signature != expectedSignature {
-		return fmt.Errorf("webhook signature verification failed")
-	}
-
-	return nil
+	return crypto.ValidateHMACSHA256(payload, signature, p.webhookSecret)
 }
 
 func (p *XenditProvider) CreateCustomer(ctx context.Context, req *models.CreateCustomerRequest) (string, error) {
