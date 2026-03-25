@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -17,8 +18,9 @@ import (
 )
 
 const (
-	airwallexProdURL = "https://api.airwallex.com"
-	airwallexDemoURL = "https://api-demo.airwallex.com"
+	airwallexProdURL    = "https://api.airwallex.com"
+	airwallexDemoURL    = "https://api-demo.airwallex.com"
+	airwallexAPIVersion = "2026-02-27"
 )
 
 type AirwallexProvider struct {
@@ -69,21 +71,21 @@ type awxPaymentIntentRequest struct {
 }
 
 type awxPaymentIntentResponse struct {
-	ID                  string                 `json:"id"`
-	RequestID           string                 `json:"request_id"`
-	Amount              float64                `json:"amount"`
-	Currency            string                 `json:"currency"`
-	MerchantOrderID     string                 `json:"merchant_order_id"`
-	CustomerID          string                 `json:"customer_id"`
-	Status              string                 `json:"status"`
-	CapturedAmount      float64                `json:"captured_amount"`
-	ClientSecret        string                 `json:"client_secret"`
-	Descriptor          string                 `json:"descriptor"`
-	CreatedAt           string                 `json:"created_at"`
-	UpdatedAt           string                 `json:"updated_at"`
-	NextAction          *awxNextAction         `json:"next_action,omitempty"`
-	LatestPaymentAttempt *awxPaymentAttempt    `json:"latest_payment_attempt,omitempty"`
-	Metadata            map[string]interface{} `json:"metadata,omitempty"`
+	ID                   string                 `json:"id"`
+	RequestID            string                 `json:"request_id"`
+	Amount               float64                `json:"amount"`
+	Currency             string                 `json:"currency"`
+	MerchantOrderID      string                 `json:"merchant_order_id"`
+	CustomerID           string                 `json:"customer_id"`
+	Status               string                 `json:"status"`
+	CapturedAmount       float64                `json:"captured_amount"`
+	ClientSecret         string                 `json:"client_secret"`
+	Descriptor           string                 `json:"descriptor"`
+	CreatedAt            string                 `json:"created_at"`
+	UpdatedAt            string                 `json:"updated_at"`
+	NextAction           *awxNextAction         `json:"next_action,omitempty"`
+	LatestPaymentAttempt *awxPaymentAttempt     `json:"latest_payment_attempt,omitempty"`
+	Metadata             map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type awxNextAction struct {
@@ -118,13 +120,13 @@ type awxRefundResponse struct {
 }
 
 type awxCustomerRequest struct {
-	RequestID   string                 `json:"request_id"`
-	MerchantCustomerID string          `json:"merchant_customer_id"`
-	Email       string                 `json:"email,omitempty"`
-	FirstName   string                 `json:"first_name,omitempty"`
-	LastName    string                 `json:"last_name,omitempty"`
-	PhoneNumber string                 `json:"phone_number,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	RequestID          string                 `json:"request_id"`
+	MerchantCustomerID string                 `json:"merchant_customer_id"`
+	Email              string                 `json:"email,omitempty"`
+	FirstName          string                 `json:"first_name,omitempty"`
+	LastName           string                 `json:"last_name,omitempty"`
+	PhoneNumber        string                 `json:"phone_number,omitempty"`
+	Metadata           map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type awxCustomerResponse struct {
@@ -139,83 +141,92 @@ type awxCustomerResponse struct {
 	Metadata           map[string]interface{} `json:"metadata,omitempty"`
 }
 
-type awxPayoutRequest struct {
-	RequestID      string                 `json:"request_id"`
-	SourceID       string                 `json:"source_id,omitempty"`
-	BeneficiaryID  string                 `json:"beneficiary_id"`
-	PayoutAmount   float64                `json:"payout_amount"`
-	PayoutCurrency string                 `json:"payout_currency"`
-	PayoutMethod   string                 `json:"payout_method"`
-	Reason         string                 `json:"reason,omitempty"`
-	Reference      string                 `json:"reference,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+type awxTransferRequest struct {
+	RequestID        string                 `json:"request_id"`
+	SourceID         string                 `json:"source_id,omitempty"`
+	BeneficiaryID    string                 `json:"beneficiary_id"`
+	TransferAmount   float64                `json:"transfer_amount"`
+	TransferCurrency string                 `json:"transfer_currency"`
+	TransferMethod   string                 `json:"transfer_method"`
+	Reason           string                 `json:"reason,omitempty"`
+	Reference        string                 `json:"reference,omitempty"`
+	Metadata         map[string]interface{} `json:"metadata,omitempty"`
 }
 
-type awxPayoutResponse struct {
-	ID             string                 `json:"id"`
-	RequestID      string                 `json:"request_id"`
-	Amount         float64                `json:"amount"`
-	Currency       string                 `json:"currency"`
-	Status         string                 `json:"status"`
-	BeneficiaryID  string                 `json:"beneficiary_id"`
-	Reference      string                 `json:"reference"`
-	CreatedAt      string                 `json:"created_at"`
-	FailureReason  string                 `json:"failure_reason,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+type awxTransferResponse struct {
+	ID            string                 `json:"id"`
+	RequestID     string                 `json:"request_id"`
+	Amount        float64                `json:"amount"`
+	Currency      string                 `json:"currency"`
+	Status        string                 `json:"status"`
+	BeneficiaryID string                 `json:"beneficiary_id"`
+	Reference     string                 `json:"reference"`
+	CreatedAt     string                 `json:"created_at"`
+	UpdatedAt     string                 `json:"updated_at"`
+	FailureReason string                 `json:"failure_reason,omitempty"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type awxSubscriptionRequest struct {
-	RequestID          string                 `json:"request_id"`
-	CustomerID         string                 `json:"customer_id"`
-	Currency           string                 `json:"currency"`
-	RecurringAmount    float64                `json:"recurring_amount"`
-	Period             string                 `json:"period"`
-	PeriodCount        int                    `json:"period_count"`
-	StartDate          string                 `json:"start_date,omitempty"`
-	TrialPeriodDays    int                    `json:"trial_period_days,omitempty"`
-	PaymentMethodID    string                 `json:"payment_method_id,omitempty"`
-	Metadata           map[string]interface{} `json:"metadata,omitempty"`
+	RequestID        string                 `json:"request_id"`
+	BillingCustomerID string                `json:"billing_customer_id"`
+	CollectionMethod string                 `json:"collection_method"`
+	PaymentSourceID  string                 `json:"payment_source_id,omitempty"`
+	Currency         string                 `json:"currency"`
+	Duration         *awxDuration           `json:"duration,omitempty"`
+	StartsAt         string                 `json:"starts_at,omitempty"`
+	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type awxDuration struct {
+	Type  string `json:"type"`
+	Value int    `json:"value,omitempty"`
 }
 
 type awxSubscriptionResponse struct {
-	ID              string                 `json:"id"`
-	CustomerID      string                 `json:"customer_id"`
-	Status          string                 `json:"status"`
-	Currency        string                 `json:"currency"`
-	RecurringAmount float64                `json:"recurring_amount"`
-	Period          string                 `json:"period"`
-	PeriodCount     int                    `json:"period_count"`
-	CurrentPeriodStart string              `json:"current_period_start"`
-	CurrentPeriodEnd   string              `json:"current_period_end"`
-	TrialEnd        string                 `json:"trial_end,omitempty"`
-	CanceledAt      string                 `json:"canceled_at,omitempty"`
-	CreatedAt       string                 `json:"created_at"`
-	UpdatedAt       string                 `json:"updated_at"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	ID                    string                 `json:"id"`
+	BillingCustomerID     string                 `json:"billing_customer_id"`
+	Status                string                 `json:"status"`
+	CollectionMethod      string                 `json:"collection_method"`
+	Currency              string                 `json:"currency"`
+	CurrentPeriodStartsAt string                 `json:"current_period_starts_at"`
+	CurrentPeriodEndsAt   string                 `json:"current_period_ends_at"`
+	TrialStartsAt         string                 `json:"trial_starts_at,omitempty"`
+	TrialEndsAt           string                 `json:"trial_ends_at,omitempty"`
+	EndsAt                string                 `json:"ends_at,omitempty"`
+	CreatedAt             string                 `json:"created_at"`
+	UpdatedAt             string                 `json:"updated_at"`
+	Metadata              map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type awxInvoiceRequest struct {
-	RequestID   string                 `json:"request_id"`
-	CustomerID  string                 `json:"customer_id"`
-	Amount      float64                `json:"amount"`
-	Currency    string                 `json:"currency"`
-	Description string                 `json:"description,omitempty"`
-	DueDate     string                 `json:"due_date,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	RequestID         string                 `json:"request_id"`
+	BillingCustomerID string                 `json:"billing_customer_id"`
+	CollectionMethod  string                 `json:"collection_method,omitempty"`
+	Currency          string                 `json:"currency"`
+	DaysUntilDue      int                    `json:"days_until_due,omitempty"`
+	Memo              string                 `json:"memo,omitempty"`
+	Metadata          map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type awxInvoiceResponse struct {
-	ID          string                 `json:"id"`
-	CustomerID  string                 `json:"customer_id"`
-	Amount      float64                `json:"amount"`
-	Currency    string                 `json:"currency"`
-	Status      string                 `json:"status"`
-	Description string                 `json:"description"`
-	DueDate     string                 `json:"due_date"`
-	PaidAt      string                 `json:"paid_at,omitempty"`
-	InvoiceURL  string                 `json:"hosted_invoice_url"`
-	CreatedAt   string                 `json:"created_at"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	ID                string                 `json:"id"`
+	BillingCustomerID string                 `json:"billing_customer_id"`
+	Number            string                 `json:"number"`
+	Amount            float64                `json:"amount"`
+	Currency          string                 `json:"currency"`
+	Status            string                 `json:"status"`
+	PaymentStatus     string                 `json:"payment_status"`
+	Memo              string                 `json:"memo"`
+	DueAt             string                 `json:"due_at"`
+	PaidAt            string                 `json:"paid_at,omitempty"`
+	FinalizedAt       string                 `json:"finalized_at,omitempty"`
+	VoidedAt          string                 `json:"voided_at,omitempty"`
+	HostedURL         string                 `json:"hosted_url"`
+	PDFURL            string                 `json:"pdf_url"`
+	CreatedAt         string                 `json:"created_at"`
+	UpdatedAt         string                 `json:"updated_at"`
+	Metadata          map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type awxBalanceResponse struct {
@@ -226,8 +237,9 @@ type awxBalanceResponse struct {
 }
 
 type awxListResponse struct {
-	Items   json.RawMessage `json:"items"`
-	HasMore bool            `json:"has_more"`
+	Items      json.RawMessage `json:"items"`
+	PageBefore string          `json:"page_before,omitempty"`
+	PageAfter  string          `json:"page_after,omitempty"`
 }
 
 func (p *AirwallexProvider) authenticate(ctx context.Context) error {
@@ -304,6 +316,7 @@ func (p *AirwallexProvider) doRequest(ctx context.Context, method, path string, 
 	req.Header.Set("Authorization", "Bearer "+p.accessToken)
 	p.tokenMu.RUnlock()
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-version", airwallexAPIVersion)
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
@@ -323,6 +336,47 @@ func (p *AirwallexProvider) doRequest(ctx context.Context, method, path string, 
 	return respBody, nil
 }
 
+func (p *AirwallexProvider) requestID(prefix string) string {
+	return fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
+}
+
+func (p *AirwallexProvider) parseTime(s string) time.Time {
+	t, _ := time.Parse(time.RFC3339, s)
+	return t
+}
+
+func (p *AirwallexProvider) parseTimePtr(s string) *time.Time {
+	if s == "" {
+		return nil
+	}
+	t := p.parseTime(s)
+	return &t
+}
+
+func (p *AirwallexProvider) amountToFloat(cents int64) float64 {
+	return float64(cents) / 100
+}
+
+func (p *AirwallexProvider) amountToCents(amount float64) int64 {
+	return int64(amount * 100)
+}
+
+func (p *AirwallexProvider) buildListPath(basePath string, params map[string]string) string {
+	if len(params) == 0 {
+		return basePath
+	}
+	q := url.Values{}
+	for k, v := range params {
+		if v != "" {
+			q.Set(k, v)
+		}
+	}
+	if encoded := q.Encode(); encoded != "" {
+		return basePath + "?" + encoded
+	}
+	return basePath
+}
+
 func (p *AirwallexProvider) Name() string {
 	return "airwallex"
 }
@@ -335,29 +389,21 @@ func (p *AirwallexProvider) Capabilities() ProviderCapabilities {
 		Supports3DS:             true,
 		SupportsManualCapture:   true,
 		SupportsBalance:         true,
-		SupportedCurrencies:     []string{"USD", "EUR", "GBP", "AUD", "NZD", "HKD", "SGD", "CNY", "JPY", "CAD", "CHF"},
-		SupportedPaymentMethods: []models.PaymentMethodType{models.PMTypeCard, models.PMTypeBankAccount, models.PMTypeEWallet},
+		SupportedCurrencies:     []string{"USD", "EUR", "GBP", "AUD", "NZD", "HKD", "SGD", "CNY", "JPY", "CAD", "CHF", "ILS", "THB", "MYR", "IDR", "PHP", "VND", "KRW", "INR"},
+		SupportedPaymentMethods: []models.PaymentMethodType{models.PMTypeCard, models.PMTypeBankAccount, models.PMTypeEWallet, models.PMTypeQRCode},
 	}
 }
 
 func (p *AirwallexProvider) Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error) {
 	piReq := awxPaymentIntentRequest{
-		RequestID:       fmt.Sprintf("pi_%d", time.Now().UnixNano()),
-		Amount:          float64(req.Amount) / 100,
+		RequestID:       p.requestID("pi"),
+		Amount:          p.amountToFloat(req.Amount),
 		Currency:        req.Currency,
 		MerchantOrderID: req.CustomerID,
 		CustomerID:      req.CustomerID,
 		Descriptor:      req.Description,
-	}
-
-	if req.ReturnURL != "" {
-		piReq.ReturnURL = req.ReturnURL
-	}
-
-	if req.CaptureMethod == models.CaptureMethodManual || (req.Capture != nil && !*req.Capture) {
-		piReq.CaptureMethod = "manual"
-	} else {
-		piReq.CaptureMethod = "automatic"
+		ReturnURL:       req.ReturnURL,
+		CaptureMethod:   p.resolveCaptureMethod(req.CaptureMethod, req.Capture),
 	}
 
 	if req.Metadata != nil {
@@ -366,21 +412,25 @@ func (p *AirwallexProvider) Charge(ctx context.Context, req *models.ChargeReques
 
 	respBody, err := p.doRequest(ctx, "POST", "/api/v1/pa/payment_intents/create", piReq)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex charge failed: %w", err)
+		return nil, fmt.Errorf("charge failed: %w", err)
 	}
 
 	var piResp awxPaymentIntentResponse
 	if err := json.Unmarshal(respBody, &piResp); err != nil {
-		return nil, fmt.Errorf("failed to parse payment intent response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return p.mapPaymentIntentToChargeResponse(&piResp, req), nil
+	return p.mapChargeResponse(&piResp, req), nil
 }
 
-func (p *AirwallexProvider) mapPaymentIntentToChargeResponse(pi *awxPaymentIntentResponse, req *models.ChargeRequest) *models.ChargeResponse {
-	status := p.mapPaymentIntentStatus(pi.Status)
-	created, _ := time.Parse(time.RFC3339, pi.CreatedAt)
+func (p *AirwallexProvider) resolveCaptureMethod(method models.CaptureMethod, capture *bool) string {
+	if method == models.CaptureMethodManual || (capture != nil && !*capture) {
+		return "manual"
+	}
+	return "automatic"
+}
 
+func (p *AirwallexProvider) mapChargeResponse(pi *awxPaymentIntentResponse, req *models.ChargeRequest) *models.ChargeResponse {
 	captureMethod := models.CaptureMethodAutomatic
 	if req != nil && (req.CaptureMethod == models.CaptureMethodManual || (req.Capture != nil && !*req.Capture)) {
 		captureMethod = models.CaptureMethodManual
@@ -389,17 +439,17 @@ func (p *AirwallexProvider) mapPaymentIntentToChargeResponse(pi *awxPaymentInten
 	resp := &models.ChargeResponse{
 		ID:               pi.ID,
 		CustomerID:       pi.CustomerID,
-		Amount:           int64(pi.Amount * 100),
+		Amount:           p.amountToCents(pi.Amount),
 		Currency:         pi.Currency,
-		Status:           status,
+		Status:           p.mapPaymentStatus(pi.Status),
 		Description:      pi.Descriptor,
 		ProviderName:     "airwallex",
 		ProviderChargeID: pi.ID,
 		CaptureMethod:    captureMethod,
-		CapturedAmount:   int64(pi.CapturedAmount * 100),
+		CapturedAmount:   p.amountToCents(pi.CapturedAmount),
 		ClientSecret:     pi.ClientSecret,
 		Metadata:         pi.Metadata,
-		CreatedAt:        created,
+		CreatedAt:        p.parseTime(pi.CreatedAt),
 	}
 
 	if pi.NextAction != nil {
@@ -411,62 +461,45 @@ func (p *AirwallexProvider) mapPaymentIntentToChargeResponse(pi *awxPaymentInten
 	return resp
 }
 
-func (p *AirwallexProvider) mapPaymentIntentStatus(status string) models.PaymentStatus {
-	switch status {
-	case "SUCCEEDED":
-		return models.PaymentStatusSuccess
-	case "REQUIRES_PAYMENT_METHOD", "REQUIRES_CUSTOMER_ACTION":
-		return models.PaymentStatusRequiresAction
-	case "REQUIRES_CAPTURE":
-		return models.PaymentStatusRequiresCapture
-	case "PENDING", "PROCESSING":
-		return models.PaymentStatusProcessing
-	case "CANCELLED":
-		return models.PaymentStatusCanceled
-	case "FAILED":
-		return models.PaymentStatusFailed
-	default:
-		return models.PaymentStatusPending
+func (p *AirwallexProvider) mapPaymentStatus(status string) models.PaymentStatus {
+	statusMap := map[string]models.PaymentStatus{
+		"SUCCEEDED":                 models.PaymentStatusSuccess,
+		"REQUIRES_PAYMENT_METHOD":   models.PaymentStatusRequiresAction,
+		"REQUIRES_CUSTOMER_ACTION":  models.PaymentStatusRequiresAction,
+		"REQUIRES_CAPTURE":          models.PaymentStatusRequiresCapture,
+		"PENDING":                   models.PaymentStatusProcessing,
+		"PROCESSING":                models.PaymentStatusProcessing,
+		"CANCELLED":                 models.PaymentStatusCanceled,
+		"FAILED":                    models.PaymentStatusFailed,
 	}
+	if s, ok := statusMap[status]; ok {
+		return s
+	}
+	return models.PaymentStatusPending
 }
 
 func (p *AirwallexProvider) CapturePayment(ctx context.Context, paymentID string, amount int64) error {
-	reqBody := map[string]interface{}{
-		"request_id": fmt.Sprintf("cap_%d", time.Now().UnixNano()),
-	}
+	reqBody := map[string]interface{}{"request_id": p.requestID("cap")}
 	if amount > 0 {
-		reqBody["amount"] = float64(amount) / 100
+		reqBody["amount"] = p.amountToFloat(amount)
 	}
-
 	_, err := p.doRequest(ctx, "POST", "/api/v1/pa/payment_intents/"+paymentID+"/capture", reqBody)
-	if err != nil {
-		return fmt.Errorf("airwallex capture failed: %w", err)
-	}
-	return nil
+	return err
 }
 
 func (p *AirwallexProvider) VoidPayment(ctx context.Context, paymentID string) error {
 	reqBody := map[string]interface{}{
-		"request_id":        fmt.Sprintf("void_%d", time.Now().UnixNano()),
+		"request_id":          p.requestID("void"),
 		"cancellation_reason": "requested_by_customer",
 	}
-
 	_, err := p.doRequest(ctx, "POST", "/api/v1/pa/payment_intents/"+paymentID+"/cancel", reqBody)
-	if err != nil {
-		return fmt.Errorf("airwallex void/cancel failed: %w", err)
-	}
-	return nil
+	return err
 }
 
 func (p *AirwallexProvider) Create3DSSession(ctx context.Context, paymentID string, returnURL string) (*ThreeDSecureSession, error) {
-	respBody, err := p.doRequest(ctx, "GET", "/api/v1/pa/payment_intents/"+paymentID, nil)
+	pi, err := p.getPaymentIntent(ctx, paymentID)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex get payment intent failed: %w", err)
-	}
-
-	var pi awxPaymentIntentResponse
-	if err := json.Unmarshal(respBody, &pi); err != nil {
-		return nil, fmt.Errorf("failed to parse payment intent: %w", err)
+		return nil, err
 	}
 
 	session := &ThreeDSecureSession{
@@ -474,33 +507,37 @@ func (p *AirwallexProvider) Create3DSSession(ctx context.Context, paymentID stri
 		ClientSecret: pi.ClientSecret,
 		Status:       pi.Status,
 	}
-
 	if pi.NextAction != nil {
 		session.RedirectURL = pi.NextAction.URL
 	}
-
 	return session, nil
 }
 
 func (p *AirwallexProvider) Confirm3DSPayment(ctx context.Context, paymentID string) (*models.ChargeResponse, error) {
-	respBody, err := p.doRequest(ctx, "GET", "/api/v1/pa/payment_intents/"+paymentID, nil)
+	pi, err := p.getPaymentIntent(ctx, paymentID)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex get payment intent failed: %w", err)
+		return nil, err
 	}
+	return p.mapChargeResponse(pi, nil), nil
+}
 
+func (p *AirwallexProvider) getPaymentIntent(ctx context.Context, id string) (*awxPaymentIntentResponse, error) {
+	respBody, err := p.doRequest(ctx, "GET", "/api/v1/pa/payment_intents/"+id, nil)
+	if err != nil {
+		return nil, err
+	}
 	var pi awxPaymentIntentResponse
 	if err := json.Unmarshal(respBody, &pi); err != nil {
 		return nil, fmt.Errorf("failed to parse payment intent: %w", err)
 	}
-
-	return p.mapPaymentIntentToChargeResponse(&pi, nil), nil
+	return &pi, nil
 }
 
 func (p *AirwallexProvider) Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
 	refundReq := awxRefundRequest{
-		RequestID:       fmt.Sprintf("ref_%d", time.Now().UnixNano()),
+		RequestID:       p.requestID("ref"),
 		PaymentIntentID: req.PaymentID,
-		Amount:          float64(req.Amount) / 100,
+		Amount:          p.amountToFloat(req.Amount),
 		Reason:          req.Reason,
 	}
 
@@ -510,84 +547,76 @@ func (p *AirwallexProvider) Refund(ctx context.Context, req *models.RefundReques
 
 	respBody, err := p.doRequest(ctx, "POST", "/api/v1/pa/refunds/create", refundReq)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex refund failed: %w", err)
+		return nil, fmt.Errorf("refund failed: %w", err)
 	}
 
 	var refundResp awxRefundResponse
 	if err := json.Unmarshal(respBody, &refundResp); err != nil {
-		return nil, fmt.Errorf("failed to parse refund response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
-
-	created, _ := time.Parse(time.RFC3339, refundResp.CreatedAt)
 
 	return &models.RefundResponse{
 		ID:               refundResp.ID,
 		PaymentID:        req.PaymentID,
-		Amount:           int64(refundResp.Amount * 100),
+		Amount:           p.amountToCents(refundResp.Amount),
 		Currency:         refundResp.Currency,
-		Status:           refundResp.Status,
+		Status:           p.mapRefundStatus(refundResp.Status),
 		Reason:           refundResp.Reason,
 		ProviderName:     "airwallex",
 		ProviderRefundID: refundResp.ID,
 		Metadata:         refundResp.Metadata,
-		CreatedAt:        created,
+		CreatedAt:        p.parseTime(refundResp.CreatedAt),
 	}, nil
+}
+
+func (p *AirwallexProvider) mapRefundStatus(status string) string {
+	statusMap := map[string]string{
+		"SUCCEEDED": "settled",
+		"SETTLED":   "settled",
+		"PENDING":   "pending",
+		"FAILED":    "failed",
+	}
+	if s, ok := statusMap[status]; ok {
+		return s
+	}
+	return "pending"
 }
 
 func (p *AirwallexProvider) CreatePaymentSession(ctx context.Context, req *models.CreatePaymentSessionRequest) (*models.PaymentSession, error) {
 	piReq := awxPaymentIntentRequest{
-		RequestID: fmt.Sprintf("ps_%d", time.Now().UnixNano()),
-		Amount:    float64(req.Amount) / 100,
-		Currency:  req.Currency,
-	}
-
-	if req.CustomerID != "" {
-		piReq.CustomerID = req.CustomerID
-	}
-
-	if req.Description != "" {
-		piReq.Descriptor = req.Description
+		RequestID:     p.requestID("ps"),
+		Amount:        p.amountToFloat(req.Amount),
+		Currency:      req.Currency,
+		CustomerID:    req.CustomerID,
+		Descriptor:    req.Description,
+		ReturnURL:     req.ReturnURL,
+		CaptureMethod: "automatic",
+		Metadata:      req.Metadata,
 	}
 
 	if req.CaptureMethod == models.CaptureMethodManual {
 		piReq.CaptureMethod = "manual"
-	} else {
-		piReq.CaptureMethod = "automatic"
-	}
-
-	if req.ReturnURL != "" {
-		piReq.ReturnURL = req.ReturnURL
-	}
-
-	if req.Metadata != nil {
-		piReq.Metadata = req.Metadata
 	}
 
 	respBody, err := p.doRequest(ctx, "POST", "/api/v1/pa/payment_intents/create", piReq)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex create payment session failed: %w", err)
+		return nil, fmt.Errorf("create payment session failed: %w", err)
 	}
 
 	var piResp awxPaymentIntentResponse
 	if err := json.Unmarshal(respBody, &piResp); err != nil {
-		return nil, fmt.Errorf("failed to parse payment intent response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return p.mapPaymentIntentToSession(&piResp), nil
+	return p.mapPaymentSession(&piResp), nil
 }
 
 func (p *AirwallexProvider) GetPaymentSession(ctx context.Context, sessionID string) (*models.PaymentSession, error) {
-	respBody, err := p.doRequest(ctx, "GET", "/api/v1/pa/payment_intents/"+sessionID, nil)
+	pi, err := p.getPaymentIntent(ctx, sessionID)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex get payment session failed: %w", err)
+		return nil, fmt.Errorf("get payment session failed: %w", err)
 	}
-
-	var piResp awxPaymentIntentResponse
-	if err := json.Unmarshal(respBody, &piResp); err != nil {
-		return nil, fmt.Errorf("failed to parse payment intent response: %w", err)
-	}
-
-	return p.mapPaymentIntentToSession(&piResp), nil
+	return p.mapPaymentSession(pi), nil
 }
 
 func (p *AirwallexProvider) UpdatePaymentSession(ctx context.Context, sessionID string, req *models.UpdatePaymentSessionRequest) (*models.PaymentSession, error) {
@@ -595,42 +624,35 @@ func (p *AirwallexProvider) UpdatePaymentSession(ctx context.Context, sessionID 
 }
 
 func (p *AirwallexProvider) ConfirmPaymentSession(ctx context.Context, sessionID string, req *models.ConfirmPaymentSessionRequest) (*models.PaymentSession, error) {
-	confirmReq := map[string]interface{}{
-		"request_id": fmt.Sprintf("confirm_%d", time.Now().UnixNano()),
-	}
-
+	confirmReq := map[string]interface{}{"request_id": p.requestID("confirm")}
 	if req.PaymentMethodID != "" {
 		confirmReq["payment_method_id"] = req.PaymentMethodID
 	}
-
 	if req.ReturnURL != "" {
 		confirmReq["return_url"] = req.ReturnURL
 	}
 
 	respBody, err := p.doRequest(ctx, "POST", "/api/v1/pa/payment_intents/"+sessionID+"/confirm", confirmReq)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex confirm payment session failed: %w", err)
+		return nil, fmt.Errorf("confirm payment session failed: %w", err)
 	}
 
 	var piResp awxPaymentIntentResponse
 	if err := json.Unmarshal(respBody, &piResp); err != nil {
-		return nil, fmt.Errorf("failed to parse payment intent response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return p.mapPaymentIntentToSession(&piResp), nil
+	return p.mapPaymentSession(&piResp), nil
 }
 
 func (p *AirwallexProvider) CapturePaymentSession(ctx context.Context, sessionID string, amount *int64) (*models.PaymentSession, error) {
-	captureReq := map[string]interface{}{
-		"request_id": fmt.Sprintf("cap_%d", time.Now().UnixNano()),
-	}
+	captureReq := map[string]interface{}{"request_id": p.requestID("cap")}
 	if amount != nil {
-		captureReq["amount"] = float64(*amount) / 100
+		captureReq["amount"] = p.amountToFloat(*amount)
 	}
 
-	_, err := p.doRequest(ctx, "POST", "/api/v1/pa/payment_intents/"+sessionID+"/capture", captureReq)
-	if err != nil {
-		return nil, fmt.Errorf("airwallex capture payment session failed: %w", err)
+	if _, err := p.doRequest(ctx, "POST", "/api/v1/pa/payment_intents/"+sessionID+"/capture", captureReq); err != nil {
+		return nil, fmt.Errorf("capture payment session failed: %w", err)
 	}
 
 	return p.GetPaymentSession(ctx, sessionID)
@@ -638,65 +660,59 @@ func (p *AirwallexProvider) CapturePaymentSession(ctx context.Context, sessionID
 
 func (p *AirwallexProvider) CancelPaymentSession(ctx context.Context, sessionID string) (*models.PaymentSession, error) {
 	cancelReq := map[string]interface{}{
-		"request_id":        fmt.Sprintf("cancel_%d", time.Now().UnixNano()),
+		"request_id":          p.requestID("cancel"),
 		"cancellation_reason": "requested_by_customer",
 	}
 
-	_, err := p.doRequest(ctx, "POST", "/api/v1/pa/payment_intents/"+sessionID+"/cancel", cancelReq)
-	if err != nil {
-		return nil, fmt.Errorf("airwallex cancel payment session failed: %w", err)
+	if _, err := p.doRequest(ctx, "POST", "/api/v1/pa/payment_intents/"+sessionID+"/cancel", cancelReq); err != nil {
+		return nil, fmt.Errorf("cancel payment session failed: %w", err)
 	}
 
 	return p.GetPaymentSession(ctx, sessionID)
 }
 
 func (p *AirwallexProvider) ListPaymentSessions(ctx context.Context, req *models.ListPaymentSessionsRequest) ([]*models.PaymentSession, error) {
-	path := "/api/v1/pa/payment_intents"
-	if req.CustomerID != "" {
-		path += "?customer_id=" + req.CustomerID
-	}
+	path := p.buildListPath("/api/v1/pa/payment_intents", map[string]string{
+		"customer_id": req.CustomerID,
+	})
 
 	respBody, err := p.doRequest(ctx, "GET", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex list payment sessions failed: %w", err)
+		return nil, fmt.Errorf("list payment sessions failed: %w", err)
 	}
 
 	var listResp awxListResponse
 	if err := json.Unmarshal(respBody, &listResp); err != nil {
-		return nil, fmt.Errorf("failed to parse list response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	var items []awxPaymentIntentResponse
 	if err := json.Unmarshal(listResp.Items, &items); err != nil {
-		return nil, fmt.Errorf("failed to parse payment intents: %w", err)
+		return nil, fmt.Errorf("failed to parse items: %w", err)
 	}
 
-	var sessions []*models.PaymentSession
-	for _, pi := range items {
-		sessions = append(sessions, p.mapPaymentIntentToSession(&pi))
+	sessions := make([]*models.PaymentSession, 0, len(items))
+	for i := range items {
+		sessions = append(sessions, p.mapPaymentSession(&items[i]))
 	}
-
 	return sessions, nil
 }
 
-func (p *AirwallexProvider) mapPaymentIntentToSession(pi *awxPaymentIntentResponse) *models.PaymentSession {
-	created, _ := time.Parse(time.RFC3339, pi.CreatedAt)
-	updated, _ := time.Parse(time.RFC3339, pi.UpdatedAt)
-
+func (p *AirwallexProvider) mapPaymentSession(pi *awxPaymentIntentResponse) *models.PaymentSession {
 	session := &models.PaymentSession{
 		ProviderID:     pi.ID,
 		ProviderName:   "airwallex",
 		ExternalID:     pi.MerchantOrderID,
-		Amount:         int64(pi.Amount * 100),
+		Amount:         p.amountToCents(pi.Amount),
 		Currency:       pi.Currency,
-		Status:         p.mapPaymentIntentStatus(pi.Status),
+		Status:         p.mapPaymentStatus(pi.Status),
 		CustomerID:     pi.CustomerID,
 		Description:    pi.Descriptor,
 		ClientSecret:   pi.ClientSecret,
-		CapturedAmount: int64(pi.CapturedAmount * 100),
+		CapturedAmount: p.amountToCents(pi.CapturedAmount),
 		Metadata:       pi.Metadata,
-		CreatedAt:      created,
-		UpdatedAt:      updated,
+		CreatedAt:      p.parseTime(pi.CreatedAt),
+		UpdatedAt:      p.parseTime(pi.UpdatedAt),
 	}
 
 	if pi.NextAction != nil {
@@ -718,51 +734,38 @@ func (p *AirwallexProvider) mapPaymentIntentToSession(pi *awxPaymentIntentRespon
 
 func (p *AirwallexProvider) CreateCustomer(ctx context.Context, req *models.CreateCustomerRequest) (string, error) {
 	custReq := awxCustomerRequest{
-		RequestID:          fmt.Sprintf("cust_%d", time.Now().UnixNano()),
+		RequestID:          p.requestID("cust"),
 		MerchantCustomerID: req.ExternalID,
 		Email:              req.Email,
-	}
-
-	if req.Name != "" {
-		custReq.FirstName = req.Name
-	}
-
-	if req.Phone != "" {
-		custReq.PhoneNumber = req.Phone
-	}
-
-	if req.Metadata != nil {
-		custReq.Metadata = req.Metadata
+		FirstName:          req.Name,
+		PhoneNumber:        req.Phone,
+		Metadata:           req.Metadata,
 	}
 
 	respBody, err := p.doRequest(ctx, "POST", "/api/v1/pa/customers/create", custReq)
 	if err != nil {
-		return "", fmt.Errorf("airwallex create customer failed: %w", err)
+		return "", fmt.Errorf("create customer failed: %w", err)
 	}
 
 	var custResp awxCustomerResponse
 	if err := json.Unmarshal(respBody, &custResp); err != nil {
-		return "", fmt.Errorf("failed to parse customer response: %w", err)
+		return "", fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	return custResp.ID, nil
 }
 
 func (p *AirwallexProvider) UpdateCustomer(ctx context.Context, customerID string, req *models.UpdateCustomerRequest) error {
-	updateReq := map[string]interface{}{}
-
+	updateReq := make(map[string]interface{})
 	if req.Email != "" {
 		updateReq["email"] = req.Email
 	}
-
 	if req.Name != "" {
 		updateReq["first_name"] = req.Name
 	}
-
 	if req.Phone != "" {
 		updateReq["phone_number"] = req.Phone
 	}
-
 	if req.Metadata != nil {
 		updateReq["metadata"] = req.Metadata
 	}
@@ -774,23 +777,26 @@ func (p *AirwallexProvider) UpdateCustomer(ctx context.Context, customerID strin
 func (p *AirwallexProvider) GetCustomer(ctx context.Context, customerID string) (*models.Customer, error) {
 	respBody, err := p.doRequest(ctx, "GET", "/api/v1/pa/customers/"+customerID, nil)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex get customer failed: %w", err)
+		return nil, fmt.Errorf("get customer failed: %w", err)
 	}
 
 	var custResp awxCustomerResponse
 	if err := json.Unmarshal(respBody, &custResp); err != nil {
-		return nil, fmt.Errorf("failed to parse customer response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	created, _ := time.Parse(time.RFC3339, custResp.CreatedAt)
+	name := custResp.FirstName
+	if custResp.LastName != "" {
+		name += " " + custResp.LastName
+	}
 
 	return &models.Customer{
 		ExternalID: custResp.MerchantCustomerID,
 		Email:      custResp.Email,
-		Name:       custResp.FirstName + " " + custResp.LastName,
+		Name:       name,
 		Phone:      custResp.PhoneNumber,
 		Metadata:   custResp.Metadata,
-		CreatedAt:  created,
+		CreatedAt:  p.parseTime(custResp.CreatedAt),
 	}, nil
 }
 
@@ -823,198 +829,163 @@ func (p *AirwallexProvider) ExpirePaymentMethod(ctx context.Context, paymentMeth
 }
 
 func (p *AirwallexProvider) CreateSubscription(ctx context.Context, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
-	period := "month"
-	periodCount := 1
-
 	subReq := awxSubscriptionRequest{
-		RequestID:       fmt.Sprintf("sub_%d", time.Now().UnixNano()),
-		CustomerID:      req.CustomerID,
-		Currency:        "USD",
-		RecurringAmount: 0,
-		Period:          period,
-		PeriodCount:     periodCount,
-	}
-
-	if req.TrialDays != nil && *req.TrialDays > 0 {
-		subReq.TrialPeriodDays = *req.TrialDays
+		RequestID:         p.requestID("sub"),
+		BillingCustomerID: req.CustomerID,
+		CollectionMethod:  "AUTO_CHARGE",
+		Currency:          "USD",
+		Duration:          &awxDuration{Type: "FOREVER"},
 	}
 
 	if req.Metadata != nil {
 		if metadata, ok := req.Metadata.(map[string]interface{}); ok {
 			subReq.Metadata = metadata
-			if amount, ok := metadata["amount"].(float64); ok {
-				subReq.RecurringAmount = amount
-			}
 			if currency, ok := metadata["currency"].(string); ok {
 				subReq.Currency = currency
+			}
+			if collMethod, ok := metadata["collection_method"].(string); ok {
+				subReq.CollectionMethod = collMethod
 			}
 		}
 	}
 
-	respBody, err := p.doRequest(ctx, "POST", "/api/v1/billing/subscriptions/create", subReq)
+	respBody, err := p.doRequest(ctx, "POST", "/api/v1/subscriptions/create", subReq)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex create subscription failed: %w", err)
+		return nil, fmt.Errorf("create subscription failed: %w", err)
 	}
 
 	var subResp awxSubscriptionResponse
 	if err := json.Unmarshal(respBody, &subResp); err != nil {
-		return nil, fmt.Errorf("failed to parse subscription response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return p.mapSubscriptionResponse(&subResp, req.PlanID), nil
+	return p.mapSubscription(&subResp, req.PlanID), nil
 }
 
 func (p *AirwallexProvider) UpdateSubscription(ctx context.Context, subscriptionID string, req *models.UpdateSubscriptionRequest) (*models.Subscription, error) {
-	updateReq := map[string]interface{}{}
-
+	updateReq := make(map[string]interface{})
 	if req.Metadata != nil {
 		updateReq["metadata"] = req.Metadata
 	}
 
-	respBody, err := p.doRequest(ctx, "POST", "/api/v1/billing/subscriptions/"+subscriptionID+"/update", updateReq)
+	respBody, err := p.doRequest(ctx, "POST", "/api/v1/subscriptions/"+subscriptionID+"/update", updateReq)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex update subscription failed: %w", err)
+		return nil, fmt.Errorf("update subscription failed: %w", err)
 	}
 
 	var subResp awxSubscriptionResponse
 	if err := json.Unmarshal(respBody, &subResp); err != nil {
-		return nil, fmt.Errorf("failed to parse subscription response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	planID := ""
 	if req.PlanID != nil {
 		planID = *req.PlanID
 	}
-
-	return p.mapSubscriptionResponse(&subResp, planID), nil
+	return p.mapSubscription(&subResp, planID), nil
 }
 
 func (p *AirwallexProvider) CancelSubscription(ctx context.Context, subscriptionID string, req *models.CancelSubscriptionRequest) (*models.Subscription, error) {
-	cancelReq := map[string]interface{}{
-		"request_id": fmt.Sprintf("cancel_%d", time.Now().UnixNano()),
-	}
-
+	cancelReq := map[string]interface{}{"request_id": p.requestID("cancel")}
 	if req.CancelAtPeriodEnd {
 		cancelReq["cancel_at_period_end"] = true
 	}
 
-	respBody, err := p.doRequest(ctx, "POST", "/api/v1/billing/subscriptions/"+subscriptionID+"/cancel", cancelReq)
+	respBody, err := p.doRequest(ctx, "POST", "/api/v1/subscriptions/"+subscriptionID+"/cancel", cancelReq)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex cancel subscription failed: %w", err)
+		return nil, fmt.Errorf("cancel subscription failed: %w", err)
 	}
 
 	var subResp awxSubscriptionResponse
 	if err := json.Unmarshal(respBody, &subResp); err != nil {
-		return nil, fmt.Errorf("failed to parse subscription response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	sub := p.mapSubscriptionResponse(&subResp, "")
-	now := time.Now()
-	sub.CanceledAt = &now
-
-	return sub, nil
+	return p.mapSubscription(&subResp, ""), nil
 }
 
 func (p *AirwallexProvider) GetSubscription(ctx context.Context, subscriptionID string) (*models.Subscription, error) {
-	respBody, err := p.doRequest(ctx, "GET", "/api/v1/billing/subscriptions/"+subscriptionID, nil)
+	respBody, err := p.doRequest(ctx, "GET", "/api/v1/subscriptions/"+subscriptionID, nil)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex get subscription failed: %w", err)
+		return nil, fmt.Errorf("get subscription failed: %w", err)
 	}
 
 	var subResp awxSubscriptionResponse
 	if err := json.Unmarshal(respBody, &subResp); err != nil {
-		return nil, fmt.Errorf("failed to parse subscription response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return p.mapSubscriptionResponse(&subResp, ""), nil
+	return p.mapSubscription(&subResp, ""), nil
 }
 
 func (p *AirwallexProvider) ListSubscriptions(ctx context.Context, customerID string) ([]*models.Subscription, error) {
-	path := "/api/v1/billing/subscriptions"
-	if customerID != "" {
-		path += "?customer_id=" + customerID
-	}
+	path := p.buildListPath("/api/v1/subscriptions", map[string]string{
+		"billing_customer_id": customerID,
+	})
 
 	respBody, err := p.doRequest(ctx, "GET", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex list subscriptions failed: %w", err)
+		return nil, fmt.Errorf("list subscriptions failed: %w", err)
 	}
 
 	var listResp awxListResponse
 	if err := json.Unmarshal(respBody, &listResp); err != nil {
-		return nil, fmt.Errorf("failed to parse list response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	var items []awxSubscriptionResponse
 	if err := json.Unmarshal(listResp.Items, &items); err != nil {
-		return nil, fmt.Errorf("failed to parse subscriptions: %w", err)
+		return nil, fmt.Errorf("failed to parse items: %w", err)
 	}
 
-	var subscriptions []*models.Subscription
-	for _, sub := range items {
-		subscriptions = append(subscriptions, p.mapSubscriptionResponse(&sub, ""))
+	subs := make([]*models.Subscription, 0, len(items))
+	for i := range items {
+		subs = append(subs, p.mapSubscription(&items[i], ""))
 	}
-
-	return subscriptions, nil
+	return subs, nil
 }
 
-func (p *AirwallexProvider) mapSubscriptionResponse(sub *awxSubscriptionResponse, planID string) *models.Subscription {
-	created, _ := time.Parse(time.RFC3339, sub.CreatedAt)
-	updated, _ := time.Parse(time.RFC3339, sub.UpdatedAt)
-	periodStart, _ := time.Parse(time.RFC3339, sub.CurrentPeriodStart)
-	periodEnd, _ := time.Parse(time.RFC3339, sub.CurrentPeriodEnd)
-
-	status := p.mapSubscriptionStatus(sub.Status)
-
+func (p *AirwallexProvider) mapSubscription(sub *awxSubscriptionResponse, planID string) *models.Subscription {
 	result := &models.Subscription{
 		ID:                 sub.ID,
-		CustomerID:         sub.CustomerID,
+		CustomerID:         sub.BillingCustomerID,
 		PlanID:             planID,
-		Status:             status,
-		CurrentPeriodStart: periodStart,
-		CurrentPeriodEnd:   periodEnd,
+		Status:             p.mapSubscriptionStatus(sub.Status),
+		CurrentPeriodStart: p.parseTime(sub.CurrentPeriodStartsAt),
+		CurrentPeriodEnd:   p.parseTime(sub.CurrentPeriodEndsAt),
 		Quantity:           1,
 		ProviderName:       "airwallex",
 		Metadata:           sub.Metadata,
-		CreatedAt:          created,
-		UpdatedAt:          updated,
+		CreatedAt:          p.parseTime(sub.CreatedAt),
+		UpdatedAt:          p.parseTime(sub.UpdatedAt),
+		TrialEnd:           p.parseTimePtr(sub.TrialEndsAt),
+		CanceledAt:         p.parseTimePtr(sub.EndsAt),
 	}
-
-	if sub.TrialEnd != "" {
-		trialEnd, _ := time.Parse(time.RFC3339, sub.TrialEnd)
-		result.TrialEnd = &trialEnd
-	}
-
-	if sub.CanceledAt != "" {
-		canceledAt, _ := time.Parse(time.RFC3339, sub.CanceledAt)
-		result.CanceledAt = &canceledAt
-	}
-
 	return result
 }
 
 func (p *AirwallexProvider) mapSubscriptionStatus(status string) models.SubscriptionStatus {
-	switch status {
-	case "ACTIVE":
-		return models.SubscriptionStatusActive
-	case "CANCELED", "CANCELLED":
-		return models.SubscriptionStatusCanceled
-	case "TRIALING":
-		return models.SubscriptionStatusTrialing
-	case "PAST_DUE":
-		return models.SubscriptionStatusPastDue
-	case "PAUSED":
-		return models.SubscriptionStatusPaused
-	default:
-		return models.SubscriptionStatus("pending")
+	statusMap := map[string]models.SubscriptionStatus{
+		"ACTIVE":    models.SubscriptionStatusActive,
+		"CANCELED":  models.SubscriptionStatusCanceled,
+		"CANCELLED": models.SubscriptionStatusCanceled,
+		"IN_TRIAL":  models.SubscriptionStatusTrialing,
+		"TRIALING":  models.SubscriptionStatusTrialing,
+		"UNPAID":    models.SubscriptionStatusPastDue,
+		"PAST_DUE":  models.SubscriptionStatusPastDue,
+		"PAUSED":    models.SubscriptionStatusPaused,
+		"PENDING":   models.SubscriptionStatus("pending"),
 	}
+	if s, ok := statusMap[status]; ok {
+		return s
+	}
+	return models.SubscriptionStatus("pending")
 }
 
 func (p *AirwallexProvider) CreatePlan(ctx context.Context, planReq *models.Plan) (*models.Plan, error) {
-	planID := fmt.Sprintf("awx_plan_%d", time.Now().UnixNano())
-
-	result := &models.Plan{
-		ID:            planID,
+	now := time.Now()
+	return &models.Plan{
+		ID:            p.requestID("awx_plan"),
 		Name:          planReq.Name,
 		Description:   planReq.Description,
 		Amount:        planReq.Amount,
@@ -1024,15 +995,13 @@ func (p *AirwallexProvider) CreatePlan(ctx context.Context, planReq *models.Plan
 		TrialDays:     planReq.TrialDays,
 		Features:      planReq.Features,
 		Metadata:      planReq.Metadata,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
-	}
-
-	return result, nil
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}, nil
 }
 
 func (p *AirwallexProvider) UpdatePlan(ctx context.Context, planID string, planReq *models.Plan) (*models.Plan, error) {
-	result := &models.Plan{
+	return &models.Plan{
 		ID:            planID,
 		Name:          planReq.Name,
 		Description:   planReq.Description,
@@ -1044,9 +1013,7 @@ func (p *AirwallexProvider) UpdatePlan(ctx context.Context, planID string, planR
 		Features:      planReq.Features,
 		Metadata:      planReq.Metadata,
 		UpdatedAt:     time.Now(),
-	}
-
-	return result, nil
+	}, nil
 }
 
 func (p *AirwallexProvider) DeletePlan(ctx context.Context, planID string) error {
@@ -1054,225 +1021,212 @@ func (p *AirwallexProvider) DeletePlan(ctx context.Context, planID string) error
 }
 
 func (p *AirwallexProvider) GetPlan(ctx context.Context, planID string) (*models.Plan, error) {
-	return nil, fmt.Errorf("airwallex plans are stored locally, use the plan store to retrieve")
+	return nil, ErrNotSupported
 }
 
 func (p *AirwallexProvider) ListPlans(ctx context.Context) ([]*models.Plan, error) {
-	return nil, fmt.Errorf("airwallex plans are stored locally, use the plan store to list")
+	return nil, ErrNotSupported
 }
 
 func (p *AirwallexProvider) CreateInvoice(ctx context.Context, req *models.CreateInvoiceRequest) (*models.Invoice, error) {
 	invReq := awxInvoiceRequest{
-		RequestID:   fmt.Sprintf("inv_%d", time.Now().UnixNano()),
-		CustomerID:  req.CustomerID,
-		Amount:      float64(req.Amount) / 100,
-		Currency:    req.Currency,
-		Description: req.Description,
+		RequestID:         p.requestID("inv"),
+		BillingCustomerID: req.CustomerID,
+		Currency:          req.Currency,
+		CollectionMethod:  "CHARGE_ON_CHECKOUT",
+		Memo:              req.Description,
+		Metadata:          req.Metadata,
 	}
 
 	if req.DueDate != nil {
-		invReq.DueDate = req.DueDate.Format(time.RFC3339)
+		invReq.DaysUntilDue = int(time.Until(*req.DueDate).Hours() / 24)
+		if invReq.DaysUntilDue < 0 {
+			invReq.DaysUntilDue = 0
+		}
 	}
 
-	if req.Metadata != nil {
-		invReq.Metadata = req.Metadata
-	}
-
-	respBody, err := p.doRequest(ctx, "POST", "/api/v1/billing/invoices/create", invReq)
+	respBody, err := p.doRequest(ctx, "POST", "/api/v1/invoices/create", invReq)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex create invoice failed: %w", err)
+		return nil, fmt.Errorf("create invoice failed: %w", err)
 	}
 
 	var invResp awxInvoiceResponse
 	if err := json.Unmarshal(respBody, &invResp); err != nil {
-		return nil, fmt.Errorf("failed to parse invoice response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return p.mapInvoiceResponse(&invResp), nil
+	return p.mapInvoice(&invResp), nil
 }
 
 func (p *AirwallexProvider) GetInvoice(ctx context.Context, invoiceID string) (*models.Invoice, error) {
-	respBody, err := p.doRequest(ctx, "GET", "/api/v1/billing/invoices/"+invoiceID, nil)
+	respBody, err := p.doRequest(ctx, "GET", "/api/v1/invoices/"+invoiceID, nil)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex get invoice failed: %w", err)
+		return nil, fmt.Errorf("get invoice failed: %w", err)
 	}
 
 	var invResp awxInvoiceResponse
 	if err := json.Unmarshal(respBody, &invResp); err != nil {
-		return nil, fmt.Errorf("failed to parse invoice response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return p.mapInvoiceResponse(&invResp), nil
+	return p.mapInvoice(&invResp), nil
 }
 
 func (p *AirwallexProvider) ListInvoices(ctx context.Context, req *models.ListInvoicesRequest) ([]*models.Invoice, error) {
-	path := "/api/v1/billing/invoices"
-	if req.CustomerID != "" {
-		path += "?customer_id=" + req.CustomerID
-	}
+	path := p.buildListPath("/api/v1/invoices", map[string]string{
+		"billing_customer_id": req.CustomerID,
+	})
 
 	respBody, err := p.doRequest(ctx, "GET", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex list invoices failed: %w", err)
+		return nil, fmt.Errorf("list invoices failed: %w", err)
 	}
 
 	var listResp awxListResponse
 	if err := json.Unmarshal(respBody, &listResp); err != nil {
-		return nil, fmt.Errorf("failed to parse list response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	var items []awxInvoiceResponse
 	if err := json.Unmarshal(listResp.Items, &items); err != nil {
-		return nil, fmt.Errorf("failed to parse invoices: %w", err)
+		return nil, fmt.Errorf("failed to parse items: %w", err)
 	}
 
-	var invoices []*models.Invoice
-	for _, inv := range items {
-		invoices = append(invoices, p.mapInvoiceResponse(&inv))
+	invoices := make([]*models.Invoice, 0, len(items))
+	for i := range items {
+		invoices = append(invoices, p.mapInvoice(&items[i]))
 	}
-
 	return invoices, nil
 }
 
 func (p *AirwallexProvider) CancelInvoice(ctx context.Context, invoiceID string) (*models.Invoice, error) {
-	cancelReq := map[string]interface{}{
-		"request_id": fmt.Sprintf("cancel_%d", time.Now().UnixNano()),
-	}
-
-	respBody, err := p.doRequest(ctx, "POST", "/api/v1/billing/invoices/"+invoiceID+"/void", cancelReq)
+	respBody, err := p.doRequest(ctx, "POST", "/api/v1/invoices/"+invoiceID+"/void", nil)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex cancel invoice failed: %w", err)
+		return nil, fmt.Errorf("void invoice failed: %w", err)
 	}
 
 	var invResp awxInvoiceResponse
 	if err := json.Unmarshal(respBody, &invResp); err != nil {
-		return nil, fmt.Errorf("failed to parse invoice response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return p.mapInvoiceResponse(&invResp), nil
+	return p.mapInvoice(&invResp), nil
 }
 
-func (p *AirwallexProvider) mapInvoiceResponse(inv *awxInvoiceResponse) *models.Invoice {
-	created, _ := time.Parse(time.RFC3339, inv.CreatedAt)
-
+func (p *AirwallexProvider) mapInvoice(inv *awxInvoiceResponse) *models.Invoice {
 	result := &models.Invoice{
 		ProviderID:   inv.ID,
 		ProviderName: "airwallex",
-		CustomerID:   inv.CustomerID,
-		Amount:       int64(inv.Amount * 100),
+		CustomerID:   inv.BillingCustomerID,
+		Amount:       p.amountToCents(inv.Amount),
 		Currency:     inv.Currency,
-		Status:       p.mapInvoiceStatus(inv.Status),
-		Description:  inv.Description,
-		InvoiceURL:   inv.InvoiceURL,
+		Status:       p.mapInvoiceStatus(inv.Status, inv.PaymentStatus),
+		Description:  inv.Memo,
+		InvoiceURL:   inv.HostedURL,
 		Metadata:     inv.Metadata,
-		CreatedAt:    created,
-		UpdatedAt:    created,
+		CreatedAt:    p.parseTime(inv.CreatedAt),
+		UpdatedAt:    p.parseTime(inv.UpdatedAt),
+		DueDate:      p.parseTimePtr(inv.DueAt),
+		PaidAt:       p.parseTimePtr(inv.PaidAt),
 	}
-
-	if inv.DueDate != "" {
-		dueDate, _ := time.Parse(time.RFC3339, inv.DueDate)
-		result.DueDate = &dueDate
-	}
-
-	if inv.PaidAt != "" {
-		paidAt, _ := time.Parse(time.RFC3339, inv.PaidAt)
-		result.PaidAt = &paidAt
-	}
-
 	return result
 }
 
-func (p *AirwallexProvider) mapInvoiceStatus(status string) models.InvoiceStatus {
-	switch status {
-	case "DRAFT":
-		return models.InvoiceStatusDraft
-	case "PENDING", "OPEN":
-		return models.InvoiceStatusPending
-	case "PAID":
-		return models.InvoiceStatusPaid
-	case "VOID", "VOIDED":
+func (p *AirwallexProvider) mapInvoiceStatus(status, paymentStatus string) models.InvoiceStatus {
+	if status == "VOIDED" {
 		return models.InvoiceStatusVoid
-	case "UNCOLLECTIBLE":
-		return models.InvoiceStatusCanceled
-	default:
-		return models.InvoiceStatusPending
 	}
+	if paymentStatus == "PAID" {
+		return models.InvoiceStatusPaid
+	}
+	statusMap := map[string]models.InvoiceStatus{
+		"DRAFT":     models.InvoiceStatusDraft,
+		"FINALIZED": models.InvoiceStatusPending,
+		"OPEN":      models.InvoiceStatusPending,
+	}
+	if s, ok := statusMap[status]; ok {
+		return s
+	}
+	return models.InvoiceStatusPending
 }
 
 func (p *AirwallexProvider) CreatePayout(ctx context.Context, req *models.CreatePayoutRequest) (*models.Payout, error) {
-	payoutReq := awxPayoutRequest{
-		RequestID:      fmt.Sprintf("payout_%d", time.Now().UnixNano()),
-		BeneficiaryID:  req.DestinationAccount,
-		PayoutAmount:   float64(req.Amount) / 100,
-		PayoutCurrency: req.Currency,
-		PayoutMethod:   "LOCAL",
-		Reference:      req.ReferenceID,
-		Reason:         req.Description,
+	transferReq := awxTransferRequest{
+		RequestID:        p.requestID("transfer"),
+		BeneficiaryID:    req.DestinationAccount,
+		TransferAmount:   p.amountToFloat(req.Amount),
+		TransferCurrency: req.Currency,
+		TransferMethod:   "LOCAL",
+		Reference:        req.ReferenceID,
+		Reason:           req.Description,
+		SourceID:         req.SourceAccount,
+		Metadata:         req.Metadata,
 	}
 
-	if req.SourceAccount != "" {
-		payoutReq.SourceID = req.SourceAccount
-	}
-
-	if req.Metadata != nil {
-		payoutReq.Metadata = req.Metadata
-	}
-
-	respBody, err := p.doRequest(ctx, "POST", "/api/v1/payouts/create", payoutReq)
+	respBody, err := p.doRequest(ctx, "POST", "/api/v1/transfers/create", transferReq)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex create payout failed: %w", err)
+		return nil, fmt.Errorf("create payout failed: %w", err)
 	}
 
-	var payoutResp awxPayoutResponse
-	if err := json.Unmarshal(respBody, &payoutResp); err != nil {
-		return nil, fmt.Errorf("failed to parse payout response: %w", err)
+	var transferResp awxTransferResponse
+	if err := json.Unmarshal(respBody, &transferResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return p.mapPayoutResponse(&payoutResp, req), nil
+	return p.mapPayout(&transferResp, req.Description), nil
 }
 
 func (p *AirwallexProvider) GetPayout(ctx context.Context, payoutID string) (*models.Payout, error) {
-	respBody, err := p.doRequest(ctx, "GET", "/api/v1/payouts/"+payoutID, nil)
+	respBody, err := p.doRequest(ctx, "GET", "/api/v1/transfers/"+payoutID, nil)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex get payout failed: %w", err)
+		return nil, fmt.Errorf("get payout failed: %w", err)
 	}
 
-	var payoutResp awxPayoutResponse
-	if err := json.Unmarshal(respBody, &payoutResp); err != nil {
-		return nil, fmt.Errorf("failed to parse payout response: %w", err)
+	var transferResp awxTransferResponse
+	if err := json.Unmarshal(respBody, &transferResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return p.mapPayoutResponse(&payoutResp, nil), nil
+	return p.mapPayout(&transferResp, ""), nil
 }
 
 func (p *AirwallexProvider) ListPayouts(ctx context.Context, req *models.ListPayoutsRequest) ([]*models.Payout, error) {
-	path := "/api/v1/payouts"
-
-	respBody, err := p.doRequest(ctx, "GET", path, nil)
+	respBody, err := p.doRequest(ctx, "GET", "/api/v1/transfers", nil)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex list payouts failed: %w", err)
+		return nil, fmt.Errorf("list payouts failed: %w", err)
 	}
 
 	var listResp awxListResponse
 	if err := json.Unmarshal(respBody, &listResp); err != nil {
-		return nil, fmt.Errorf("failed to parse list response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	var items []awxPayoutResponse
+	var items []awxTransferResponse
 	if err := json.Unmarshal(listResp.Items, &items); err != nil {
-		return nil, fmt.Errorf("failed to parse payouts: %w", err)
+		return nil, fmt.Errorf("failed to parse items: %w", err)
 	}
 
-	var payouts []*models.Payout
-	for _, po := range items {
-		payouts = append(payouts, p.mapPayoutResponse(&po, nil))
+	payouts := make([]*models.Payout, 0, len(items))
+	for i := range items {
+		payouts = append(payouts, p.mapPayout(&items[i], ""))
 	}
-
 	return payouts, nil
 }
 
 func (p *AirwallexProvider) CancelPayout(ctx context.Context, payoutID string) (*models.Payout, error) {
-	return nil, ErrNotSupported
+	respBody, err := p.doRequest(ctx, "POST", "/api/v1/transfers/"+payoutID+"/cancel", map[string]interface{}{
+		"request_id": p.requestID("cancel"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cancel payout failed: %w", err)
+	}
+
+	var transferResp awxTransferResponse
+	if err := json.Unmarshal(respBody, &transferResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return p.mapPayout(&transferResp, ""), nil
 }
 
 func (p *AirwallexProvider) GetPayoutChannels(ctx context.Context, currency string) ([]*models.PayoutChannel, error) {
@@ -1282,74 +1236,65 @@ func (p *AirwallexProvider) GetPayoutChannels(ctx context.Context, currency stri
 	}, nil
 }
 
-func (p *AirwallexProvider) mapPayoutResponse(po *awxPayoutResponse, req *models.CreatePayoutRequest) *models.Payout {
-	created, _ := time.Parse(time.RFC3339, po.CreatedAt)
-
-	status := p.mapPayoutStatus(po.Status)
-
-	result := &models.Payout{
-		ProviderID:         po.ID,
+func (p *AirwallexProvider) mapPayout(t *awxTransferResponse, description string) *models.Payout {
+	return &models.Payout{
+		ProviderID:         t.ID,
 		ProviderName:       "airwallex",
-		ReferenceID:        po.Reference,
-		Amount:             int64(po.Amount * 100),
-		Currency:           po.Currency,
-		Status:             status,
+		ReferenceID:        t.Reference,
+		Amount:             p.amountToCents(t.Amount),
+		Currency:           t.Currency,
+		Status:             p.mapPayoutStatus(t.Status),
+		Description:        description,
 		DestinationType:    models.DestinationBankAccount,
-		DestinationAccount: po.BeneficiaryID,
-		FailureReason:      po.FailureReason,
-		Metadata:           po.Metadata,
-		CreatedAt:          created,
-		UpdatedAt:          created,
+		DestinationAccount: t.BeneficiaryID,
+		FailureReason:      t.FailureReason,
+		Metadata:           t.Metadata,
+		CreatedAt:          p.parseTime(t.CreatedAt),
+		UpdatedAt:          p.parseTime(t.UpdatedAt),
 	}
-
-	if req != nil {
-		result.Description = req.Description
-	}
-
-	return result
 }
 
 func (p *AirwallexProvider) mapPayoutStatus(status string) models.PayoutStatus {
-	switch status {
-	case "SUCCEEDED", "COMPLETED":
-		return models.PayoutStatusSucceeded
-	case "FAILED":
-		return models.PayoutStatusFailed
-	case "CANCELLED":
-		return models.PayoutStatusCanceled
-	case "PENDING", "IN_PROGRESS":
-		return models.PayoutStatusProcessing
-	default:
-		return models.PayoutStatusPending
+	statusMap := map[string]models.PayoutStatus{
+		"SUCCEEDED":   models.PayoutStatusSucceeded,
+		"COMPLETED":   models.PayoutStatusSucceeded,
+		"PAID":        models.PayoutStatusSucceeded,
+		"FAILED":      models.PayoutStatusFailed,
+		"CANCELLED":   models.PayoutStatusCanceled,
+		"PENDING":     models.PayoutStatusProcessing,
+		"IN_PROGRESS": models.PayoutStatusProcessing,
 	}
+	if s, ok := statusMap[status]; ok {
+		return s
+	}
+	return models.PayoutStatusPending
 }
 
 func (p *AirwallexProvider) GetBalance(ctx context.Context, currency string) (*models.Balance, error) {
-	path := "/api/v1/balances/current"
-	if currency != "" {
-		path += "?currency=" + currency
-	}
+	path := p.buildListPath("/api/v1/balances/current", map[string]string{
+		"currency": currency,
+	})
 
 	respBody, err := p.doRequest(ctx, "GET", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("airwallex get balance failed: %w", err)
+		return nil, fmt.Errorf("get balance failed: %w", err)
 	}
 
 	var balResp awxBalanceResponse
 	if err := json.Unmarshal(respBody, &balResp); err != nil {
-		return nil, fmt.Errorf("failed to parse balance response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	return &models.Balance{
-		Available:    int64(balResp.AvailableAmount * 100),
-		Pending:      int64(balResp.PendingAmount * 100),
+		Available:    p.amountToCents(balResp.AvailableAmount),
+		Pending:      p.amountToCents(balResp.PendingAmount),
 		ProviderName: "airwallex",
 		Currency:     balResp.Currency,
 	}, nil
 }
 
 func (p *AirwallexProvider) CreateDispute(ctx context.Context, req *models.CreateDisputeRequest) (*models.Dispute, error) {
-	return nil, fmt.Errorf("airwallex: disputes are initiated by card networks, cannot create via API")
+	return nil, fmt.Errorf("disputes are initiated by card networks")
 }
 
 func (p *AirwallexProvider) UpdateDispute(ctx context.Context, disputeID string, req *models.UpdateDisputeRequest) (*models.Dispute, error) {
@@ -1400,7 +1345,5 @@ func (p *AirwallexProvider) IsAvailable(ctx context.Context) bool {
 	if p.clientID == "" || p.apiKey == "" {
 		return false
 	}
-
-	err := p.authenticate(ctx)
-	return err == nil
+	return p.authenticate(ctx) == nil
 }
