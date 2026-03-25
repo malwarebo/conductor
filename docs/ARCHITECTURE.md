@@ -1,118 +1,60 @@
-# Conductor Architecture
+# Architecture
 
 ## Interactive Diagram
-
-Launch the interactive architecture diagram to explore how requests flow through the system:
 
 ```bash
 make diagram
 ```
 
-Or run directly:
-
-```bash
-go run ./cmd/diagram
-```
-
-This opens an interactive visualization at http://localhost:9090 where you can:
-- Animate the request flow step-by-step
-- Click on any component to see detailed information
-- View code examples for each layer
+Opens visualization at http://localhost:9090 - click components to explore code examples.
 
 ## Overview
 
-Conductor is a payment switch that provides a unified interface for multiple payment providers while maintaining its own state and data consistency.
+Conductor is a payment switch providing a unified interface for multiple payment providers while maintaining state and data consistency.
 
-## Current Architecture
+![Architecture](/assets/conductor_arch.png)
 
-![Conductor Architecture Diagram](/assets/conductor_arch.png)
+## Components
 
-## Architecture Components
+### API
+- REST endpoints for payments, subscriptions, disputes, plans
+- JWT/API key authentication
+- Rate limiting (tiered)
 
-### 1. API
+### Services
+- **Payment**: Charges, refunds, captures
+- **Subscription**: Recurring billing, plan management
+- **Dispute**: Evidence handling, resolution tracking
+- **Fraud**: AI-powered transaction analysis
 
-- RESTful API endpoints for payments, subscriptions, disputes, and plans
-- Authentication and authorization
-- Rate limiting for API requests
-- Request validation and error handling
+### Stores
+- GORM-based data access
+- Transaction management
+- Entity relationships
 
-### 2. Services
+### Providers
+- Abstract `PaymentProvider` interface
+- Stripe, Xendit, Razorpay, Airwallex implementations
+- Smart routing via `MultiProviderSelector`
 
-- **Payment Service**: Handles payment processing and refunds
-- **Subscription Service**: Manages recurring billing and subscription lifecycle
-- **Dispute Service**: Handles payment disputes and evidence management
-- **Configuration Service**: Manages system configuration and provider settings
-
-### 3. Stores
-
-- Implements data access patterns using GORM
-- Handles database operations and transactions
-- Provides clean interfaces for services
-- Manages relationships between entities
-
-### 4. Providers
-
-- Abstract interface for payment providers
-- Provider-specific implementations
-- Handles provider API communication
-- Maps provider responses to internal models
-
-### 5. Data
-
-- PostgreSQL database with GORM as ORM
-- Redis for caching and rate limiting
-- Configuration storage
-- Efficient querying and data retrieval
+### Data
+- PostgreSQL (GORM ORM)
+- Redis (caching, rate limiting)
+- Auto-migrations
 
 ## Data Models
 
-### Core Entities
+| Entity | Purpose |
+|--------|---------|
+| Payment | Transaction details, status, provider info, refund history |
+| Subscription | Recurring billing, plan reference, payment history |
+| Dispute | Evidence, resolution tracking, related transaction |
+| Plan | Pricing, billing interval, features |
+| Customer | Profile, payment methods |
 
-1. **Payment**
-   - Transaction details
-   - Payment status tracking
-   - Provider information
-   - Refund history
+## Request Flow
 
-2. **Subscription**
-   - Recurring billing information
-   - Subscription status
-   - Plan details
-   - Payment history
-
-3. **Dispute**
-   - Dispute details
-   - Evidence management
-   - Resolution tracking
-   - Related transaction info
-
-4. **Plan**
-   - Pricing information
-   - Billing intervals
-   - Features and limits
-   - Active status
-
-## Implementation Details
-
-### Database Access
-
-- GORM for object-relational mapping
-- Structured database schema
-- Automated migrations
-- Transaction support
-- Relationship handling
-
-### Data Flow
-
-1. **API Request Flow**
-
-   ```
-   HTTP Request -> Handler -> Service -> Store -> Database
-                         -> Service -> Payment Provider
-   ```
-
-2. **Database Operations**
-
-   ```
-   Service Layer -> Store Layer -> GORM -> PostgreSQL
-   ```
+```
+HTTP → Handler → Service → Store → Database
+                       ↘ Provider → External API
+```

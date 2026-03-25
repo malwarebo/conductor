@@ -1,74 +1,35 @@
-# Fraud Detection Layer
+# Fraud Detection
 
-The fraud detection layer provides intelligent fraud analysis for payment transactions using OpenAI's GPT-4 model as the primary analysis engine with fallback logic for reliability.
+AI-powered fraud analysis using OpenAI GPT-4o with rule-based fallback.
 
-## Features
+## API
 
-- **AI-Powered Analysis**: Uses OpenAI GPT-4o for sophisticated fraud pattern detection
-- **Fallback Logic**: Basic rule-based detection when AI service is unavailable
-- **PII Protection**: Anonymizes sensitive data before sending to external services
-- **Statistics Dashboard**: Provides fraud analytics and reporting
-- **Configurable Thresholds**: Adjustable fraud score thresholds for decision making
+### POST /v1/fraud/analyze
 
-## API Endpoints
-
-### 1. Fraud Analysis Endpoint
-
-Analyzes a transaction for fraud risk and returns an allow/deny decision.
-
-```
-POST /v1/fraud/analyze
-```
-
-**Request Body:**
 ```json
 {
-  "transaction_id": "string",
-  "user_id": "string",
-  "transaction_amount": "number",
-  "billing_country": "string",
-  "shipping_country": "string",
-  "ip_address": "string",
-  "transaction_velocity": "integer"
+  "transaction_id": "txn_123",
+  "user_id": "user_456",
+  "transaction_amount": 150.00,
+  "billing_country": "US",
+  "shipping_country": "US",
+  "ip_address": "192.168.1.1",
+  "transaction_velocity": 2
 }
 ```
 
 **Response:**
 ```json
 {
-  "allow": boolean,
-  "reason": "string"
+  "allow": true,
+  "reason": "Low risk transaction"
 }
 ```
 
-**Example:**
-```bash
-curl -X POST http://localhost:8080/v1/fraud/analyze \
-  -H "Content-Type: application/json" \
-  -d '{
-    "transaction_id": "txn_123456789",
-    "user_id": "user_987654321",
-    "transaction_amount": 150.00,
-    "billing_country": "US",
-    "shipping_country": "US",
-    "ip_address": "192.168.1.1",
-    "transaction_velocity": 2
-  }'
-```
+### GET /v1/fraud/stats
 
-### 2. Fraud Statistics Endpoint
+Query params: `start_date`, `end_date` (ISO 8601)
 
-Returns aggregated fraud statistics for a date range.
-
-```
-GET /v1/fraud/stats?start_date={ISO8601}&end_date={ISO8601}
-```
-
-**Query Parameters:**
-- `start_date` - Start date in ISO 8601 format (e.g., `2025-08-01T00:00:00Z`)
-- `end_date` - End date in ISO 8601 format (e.g., `2025-08-10T23:59:59Z`)
-
-**Response:**
 ```json
 {
   "total_transactions": 1234,
@@ -78,26 +39,48 @@ GET /v1/fraud/stats?start_date={ISO8601}&end_date={ISO8601}
 }
 ```
 
-**Example:**
-```bash
-curl "http://localhost:8080/v1/fraud/stats?start_date=2025-08-01T00:00:00Z&end_date=2025-08-10T23:59:59Z"
-```
-
 ## Configuration
 
-Add OpenAI configuration to your `config.json`:
-
+Add to `config.json`:
 ```json
 {
   "openai": {
-    "api_key": "your_openai_api_key_here"
+    "api_key": "sk-..."
   }
 }
 ```
 
-## Database Schema
+## Scoring Logic
 
-The fraud detection system uses the `fraud_analysis_results` table to store analysis results:
+### AI Analysis (Primary)
+Uses GPT-4o to evaluate:
+- Country mismatches
+- Transaction amount patterns
+- Transaction velocity
+- IP address risk
+
+### Fallback Rules (When AI Unavailable)
+
+| Condition | Score |
+|-----------|-------|
+| Country mismatch | +25 |
+| Amount > $1000 | +30 |
+| Velocity > 5 txns | +35 |
+| Amount > $5000 | +20 |
+
+**Decision:** Score ≥70 and flagged → Deny
+
+## Privacy
+
+- No PII sent to OpenAI (names, emails, addresses)
+- Only country codes, amount categories, risk levels transmitted
+- All results stored locally
+
+## Integration
+
+Fraud check runs synchronously before payment processing. Denied transactions are rejected immediately.
+
+## Database
 
 ```sql
 CREATE TABLE fraud_analysis_results (
@@ -118,63 +101,18 @@ CREATE TABLE fraud_analysis_results (
 );
 ```
 
-## Fraud Detection Logic
+## Test Cases
 
-### AI Analysis (Primary)
-
-The system uses OpenAI GPT-4o with a specialized prompt to analyze transaction data. The AI considers:
-
-- Country mismatches between billing and shipping
-- Transaction amounts relative to typical patterns
-- Transaction velocity (frequency)
-- IP address risk indicators
-- User behavior patterns
-
-### Fallback Logic (Secondary)
-
-When the AI service is unavailable, the system uses rule-based detection:
-
-- **Country Mismatch**: +25 fraud score
-- **High Amount** (>$1000): +30 fraud score
-- **High Velocity** (>5 transactions): +35 fraud score
-- **Very High Amount** (>$5000): +20 fraud score
-
-Transactions with fraud score ≥50 are flagged as fraudulent.
-
-### Decision Threshold
-
-- **Allow**: Fraud score <70 or not flagged as fraudulent
-- **Deny**: Fraud score ≥70 and flagged as fraudulent
-
-## Privacy and Security
-
-- **No PII Transmission**: User names, emails, and detailed addresses are never sent to OpenAI
-- **Data Anonymization**: Only country codes, amount categories, and risk levels are shared
-- **Local Logging**: All analysis results are stored locally for audit and statistics
-
-## Integration with Payment Flow
-
-The fraud detection layer integrates with the payment orchestrator:
-
-1. Payment request received
-2. Fraud analysis performed (synchronously)
-3. If denied, payment is rejected immediately
-4. If allowed, payment proceeds to provider
-5. All decisions are logged
-
-## Statistics and Tracking
-
-Track fraud detection performance with the statistics endpoint:
-
-- Fraud detection rates over time
-- Average fraud scores
-- Transaction volume trends
-- False positive/negative rates
-
-## Migration
-
-Run the migration to add the fraud analysis table:
-
+**Low Risk (Allow):**
 ```bash
-psql -h localhost -U conductor_user -d conductor -f db/migrations/001_add_fraud_analysis_table.sql
+curl -X POST http://localhost:8080/v1/fraud/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"transaction_id":"txn_1","user_id":"user_1","transaction_amount":50,"billing_country":"US","shipping_country":"US","ip_address":"192.168.1.1","transaction_velocity":1}'
+```
+
+**High Risk (Deny):**
+```bash
+curl -X POST http://localhost:8080/v1/fraud/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"transaction_id":"txn_2","user_id":"user_2","transaction_amount":1500,"billing_country":"US","shipping_country":"NG","ip_address":"41.58.0.1","transaction_velocity":8}'
 ```
