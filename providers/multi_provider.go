@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
+	"github.com/malwarebo/conductor/internal/routing"
 	"github.com/malwarebo/conductor/models"
 	"github.com/malwarebo/conductor/stores"
 )
@@ -18,22 +20,56 @@ type MultiProviderSelector struct {
 	disputeProviderMap      map[string]PaymentProvider
 
 	providerPreferences map[string]int
+	providerByName      map[string]PaymentProvider
 	mappingStore        *stores.ProviderMappingStore
+
+	routingEngine  *routing.Engine
+	retryManager   *routing.RetryManager
+	smartRouting   bool
+}
+
+type MultiProviderConfig struct {
+	EnableSmartRouting bool
+	RoutingConfig      routing.Config
+	RetryConfig        routing.RetryConfig
+	BINStore           *stores.BINStore
+	MerchantStore      *stores.MerchantConfigStore
+	RuleStore          *stores.RoutingRuleStore
+}
+
+func DefaultMultiProviderConfig() MultiProviderConfig {
+	return MultiProviderConfig{
+		EnableSmartRouting: true,
+		RoutingConfig:      routing.DefaultConfig(),
+		RetryConfig:        routing.DefaultRetryConfig(),
+	}
 }
 
 func CreateMultiProviderSelector(providers []PaymentProvider, mappingStore *stores.ProviderMappingStore) *MultiProviderSelector {
+	return CreateMultiProviderSelectorWithConfig(providers, mappingStore, DefaultMultiProviderConfig())
+}
+
+func CreateMultiProviderSelectorWithConfig(providers []PaymentProvider, mappingStore *stores.ProviderMappingStore, config MultiProviderConfig) *MultiProviderSelector {
 	preferences := make(map[string]int)
+	byName := make(map[string]PaymentProvider)
+
 	for i, provider := range providers {
-		switch provider.(type) {
-		case *StripeProvider:
-			preferences["stripe"] = i
-		case *XenditProvider:
-			preferences["xendit"] = i
-		case *RazorpayProvider:
-			preferences["razorpay"] = i
-		case *AirwallexProvider:
-			preferences["airwallex"] = i
-		}
+		name := getProviderTypeName(provider)
+		preferences[name] = i
+		byName[name] = provider
+	}
+
+	config.RoutingConfig.AvailableProviders = make([]string, 0, len(providers))
+	for name := range byName {
+		config.RoutingConfig.AvailableProviders = append(config.RoutingConfig.AvailableProviders, name)
+	}
+
+	var engine *routing.Engine
+	var retryMgr *routing.RetryManager
+
+	if config.EnableSmartRouting {
+		engine = routing.NewEngine(config.BINStore, config.MerchantStore, config.RuleStore, config.RoutingConfig)
+		retryMgr = routing.NewRetryManager(engine, config.RetryConfig)
 	}
 
 	return &MultiProviderSelector{
@@ -42,7 +78,26 @@ func CreateMultiProviderSelector(providers []PaymentProvider, mappingStore *stor
 		subscriptionProviderMap: make(map[string]PaymentProvider),
 		disputeProviderMap:      make(map[string]PaymentProvider),
 		providerPreferences:     preferences,
+		providerByName:          byName,
 		mappingStore:            mappingStore,
+		routingEngine:           engine,
+		retryManager:            retryMgr,
+		smartRouting:            config.EnableSmartRouting,
+	}
+}
+
+func getProviderTypeName(provider PaymentProvider) string {
+	switch provider.(type) {
+	case *StripeProvider:
+		return "stripe"
+	case *XenditProvider:
+		return "xendit"
+	case *RazorpayProvider:
+		return "razorpay"
+	case *AirwallexProvider:
+		return "airwallex"
+	default:
+		return "unknown"
 	}
 }
 
@@ -130,37 +185,200 @@ func (m *MultiProviderSelector) selectAvailableProvider(ctx context.Context, pre
 	return nil, fmt.Errorf("no available payment provider")
 }
 
+var currencyProviderMap = map[string]string{
+	"USD": "stripe", "EUR": "stripe", "GBP": "stripe", "CAD": "stripe",
+	"IDR": "xendit", "PHP": "xendit", "VND": "xendit", "THB": "xendit", "MYR": "xendit",
+	"INR": "razorpay",
+	"HKD": "airwallex", "CNY": "airwallex", "AUD": "airwallex", "NZD": "airwallex",
+	"SGD": "airwallex", "ILS": "airwallex", "JPY": "airwallex", "CHF": "airwallex", "KRW": "airwallex",
+}
+
 func (m *MultiProviderSelector) selectProviderByCurrency(ctx context.Context, currency string) (PaymentProvider, error) {
-	switch currency {
-	case "USD", "EUR", "GBP", "CAD":
-		return m.selectAvailableProvider(ctx, "stripe")
-	case "IDR", "PHP", "VND", "THB", "MYR":
-		return m.selectAvailableProvider(ctx, "xendit")
-	case "INR":
-		return m.selectAvailableProvider(ctx, "razorpay")
-	case "HKD", "CNY", "AUD", "NZD", "SGD", "ILS", "JPY", "CHF", "KRW":
-		return m.selectAvailableProvider(ctx, "airwallex")
-	default:
-		return m.selectAvailableProvider(ctx, "")
+	if preferred, ok := currencyProviderMap[currency]; ok {
+		return m.selectAvailableProvider(ctx, preferred)
+	}
+	return m.selectAvailableProvider(ctx, "")
+}
+
+func (m *MultiProviderSelector) selectProviderWithRouting(ctx context.Context, rc *models.RoutingContext) (PaymentProvider, *models.RoutingDecision, error) {
+	if !m.smartRouting || m.routingEngine == nil {
+		provider, err := m.selectProviderByCurrency(ctx, rc.Currency)
+		return provider, nil, err
+	}
+
+	decision, err := m.routingEngine.Route(ctx, rc)
+	if err != nil {
+		provider, fallbackErr := m.selectProviderByCurrency(ctx, rc.Currency)
+		return provider, nil, fallbackErr
+	}
+
+	provider, ok := m.providerByName[decision.SelectedProvider]
+	if !ok {
+		provider, fallbackErr := m.selectProviderByCurrency(ctx, rc.Currency)
+		return provider, decision, fallbackErr
+	}
+
+	return provider, decision, nil
+}
+
+func (m *MultiProviderSelector) recordRoutingResult(provider string, success bool, latencyMs int64, amount float64) {
+	if m.routingEngine != nil {
+		cost := m.estimateCost(provider, amount)
+		m.routingEngine.RecordResult(provider, success, latencyMs, amount, cost)
 	}
 }
 
+func (m *MultiProviderSelector) estimateCost(provider string, amount float64) float64 {
+	costs := map[string]struct{ fixed, pct float64 }{
+		"stripe":    {0.30, 0.029},
+		"xendit":    {0.20, 0.025},
+		"razorpay":  {0.00, 0.020},
+		"airwallex": {0.25, 0.028},
+	}
+	if c, ok := costs[provider]; ok {
+		return c.fixed + (amount * c.pct)
+	}
+	return amount * 0.03
+}
+
 func (m *MultiProviderSelector) Charge(ctx context.Context, req *models.ChargeRequest) (*models.ChargeResponse, error) {
-	provider, err := m.selectProviderByCurrency(ctx, req.Currency)
+	rc := &models.RoutingContext{
+		TransactionID:   req.IdempotencyKey,
+		MerchantID:      m.getMetadataValue(req.Metadata, "merchant_id"),
+		Amount:          float64(req.Amount) / 100,
+		Currency:        req.Currency,
+		PaymentMethod:   req.PaymentMethod,
+		CustomerID:      req.CustomerID,
+		CustomerSegment: m.getMetadataValue(req.Metadata, "customer_segment"),
+		CardBIN:         m.getMetadataValue(req.Metadata, "card_bin"),
+	}
+
+	provider, decision, err := m.selectProviderWithRouting(ctx, rc)
 	if err != nil {
 		return nil, err
 	}
 
+	if m.retryManager != nil && decision != nil {
+		return m.chargeWithRetry(ctx, req, decision)
+	}
+
+	return m.executeCharge(ctx, provider, req)
+}
+
+func (m *MultiProviderSelector) chargeWithRetry(ctx context.Context, req *models.ChargeRequest, decision *models.RoutingDecision) (*models.ChargeResponse, error) {
+	paymentFn := func(ctx context.Context, providerName string) (*routing.PaymentResult, error) {
+		provider, ok := m.providerByName[providerName]
+		if !ok {
+			return nil, fmt.Errorf("provider %s not found", providerName)
+		}
+
+		start := time.Now()
+		resp, err := provider.Charge(ctx, req)
+		latency := time.Since(start).Milliseconds()
+
+		result := &routing.PaymentResult{
+			ResponseTime: latency,
+		}
+
+		if err != nil {
+			result.Success = false
+			result.ErrorMessage = err.Error()
+			result.ErrorCode = "charge_error"
+			m.recordRoutingResult(providerName, false, latency, float64(req.Amount)/100)
+			return result, nil
+		}
+
+		if resp != nil {
+			result.Success = resp.Status == models.PaymentStatusSuccess || resp.Status == models.PaymentStatusPending
+			result.ProviderID = resp.ProviderChargeID
+
+			if result.Success {
+				m.mu.Lock()
+				m.paymentProviderMap[resp.ID] = provider
+				m.mu.Unlock()
+				m.saveProviderMapping(ctx, resp.ID, "payment", providerName, resp.ProviderChargeID)
+			}
+
+			m.recordRoutingResult(providerName, result.Success, latency, float64(req.Amount)/100)
+		}
+
+		return result, nil
+	}
+
+	result, finalDecision, err := m.retryManager.ExecuteWithRetry(ctx, decision, paymentFn)
+	if err != nil {
+		return nil, err
+	}
+
+	if result == nil || !result.Success {
+		if finalDecision != nil && len(finalDecision.PreviousAttempts) > 0 {
+			lastAttempt := finalDecision.PreviousAttempts[len(finalDecision.PreviousAttempts)-1]
+			return nil, fmt.Errorf("payment failed: %s", lastAttempt.ErrorMessage)
+		}
+		return nil, fmt.Errorf("payment failed after retries")
+	}
+
+	provider := m.providerByName[finalDecision.SelectedProvider]
+	if provider == nil {
+		return nil, fmt.Errorf("provider not found after successful payment")
+	}
+
+	m.mu.RLock()
+	for id, p := range m.paymentProviderMap {
+		if p == provider {
+			m.mu.RUnlock()
+			return m.buildChargeResponse(id, result.ProviderID, req, finalDecision.SelectedProvider)
+		}
+	}
+	m.mu.RUnlock()
+
+	return m.buildChargeResponse(result.ProviderID, result.ProviderID, req, finalDecision.SelectedProvider)
+}
+
+func (m *MultiProviderSelector) executeCharge(ctx context.Context, provider PaymentProvider, req *models.ChargeRequest) (*models.ChargeResponse, error) {
+	start := time.Now()
 	resp, err := provider.Charge(ctx, req)
-	if err == nil && resp != nil && resp.ID != "" {
+	latency := time.Since(start).Milliseconds()
+
+	providerName := m.getProviderName(provider)
+	success := err == nil && resp != nil
+
+	m.recordRoutingResult(providerName, success, latency, float64(req.Amount)/100)
+
+	if success && resp.ID != "" {
 		m.mu.Lock()
 		m.paymentProviderMap[resp.ID] = provider
 		m.mu.Unlock()
-		
-		providerName := m.getProviderName(provider)
 		m.saveProviderMapping(ctx, resp.ID, "payment", providerName, resp.ProviderChargeID)
 	}
+
 	return resp, err
+}
+
+func (m *MultiProviderSelector) buildChargeResponse(id, providerID string, req *models.ChargeRequest, providerName string) (*models.ChargeResponse, error) {
+	return &models.ChargeResponse{
+		ID:               id,
+		CustomerID:       req.CustomerID,
+		Amount:           req.Amount,
+		Currency:         req.Currency,
+		Status:           models.PaymentStatusSuccess,
+		PaymentMethod:    req.PaymentMethod,
+		Description:      req.Description,
+		ProviderName:     providerName,
+		ProviderChargeID: providerID,
+		Metadata:         req.Metadata,
+		CreatedAt:        time.Now(),
+	}, nil
+}
+
+func (m *MultiProviderSelector) getMetadataValue(metadata map[string]interface{}, key string) string {
+	if metadata == nil {
+		return ""
+	}
+	if v, ok := metadata[key].(string); ok {
+		return v
+	}
+	return ""
 }
 
 func (m *MultiProviderSelector) Refund(ctx context.Context, req *models.RefundRequest) (*models.RefundResponse, error) {
@@ -913,23 +1131,59 @@ func (m *MultiProviderSelector) GetProviderStats() map[string]interface{} {
 	stats["payment_mappings"] = len(m.paymentProviderMap)
 	stats["subscription_mappings"] = len(m.subscriptionProviderMap)
 	stats["dispute_mappings"] = len(m.disputeProviderMap)
+	stats["smart_routing_enabled"] = m.smartRouting
 
 	providerStats := make(map[string]bool)
-	for i, provider := range m.Providers {
-		providerName := fmt.Sprintf("provider_%d", i)
-		switch provider.(type) {
-		case *StripeProvider:
-			providerName = "stripe"
-		case *XenditProvider:
-			providerName = "xendit"
-		case *RazorpayProvider:
-			providerName = "razorpay"
-		case *AirwallexProvider:
-			providerName = "airwallex"
-		}
+	for _, provider := range m.Providers {
+		providerName := getProviderTypeName(provider)
 		providerStats[providerName] = provider.IsAvailable(context.Background())
 	}
 	stats["provider_availability"] = providerStats
 
+	if m.routingEngine != nil {
+		stats["circuit_breakers"] = m.routingEngine.GetCircuitBreakerStats()
+		stats["routing_metrics"] = m.routingEngine.GetMetricsSnapshot()
+		stats["healthy_providers"] = m.routingEngine.GetHealthyProviders()
+	}
+
 	return stats
+}
+
+func (m *MultiProviderSelector) GetRoutingStats() map[string]interface{} {
+	if m.routingEngine == nil {
+		return map[string]interface{}{
+			"enabled": false,
+		}
+	}
+
+	return map[string]interface{}{
+		"enabled":          true,
+		"circuit_breakers": m.routingEngine.GetCircuitBreakerStats(),
+		"metrics":          m.routingEngine.GetMetricsSnapshot(),
+		"healthy":          m.routingEngine.GetHealthyProviders(),
+	}
+}
+
+func (m *MultiProviderSelector) IsProviderHealthy(providerName string) bool {
+	if m.routingEngine == nil {
+		if provider, ok := m.providerByName[providerName]; ok {
+			return provider.IsAvailable(context.Background())
+		}
+		return false
+	}
+	return m.routingEngine.GetProviderHealth(providerName)
+}
+
+func (m *MultiProviderSelector) GetHealthyProviders() []string {
+	if m.routingEngine != nil {
+		return m.routingEngine.GetHealthyProviders()
+	}
+
+	healthy := make([]string, 0)
+	for name, provider := range m.providerByName {
+		if provider.IsAvailable(context.Background()) {
+			healthy = append(healthy, name)
+		}
+	}
+	return healthy
 }
