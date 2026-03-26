@@ -12,11 +12,7 @@
 The system includes an `experimental` fraud detection with AI that analyzes transactions in real-time before processing payments. It uses OpenAI's LLM models to identify suspicious patterns while maintaining strict privacy standards by anonymizing sensitive data. The fraud detection layer integrates easily into your payment flow, automatically trying to block high-risk transactions while allowing legitimate ones to proceed smoothly.
 
 > [!TIP]
-> Why I'm building this? Read: <https://github.com/malwarebo/conductor/blob/master/docs/PROBLEM.md>
-> 
-> Architecture diagram: <https://github.com/malwarebo/conductor/blob/master/docs/ARCHITECTURE.md>
->
-> API docs: <https://github.com/malwarebo/conductor/blob/master/docs/API_REFERENCE.md>
+> Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | API Reference: [docs/api.html](docs/api.html) (OpenAPI)
 
 ## Setup
 
@@ -94,6 +90,16 @@ go run main.go
 
 Your API will be live at `http://localhost:8080`
 
+## API Documentation
+
+Interactive API docs (Swagger UI):
+
+```bash
+make api-docs
+```
+
+Opens at http://localhost:8090/api.html. OpenAPI spec available at `docs/openapi.yaml`.
+
 ## Docker setup
 
 ### Environment Variables (optional)
@@ -140,15 +146,23 @@ All API endpoints (except health check) require authentication using an API key.
 
 **Note**: Replace `your_api_key_here` with your actual API key. For development, you can use any string with at least 10 characters.
 
-## How Currency Routing Works
+## How Routing Works
 
-The system is smart about routing your payments to the right provider:
+The system routes payments using a weighted scoring engine:
 
-- **Stripe**: USD, EUR, GBP (perfect for international payments)
-- **Xendit**: IDR, SGD, MYR, PHP, THB, VND (great for Southeast Asia)
-- **Razorpay**: INR (optimized for India with UPI and Netbanking support)
+| Provider | Currencies | Best For |
+|----------|------------|----------|
+| Stripe | USD, EUR, GBP, CAD | International payments |
+| Xendit | IDR, SGD, MYR, PHP, THB, VND | Southeast Asia |
+| Razorpay | INR | India (UPI, Netbanking) |
+| Airwallex | HKD, CNY, AUD, NZD, JPY, KRW | APAC cross-border |
 
-Just specify the currency in your request, and the system automatically picks the best provider.
+**Routing Features:**
+- **Circuit Breakers** - Auto-failover when providers degrade
+- **BIN/IIN Routing** - Route cards to historically best-performing provider
+- **Smart Retry** - Automatic retry with exponential backoff and provider failover
+- **Real-time Scoring** - Weighted by success rate, cost, latency, and health
+- **Merchant Config** - Per-merchant provider preferences and volume targets
 
 > [!TIP]
 > For more details on smart routing, see the [Smart Routing Guide](docs/SMART_ROUTING.md).
@@ -157,9 +171,9 @@ Just specify the currency in your request, and the system automatically picks th
 
 | Document | Description |
 |----------|-------------|
-| [API Reference](docs/API_REFERENCE.md) | Endpoints, examples, authentication |
-| [Architecture](docs/ARCHITECTURE.md) | System design and diagrams (`make diagram` for interactive) |
-| [Smart Routing](docs/SMART_ROUTING.md) | How currency routing works |
+| [API Reference](docs/api.html) | Interactive OpenAPI docs (`make api-docs`) |
+| [Architecture](docs/ARCHITECTURE.md) | System design (`make diagram` for interactive) |
+| [Smart Routing](docs/SMART_ROUTING.md) | Routing engine details |
 | [Fraud Detection](docs/FRAUD_DETECTION.md) | AI-powered fraud prevention |
-| [Security Guide](docs/SECURITY_GUIDE.md) | Security best practices |
-| [Development Guide](docs/DEVELOPMENT.md) | Database scripts, caching, dev tips |
+| [Security Guide](docs/SECURITY_GUIDE.md) | Security checklist |
+| [Development Guide](docs/DEVELOPMENT.md) | Database setup, caching |

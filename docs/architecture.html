@@ -417,6 +417,7 @@
         .node-stripe { border-color: #635bff !important; }
         .node-xendit { border-color: #00bcd4 !important; }
         .node-razorpay { border-color: #0066ff !important; }
+        .node-airwallex { border-color: #ff6b35 !important; }
 
         footer {
             text-align: center;
@@ -434,14 +435,14 @@
 <body>
     <div class="container">
         <header>
-            <h1>⚡ Conductor Architecture</h1>
+            <h1>Conductor Architecture</h1>
             <p class="subtitle">Interactive Request Flow Diagram</p>
         </header>
 
         <div class="controls">
             <button class="btn btn-primary" onclick="animateFlow()">▶ Animate Request Flow</button>
             <button class="btn btn-secondary" onclick="resetFlow()">↺ Reset</button>
-            <button class="btn btn-secondary" id="toggleLabels" onclick="toggleLabels()">📝 Show Labels</button>
+            <button class="btn btn-secondary" id="toggleLabels" onclick="toggleLabels()">Show Labels</button>
         </div>
 
         <div class="step-indicator" id="stepIndicator">
@@ -469,7 +470,7 @@
             <div class="flow-container">
                 <div class="layer">
                     <div class="node node-client" data-component="client" onclick="showDetails('client')">
-                        <div class="node-title">🌐 Client</div>
+                        <div class="node-title">Client</div>
                         <div class="node-subtitle">HTTP Request</div>
                     </div>
                 </div>
@@ -483,7 +484,7 @@
 
                 <div class="layer">
                     <div class="node node-middleware" data-component="middleware" onclick="showDetails('middleware')">
-                        <div class="node-title">🛡️ Middleware Chain</div>
+                        <div class="node-title">Middleware Chain</div>
                         <div class="node-subtitle">Auth • Rate Limit • Logging</div>
                     </div>
                 </div>
@@ -497,7 +498,7 @@
 
                 <div class="layer">
                     <div class="node node-api" data-component="api" onclick="showDetails('api')">
-                        <div class="node-title">📡 API Handler</div>
+                        <div class="node-title">API Handler</div>
                         <div class="node-subtitle">PaymentHandler</div>
                     </div>
                 </div>
@@ -511,11 +512,11 @@
 
                 <div class="layer">
                     <div class="node node-service" data-component="service" onclick="showDetails('service')">
-                        <div class="node-title">⚙️ Service Layer</div>
+                        <div class="node-title">Service Layer</div>
                         <div class="node-subtitle">PaymentService</div>
                     </div>
                     <div class="node node-service" data-component="fraud" onclick="showDetails('fraud')">
-                        <div class="node-title">🔍 Fraud Detection</div>
+                        <div class="node-title">Fraud Detection</div>
                         <div class="node-subtitle">AI Analysis</div>
                     </div>
                 </div>
@@ -529,7 +530,7 @@
 
                 <div class="layer">
                     <div class="node node-provider" data-component="selector" onclick="showDetails('selector')">
-                        <div class="node-title">🔀 Provider Selector</div>
+                        <div class="node-title">Routing Engine</div>
                         <div class="node-subtitle">Smart Routing</div>
                     </div>
                 </div>
@@ -543,16 +544,20 @@
 
                 <div class="layer providers-row">
                     <div class="node node-provider node-stripe" data-component="stripe" onclick="showDetails('stripe')">
-                        <div class="node-title">💳 Stripe</div>
+                        <div class="node-title">Stripe</div>
                         <div class="node-subtitle">USD, EUR, GBP</div>
                     </div>
                     <div class="node node-provider node-xendit" data-component="xendit" onclick="showDetails('xendit')">
-                        <div class="node-title">🌏 Xendit</div>
-                        <div class="node-subtitle">IDR, SGD, SEA</div>
+                        <div class="node-title">Xendit</div>
+                        <div class="node-subtitle">IDR, PHP, SEA</div>
                     </div>
                     <div class="node node-provider node-razorpay" data-component="razorpay" onclick="showDetails('razorpay')">
-                        <div class="node-title">🇮🇳 Razorpay</div>
+                        <div class="node-title">Razorpay</div>
                         <div class="node-subtitle">INR</div>
+                    </div>
+                    <div class="node node-provider node-airwallex" data-component="airwallex" onclick="showDetails('airwallex')">
+                        <div class="node-title">Airwallex</div>
+                        <div class="node-subtitle">HKD, CNY, APAC</div>
                     </div>
                 </div>
 
@@ -565,7 +570,7 @@
 
                 <div class="layer">
                     <div class="node node-store" data-component="store" onclick="showDetails('store')">
-                        <div class="node-title">💾 Data Store</div>
+                        <div class="node-title">Data Store</div>
                         <div class="node-subtitle">PostgreSQL + Redis</div>
                     </div>
                 </div>
@@ -614,7 +619,7 @@
     <script>
         const componentDetails = {
             client: {
-                title: '🌐 Client Request',
+                title: 'Client Request',
                 description: 'The entry point for all API requests. Clients send HTTP requests to Conductor\'s REST API.',
                 flow: 'Step 1: Request Received',
                 details: [
@@ -636,7 +641,7 @@
 }`
             },
             middleware: {
-                title: '🛡️ Middleware Chain',
+                title: 'Middleware Chain',
                 description: 'A series of middleware functions that process every request before it reaches the handler.',
                 flow: 'Step 2: Request Processing',
                 details: [
@@ -647,8 +652,7 @@
                     'JWT Auth: Validates authentication tokens',
                     'Tenant Context: Multi-tenant isolation',
                     'Idempotency: Prevents duplicate processing',
-                    'Audit: Logs all operations',
-                    'Encryption: Secures sensitive data'
+                    'Audit: Logs all operations'
                 ],
                 code: `<span class="comment">// Middleware chain order</span>
 router.Use(middleware.LoggingMiddleware)
@@ -658,11 +662,10 @@ router.Use(auth.RateLimitMiddleware)
 router.Use(auth.JWTMiddleware)
 router.Use(tenant.TenantContextMiddleware)
 router.Use(tenant.IdempotencyMiddleware)
-router.Use(tenant.AuditMiddleware)
-router.Use(auth.EncryptionMiddleware)`
+router.Use(tenant.AuditMiddleware)`
             },
             api: {
-                title: '📡 API Handler',
+                title: 'API Handler',
                 description: 'HTTP handlers that parse requests, validate input, and delegate to services.',
                 flow: 'Step 3: Request Handling',
                 details: [
@@ -687,14 +690,14 @@ router.Use(auth.EncryptionMiddleware)`
 }`
             },
             service: {
-                title: '⚙️ Service Layer',
+                title: 'Service Layer',
                 description: 'Business logic layer that orchestrates operations between stores and providers.',
                 flow: 'Step 4: Business Logic',
                 details: [
                     'Implements core payment processing logic',
                     'Handles idempotency checking',
                     'Triggers fraud analysis before processing',
-                    'Selects appropriate payment provider',
+                    'Delegates to routing engine for provider selection',
                     'Manages transaction state',
                     'Records audit logs'
                 ],
@@ -704,60 +707,57 @@ router.Use(auth.EncryptionMiddleware)`
 ) (*models.ChargeResponse, error) {
     <span class="comment">// 1. Check idempotency</span>
     <span class="comment">// 2. Run fraud analysis</span>
-    <span class="comment">// 3. Select provider by currency</span>
-    <span class="comment">// 4. Execute charge</span>
+    <span class="comment">// 3. Route to optimal provider</span>
+    <span class="comment">// 4. Execute with retry</span>
     <span class="comment">// 5. Save to database</span>
     <span class="comment">// 6. Return response</span>
 }`
             },
             fraud: {
-                title: '🔍 Fraud Detection',
-                description: 'AI-powered fraud analysis using OpenAI to detect suspicious transactions.',
+                title: 'Fraud Detection',
+                description: 'AI-powered fraud analysis using OpenAI GPT-4o with rule-based fallback.',
                 flow: 'Step 4a: Risk Analysis',
                 details: [
                     'Analyzes transaction patterns in real-time',
-                    'Uses OpenAI LLM for intelligent detection',
-                    'Anonymizes sensitive data before analysis',
-                    'Returns risk score and recommendation',
-                    'Can block high-risk transactions automatically'
+                    'Uses GPT-4o for intelligent detection',
+                    'Falls back to rule-based scoring if AI unavailable',
+                    'Anonymizes PII before external API calls',
+                    'Blocks transactions with fraud score >= 70'
                 ],
                 code: `<span class="comment">// Fraud analysis response</span>
 {
-  <span class="string">"risk_score"</span>: 0.15,
-  <span class="string">"risk_level"</span>: <span class="string">"low"</span>,
-  <span class="string">"recommendation"</span>: <span class="string">"approve"</span>,
-  <span class="string">"reasons"</span>: [
-    <span class="string">"Normal transaction pattern"</span>,
-    <span class="string">"Known customer"</span>
-  ]
+  <span class="string">"allow"</span>: <span class="keyword">true</span>,
+  <span class="string">"reason"</span>: <span class="string">"Low risk transaction"</span>
 }`
             },
             selector: {
-                title: '🔀 Provider Selector',
-                description: 'Smart routing engine that selects the optimal payment provider based on currency and availability.',
+                title: 'Routing Engine',
+                description: 'Smart routing engine using weighted scoring to select optimal provider.',
                 flow: 'Step 5: Provider Selection',
                 details: [
-                    'Routes by currency (USD→Stripe, IDR→Xendit, INR→Razorpay)',
-                    'Checks provider availability in real-time',
-                    'Falls back to alternative providers if needed',
-                    'Maintains provider-to-entity mappings',
-                    'Aggregates results from multiple providers'
+                    'Weighted scoring: success rate (35%), cost (20%), BIN (20%), latency (10%), health (10%), volume (5%)',
+                    'Circuit breakers auto-disable failing providers',
+                    'BIN/IIN routing based on card issuer performance',
+                    'Smart retry with exponential backoff',
+                    'Per-merchant configuration support'
                 ],
-                code: `<span class="keyword">func</span> (m *MultiProviderSelector) <span class="function">selectProviderByCurrency</span>(
-    currency <span class="keyword">string</span>,
-) (PaymentProvider, error) {
-    <span class="keyword">switch</span> currency {
-    <span class="keyword">case</span> <span class="string">"USD"</span>, <span class="string">"EUR"</span>, <span class="string">"GBP"</span>:
-        <span class="keyword">return</span> m.selectProvider(<span class="string">"stripe"</span>)
-    <span class="keyword">case</span> <span class="string">"IDR"</span>, <span class="string">"SGD"</span>, <span class="string">"MYR"</span>:
-        <span class="keyword">return</span> m.selectProvider(<span class="string">"xendit"</span>)
-    <span class="keyword">case</span> <span class="string">"INR"</span>:
-        <span class="keyword">return</span> m.selectProvider(<span class="string">"razorpay"</span>)
-    }
+                code: `<span class="keyword">func</span> (e *Engine) <span class="function">Route</span>(
+    ctx context.Context,
+    rc *models.RoutingContext,
+) (*models.RoutingDecision, error) {
+    eligible := e.getEligibleProviders(ctx, rc)
+    scores := e.scoreProviders(ctx, rc, eligible)
+    sort.Slice(scores, <span class="keyword">func</span>(i, j int) bool {
+        <span class="keyword">return</span> scores[i].Score > scores[j].Score
+    })
+    <span class="keyword">return</span> &models.RoutingDecision{
+        SelectedProvider: scores[0].ProviderName,
+        FallbackProviders: getFallbacks(scores),
+    }, <span class="keyword">nil</span>
 }`
             },
             stripe: {
-                title: '💳 Stripe Provider',
+                title: 'Stripe Provider',
                 description: 'Integration with Stripe for international payments.',
                 flow: 'Step 6a: Provider Execution',
                 details: [
@@ -776,33 +776,33 @@ params := &stripe.PaymentIntentParams{
 pi, _ := paymentintent.New(params)`
             },
             xendit: {
-                title: '🌏 Xendit Provider',
+                title: 'Xendit Provider',
                 description: 'Integration with Xendit for Southeast Asian markets.',
                 flow: 'Step 6b: Provider Execution',
                 details: [
                     'Supports: IDR, PHP, VND, THB, MYR, SGD',
-                    'Features: Cards, E-Wallets, Virtual Accounts, QR',
+                    'Features: Cards, E-Wallets, Virtual Accounts, QR, Direct Debit',
                     'Invoice generation with payment links',
                     'Payout support for disbursements',
                     'Real-time webhook processing'
                 ],
-                code: `<span class="comment">// Xendit Payment Request</span>
-paymentReq := paymentrequest.NewPaymentRequestParameters(
-    currency,
-)
-paymentReq.SetAmount(float64(req.Amount))
-paymentReq.SetReferenceId(req.CustomerID)
-pr, _ := client.PaymentRequestApi.
-    CreatePaymentRequest(ctx).Execute()`
+                code: `<span class="comment">// Xendit Charge</span>
+body := map[string]interface{}{
+    <span class="string">"reference_id"</span>: req.CustomerID,
+    <span class="string">"amount"</span>: req.Amount,
+    <span class="string">"currency"</span>: req.Currency,
+}
+resp, _ := p.doRequest(ctx, <span class="string">"POST"</span>,
+    <span class="string">"/payment_requests"</span>, body)`
             },
             razorpay: {
-                title: '🇮🇳 Razorpay Provider',
+                title: 'Razorpay Provider',
                 description: 'Integration with Razorpay for Indian market payments.',
                 flow: 'Step 6c: Provider Execution',
                 details: [
-                    'Supports: INR only',
+                    'Supports: INR (primary), USD, EUR, GBP, SGD',
                     'Features: Cards, UPI, Netbanking, Wallets, EMI',
-                    'Order → Payment flow (requires frontend)',
+                    'Order -> Payment flow',
                     'Subscription and plan management',
                     'Dispute handling with accept/contest'
                 ],
@@ -814,15 +814,36 @@ orderData := map[string]interface{}{
 }
 order, _ := client.Order.Create(orderData, nil)`
             },
+            airwallex: {
+                title: 'Airwallex Provider',
+                description: 'Integration with Airwallex for APAC cross-border payments.',
+                flow: 'Step 6d: Provider Execution',
+                details: [
+                    'Supports: HKD, CNY, AUD, NZD, JPY, KRW, SGD, USD, EUR, GBP',
+                    'Features: Cards, 3DS, Manual Capture',
+                    'OAuth2 authentication with token caching',
+                    'Invoice and payout support',
+                    'Real-time webhook processing'
+                ],
+                code: `<span class="comment">// Airwallex PaymentIntent</span>
+body := map[string]interface{}{
+    <span class="string">"amount"</span>: convert.CentsToFloat(req.Amount),
+    <span class="string">"currency"</span>: req.Currency,
+    <span class="string">"merchant_order_id"</span>: req.CustomerID,
+    <span class="string">"request_id"</span>: generateRequestID(),
+}
+resp, _ := p.doRequest(ctx, <span class="string">"POST"</span>,
+    <span class="string">"/pa/payment_intents/create"</span>, body)`
+            },
             store: {
-                title: '💾 Data Store',
+                title: 'Data Store',
                 description: 'Persistence layer using PostgreSQL for data and Redis for caching.',
                 flow: 'Step 7: Data Persistence',
                 details: [
                     'PostgreSQL: Primary database for all entities',
                     'Redis: Caching layer for performance',
                     'GORM: ORM for database operations',
-                    'Connection pooling for scalability',
+                    'BIN/Merchant/Rule stores for routing data',
                     'Automatic migrations on startup'
                 ],
                 code: `<span class="comment">// Repository pattern</span>
@@ -887,7 +908,7 @@ order, _ := client.Order.Create(orderData, nil)`
                 { step: 2, component: 'middleware', arrow: 'arrow1', desc: 'Request passes through middleware chain (auth, rate limit, logging)' },
                 { step: 3, component: 'api', arrow: 'arrow2', desc: 'API handler parses request and validates input' },
                 { step: 4, component: 'service', arrow: 'arrow3', desc: 'Service layer runs fraud check and prepares payment' },
-                { step: 5, component: 'selector', arrow: 'arrow4', desc: 'Provider selector routes to Stripe (USD currency)' },
+                { step: 5, component: 'selector', arrow: 'arrow4', desc: 'Routing engine scores providers and selects optimal one' },
                 { step: 6, component: 'stripe', arrow: 'arrow5', desc: 'Stripe processes the payment and returns result' },
                 { step: 7, component: 'store', arrow: 'arrow6', desc: 'Transaction saved to PostgreSQL, response returned to client' }
             ];
@@ -897,7 +918,7 @@ order, _ := client.Order.Create(orderData, nil)`
                 if (i >= steps.length) {
                     clearInterval(animationInterval);
                     document.getElementById('flowDescription').innerHTML = `
-                        <h3>✅ Payment Complete!</h3>
+                        <h3>Payment Complete</h3>
                         <p>The charge was successfully processed and saved. Response returned to client.</p>
                     `;
                     return;

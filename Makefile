@@ -55,6 +55,11 @@ diagram:
 	@echo "Launching architecture diagram..."
 	go run ./cmd/diagram
 
+api-docs:
+	@echo "Serving API docs at http://localhost:8090..."
+	@open http://localhost:8090/api.html &
+	@cd docs && python3 -m http.server 8090
+
 security-scan:
 	@echo "Running security scan..."
 	./scripts/security-check.sh
@@ -74,5 +79,6 @@ help:
 	@echo "  build             - Build the application"
 	@echo "  run               - Run the application"
 	@echo "  diagram           - Launch interactive architecture diagram"
+	@echo "  api-docs          - Serve OpenAPI docs at localhost:8090"
 	@echo "  security-scan     - Run security vulnerability scan"
 
