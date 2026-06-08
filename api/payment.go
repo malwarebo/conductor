@@ -484,3 +484,46 @@ func (h *PaymentHandler) HandleRazorpayWebhook(w http.ResponseWriter, r *http.Re
 	})
 }
 
+func (h *PaymentHandler) HandleAirwallexWebhook(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	payload, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Failed to read request body"})
+		return
+	}
+
+	if validator, ok := h.webhookValidators["airwallex"]; ok {
+		signature := r.Header.Get("x-signature")
+		if err := validator.ValidateWebhookSignature(payload, signature); err != nil {
+			writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Invalid webhook signature"})
+			return
+		}
+	}
+
+	var event map[string]interface{}
+	if err := json.Unmarshal(payload, &event); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid JSON payload"})
+		return
+	}
+
+	eventType, _ := event["name"].(string)
+	eventID, _ := event["id"].(string)
+
+	if h.webhookService != nil {
+		if err := h.webhookService.ProcessInboundWebhook(r.Context(), "airwallex", eventID, eventType, payload); err != nil {
+			writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to process webhook"})
+			return
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"received":   true,
+		"event_id":   eventID,
+		"event_type": eventType,
+	})
+}
+
