@@ -179,12 +179,21 @@ func main() {
 		availableProviders = append(availableProviders, razorpayProvider)
 	}
 
+	var airwallexProvider *providers.AirwallexProvider
+	if cfg.Airwallex.ClientID != "" && cfg.Airwallex.APIKey != "" {
+		airwallexProvider = providers.CreateAirwallexProviderWithWebhook(cfg.Airwallex.ClientID, cfg.Airwallex.APIKey, cfg.Airwallex.WebhookSecret, cfg.Airwallex.UseSandbox)
+		availableProviders = append(availableProviders, airwallexProvider)
+	}
+
 	providerSelector := providers.CreateMultiProviderSelector(availableProviders, providerMappingStore)
 	printSuccess("Payment providers initialized")
 	printInfo("  • Stripe: Ready for USD, EUR, GBP")
 	printInfo("  • Xendit: Ready for IDR, SGD, MYR, PHP, THB, VND")
 	if razorpayProvider != nil {
 		printInfo("  • Razorpay: Ready for INR")
+	}
+	if airwallexProvider != nil {
+		printInfo("  • Airwallex: Ready for HKD, CNY, AUD, NZD, JPY, KRW")
 	}
 
 	printStep("8/8", "Initializing services...")
@@ -210,6 +219,9 @@ func main() {
 	}
 	if razorpayProvider != nil {
 		webhookValidators["razorpay"] = razorpayProvider
+	}
+	if airwallexProvider != nil {
+		webhookValidators["airwallex"] = airwallexProvider
 	}
 	paymentHandler := api.CreatePaymentHandlerWithWebhook(paymentService, webhookService, webhookValidators)
 	subscriptionHandler := api.CreateSubscriptionHandler(subscriptionService)
@@ -317,6 +329,7 @@ func main() {
 	webhookRouter.HandleFunc("/stripe", paymentHandler.HandleStripeWebhook).Methods("POST")
 	webhookRouter.HandleFunc("/xendit", paymentHandler.HandleXenditWebhook).Methods("POST")
 	webhookRouter.HandleFunc("/razorpay", paymentHandler.HandleRazorpayWebhook).Methods("POST")
+	webhookRouter.HandleFunc("/airwallex", paymentHandler.HandleAirwallexWebhook).Methods("POST")
 
 	server := &http.Server{
 		Addr:           ":" + cfg.Server.Port,
