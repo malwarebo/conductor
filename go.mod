@@ -5,7 +5,7 @@ go 1.26.1
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/razorpay/razorpay-go v1.4.1
-	github.com/redis/go-redis/v9 v9.20.0
+	github.com/redis/go-redis/v9 v9.21.0
 	github.com/stripe/stripe-go/v84 v84.4.1
 	github.com/xendit/xendit-go/v7 v7.0.0
 	golang.org/x/crypto v0.53.0
