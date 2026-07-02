@@ -18,19 +18,19 @@ func (s State) String() string {
 }
 
 type Config struct {
-	FailureThreshold   int
-	SuccessThreshold   int
-	Timeout            time.Duration
-	RollingWindowSize  time.Duration
+	FailureThreshold    int
+	SuccessThreshold    int
+	Timeout             time.Duration
+	RollingWindowSize   time.Duration
 	MinRequestsInWindow int
 }
 
 func DefaultConfig() Config {
 	return Config{
-		FailureThreshold:   5,
-		SuccessThreshold:   3,
-		Timeout:            30 * time.Second,
-		RollingWindowSize:  60 * time.Second,
+		FailureThreshold:    5,
+		SuccessThreshold:    3,
+		Timeout:             30 * time.Second,
+		RollingWindowSize:   60 * time.Second,
 		MinRequestsInWindow: 10,
 	}
 }

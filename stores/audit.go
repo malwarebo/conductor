@@ -95,4 +95,3 @@ func (s *AuditStore) CleanupOld(ctx context.Context, olderThan time.Duration) (i
 	result := s.GetDB(ctx).Where("created_at < ?", cutoff).Delete(&models.AuditLog{})
 	return result.RowsAffected, result.Error
 }
-

@@ -69,15 +69,15 @@ type PaymentMethod struct {
 }
 
 type CreatePaymentMethodRequest struct {
-	CustomerID   string                 `json:"customer_id" binding:"required"`
-	Type         PaymentMethodType      `json:"type" binding:"required"`
-	Reusable     bool                   `json:"reusable"`
-	ChannelCode  string                 `json:"channel_code,omitempty"`
-	CardToken    string                 `json:"card_token,omitempty"`
-	ReturnURL    string                 `json:"return_url,omitempty"`
-	Provider     string                 `json:"provider,omitempty"`
-	IsDefault    bool                   `json:"is_default"`
-	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	CustomerID  string                 `json:"customer_id" binding:"required"`
+	Type        PaymentMethodType      `json:"type" binding:"required"`
+	Reusable    bool                   `json:"reusable"`
+	ChannelCode string                 `json:"channel_code,omitempty"`
+	CardToken   string                 `json:"card_token,omitempty"`
+	ReturnURL   string                 `json:"return_url,omitempty"`
+	Provider    string                 `json:"provider,omitempty"`
+	IsDefault   bool                   `json:"is_default"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type PaymentMethodResponse struct {

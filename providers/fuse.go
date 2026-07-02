@@ -171,4 +171,3 @@ func (s FuseState) String() string {
 		return "unknown"
 	}
 }
-

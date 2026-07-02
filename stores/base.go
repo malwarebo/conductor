@@ -27,4 +27,3 @@ func (s *BaseStore) WithTransaction(ctx context.Context, fn func(context.Context
 		return fn(txCtx)
 	})
 }
-

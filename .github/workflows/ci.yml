@@ -2,12 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ master ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ master ]
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
@@ -22,28 +26,61 @@ jobs:
       with:
         go-version: '1.26.4'
 
-    - name: Setup CI environment
-      run: ./scripts/ci-setup.sh
-
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@d583c34f0599d37dbac4a198b9c83201be380893 # v9.3.0
       with:
         version: v2.12.2
+
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.26.4'
+
+    - name: Check formatting
+      run: |
+        unformatted=$(gofmt -l .)
+        if [ -n "$unformatted" ]; then
+          echo "The following files are not gofmt-formatted:"
+          echo "$unformatted"
+          exit 1
+        fi
+
+    - name: Verify go.mod/go.sum are tidy
+      run: |
+        go mod tidy
+        git diff --exit-code go.mod go.sum
+
+    - name: go vet
+      run: go vet ./...
 
   test:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
-        go-version: '1.26.1'
+        go-version: '1.26.4'
 
     - name: Setup CI environment
       run: ./scripts/ci-setup.sh
 
-    - name: Run tests
-      run: go test -v ./...
+    - name: Run tests (race detector + coverage)
+      run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage
+        path: coverage.out
+        if-no-files-found: ignore

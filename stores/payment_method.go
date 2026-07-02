@@ -63,4 +63,3 @@ func (s *PaymentMethodStore) GetDefault(ctx context.Context, customerID string) 
 	}
 	return &pm, nil
 }
-

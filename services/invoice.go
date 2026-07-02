@@ -44,4 +44,3 @@ func (s *InvoiceService) CancelInvoice(ctx context.Context, invoiceID string) (*
 	}
 	return nil, providers.ErrNotSupported
 }
-

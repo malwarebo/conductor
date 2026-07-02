@@ -34,4 +34,3 @@ func (s *ProviderMappingStore) GetByEntity(ctx context.Context, entityID, entity
 func (s *ProviderMappingStore) Delete(ctx context.Context, entityID, entityType string) error {
 	return s.GetDB(ctx).Where("entity_id = ? AND entity_type = ?", entityID, entityType).Delete(&models.ProviderMapping{}).Error
 }
-

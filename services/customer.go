@@ -54,4 +54,3 @@ func (s *CustomerService) UpdateCustomer(ctx context.Context, customerID string,
 func (s *CustomerService) DeleteCustomer(ctx context.Context, customerID string) error {
 	return s.provider.DeleteCustomer(ctx, customerID)
 }
-

@@ -127,4 +127,3 @@ var (
 	ErrIdempotencyMismatch   = gorm.ErrInvalidData
 	ErrIdempotencyInProgress = gorm.ErrInvalidTransaction
 )
-

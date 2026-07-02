@@ -65,4 +65,3 @@ func (s *CustomerStore) List(ctx context.Context, limit, offset int) ([]*models.
 	}
 	return customers, nil
 }
-

@@ -17,11 +17,11 @@ import (
 )
 
 type WebhookService struct {
-	webhookStore   *stores.WebhookStore
-	paymentStore   *stores.PaymentRepository
-	tenantStore    *stores.TenantStore
-	auditStore     *stores.AuditStore
-	httpClient     *http.Client
+	webhookStore *stores.WebhookStore
+	paymentStore *stores.PaymentRepository
+	tenantStore  *stores.TenantStore
+	auditStore   *stores.AuditStore
+	httpClient   *http.Client
 }
 
 func CreateWebhookService(
@@ -550,4 +550,3 @@ func generateID() string {
 	crand.Read(b)
 	return fmt.Sprintf("evt_%x", b)
 }
-

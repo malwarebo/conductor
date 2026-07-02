@@ -145,4 +145,3 @@ func (h *TenantHandler) HandleRegenerateSecret(w http.ResponseWriter, r *http.Re
 
 	writeJSON(w, http.StatusOK, map[string]string{"api_secret": newSecret})
 }
-

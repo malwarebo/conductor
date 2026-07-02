@@ -167,14 +167,14 @@ type awxTransferResponse struct {
 }
 
 type awxSubscriptionRequest struct {
-	RequestID        string                 `json:"request_id"`
-	BillingCustomerID string                `json:"billing_customer_id"`
-	CollectionMethod string                 `json:"collection_method"`
-	PaymentSourceID  string                 `json:"payment_source_id,omitempty"`
-	Currency         string                 `json:"currency"`
-	Duration         *awxDuration           `json:"duration,omitempty"`
-	StartsAt         string                 `json:"starts_at,omitempty"`
-	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+	RequestID         string                 `json:"request_id"`
+	BillingCustomerID string                 `json:"billing_customer_id"`
+	CollectionMethod  string                 `json:"collection_method"`
+	PaymentSourceID   string                 `json:"payment_source_id,omitempty"`
+	Currency          string                 `json:"currency"`
+	Duration          *awxDuration           `json:"duration,omitempty"`
+	StartsAt          string                 `json:"starts_at,omitempty"`
+	Metadata          map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type awxDuration struct {
@@ -441,14 +441,14 @@ func (p *AirwallexProvider) mapChargeResponse(pi *awxPaymentIntentResponse, req 
 
 func (p *AirwallexProvider) mapPaymentStatus(status string) models.PaymentStatus {
 	statusMap := map[string]models.PaymentStatus{
-		"SUCCEEDED":                 models.PaymentStatusSuccess,
-		"REQUIRES_PAYMENT_METHOD":   models.PaymentStatusRequiresAction,
-		"REQUIRES_CUSTOMER_ACTION":  models.PaymentStatusRequiresAction,
-		"REQUIRES_CAPTURE":          models.PaymentStatusRequiresCapture,
-		"PENDING":                   models.PaymentStatusProcessing,
-		"PROCESSING":                models.PaymentStatusProcessing,
-		"CANCELLED":                 models.PaymentStatusCanceled,
-		"FAILED":                    models.PaymentStatusFailed,
+		"SUCCEEDED":                models.PaymentStatusSuccess,
+		"REQUIRES_PAYMENT_METHOD":  models.PaymentStatusRequiresAction,
+		"REQUIRES_CUSTOMER_ACTION": models.PaymentStatusRequiresAction,
+		"REQUIRES_CAPTURE":         models.PaymentStatusRequiresCapture,
+		"PENDING":                  models.PaymentStatusProcessing,
+		"PROCESSING":               models.PaymentStatusProcessing,
+		"CANCELLED":                models.PaymentStatusCanceled,
+		"FAILED":                   models.PaymentStatusFailed,
 	}
 	if s, ok := statusMap[status]; ok {
 		return s

@@ -7,35 +7,35 @@ import (
 type InvoiceStatus string
 
 const (
-	InvoiceStatusDraft     InvoiceStatus = "draft"
-	InvoiceStatusPending   InvoiceStatus = "pending"
-	InvoiceStatusPaid      InvoiceStatus = "paid"
-	InvoiceStatusExpired   InvoiceStatus = "expired"
-	InvoiceStatusCanceled  InvoiceStatus = "canceled"
-	InvoiceStatusVoid      InvoiceStatus = "void"
+	InvoiceStatusDraft    InvoiceStatus = "draft"
+	InvoiceStatusPending  InvoiceStatus = "pending"
+	InvoiceStatusPaid     InvoiceStatus = "paid"
+	InvoiceStatusExpired  InvoiceStatus = "expired"
+	InvoiceStatusCanceled InvoiceStatus = "canceled"
+	InvoiceStatusVoid     InvoiceStatus = "void"
 )
 
 type Invoice struct {
-	ID                 string                 `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	TenantID           *string                `json:"tenant_id" gorm:"index"`
-	ExternalID         string                 `json:"external_id" gorm:"index"`
-	ProviderID         string                 `json:"provider_id" gorm:"index"`
-	ProviderName       string                 `json:"provider_name" gorm:"not null"`
-	CustomerID         string                 `json:"customer_id" gorm:"index"`
-	CustomerEmail      string                 `json:"customer_email"`
-	Amount             int64                  `json:"amount" gorm:"not null"`
-	Currency           string                 `json:"currency" gorm:"not null"`
-	Status             InvoiceStatus          `json:"status" gorm:"not null;default:'pending'"`
-	Description        string                 `json:"description"`
-	InvoiceURL         string                 `json:"invoice_url"`
-	DueDate            *time.Time             `json:"due_date"`
-	PaidAt             *time.Time             `json:"paid_at"`
-	SuccessRedirectURL string                 `json:"success_redirect_url"`
-	FailureRedirectURL string                 `json:"failure_redirect_url"`
-	PaymentMethods     []string               `json:"payment_methods" gorm:"type:text[]"`
-	Metadata           JSON                   `json:"metadata" gorm:"type:jsonb"`
-	CreatedAt          time.Time              `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt          time.Time              `json:"updated_at" gorm:"autoUpdateTime"`
+	ID                 string        `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	TenantID           *string       `json:"tenant_id" gorm:"index"`
+	ExternalID         string        `json:"external_id" gorm:"index"`
+	ProviderID         string        `json:"provider_id" gorm:"index"`
+	ProviderName       string        `json:"provider_name" gorm:"not null"`
+	CustomerID         string        `json:"customer_id" gorm:"index"`
+	CustomerEmail      string        `json:"customer_email"`
+	Amount             int64         `json:"amount" gorm:"not null"`
+	Currency           string        `json:"currency" gorm:"not null"`
+	Status             InvoiceStatus `json:"status" gorm:"not null;default:'pending'"`
+	Description        string        `json:"description"`
+	InvoiceURL         string        `json:"invoice_url"`
+	DueDate            *time.Time    `json:"due_date"`
+	PaidAt             *time.Time    `json:"paid_at"`
+	SuccessRedirectURL string        `json:"success_redirect_url"`
+	FailureRedirectURL string        `json:"failure_redirect_url"`
+	PaymentMethods     []string      `json:"payment_methods" gorm:"type:text[]"`
+	Metadata           JSON          `json:"metadata" gorm:"type:jsonb"`
+	CreatedAt          time.Time     `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt          time.Time     `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 type CreateInvoiceRequest struct {
@@ -70,4 +70,3 @@ type InvoiceListResponse struct {
 	Invoices []*Invoice `json:"invoices"`
 	Total    int        `json:"total"`
 }
-

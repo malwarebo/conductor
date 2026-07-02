@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	ErrTenantNotFound   = errors.New("tenant not found")
-	ErrTenantInactive   = errors.New("tenant is inactive")
-	ErrInvalidAPIKey    = errors.New("invalid api key")
+	ErrTenantNotFound = errors.New("tenant not found")
+	ErrTenantInactive = errors.New("tenant is inactive")
+	ErrInvalidAPIKey  = errors.New("invalid api key")
 )
 
 type TenantService struct {
@@ -153,4 +153,3 @@ func (s *TenantService) GetSettings(ctx context.Context, id string) (*models.Ten
 
 	return settings, nil
 }
-

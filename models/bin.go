@@ -3,15 +3,15 @@ package models
 import "time"
 
 type BINData struct {
-	BIN           string            `json:"bin" gorm:"primaryKey"`
-	CardBrand     string            `json:"card_brand"`
-	CardType      string            `json:"card_type"`
-	IssuingBank   string            `json:"issuing_bank"`
-	IssuingCountry string           `json:"issuing_country"`
-	Category      string            `json:"category"`
-	ProviderStats map[string]*BINProviderStats `json:"provider_stats" gorm:"-"`
-	CreatedAt     time.Time         `json:"created_at"`
-	UpdatedAt     time.Time         `json:"updated_at"`
+	BIN            string                       `json:"bin" gorm:"primaryKey"`
+	CardBrand      string                       `json:"card_brand"`
+	CardType       string                       `json:"card_type"`
+	IssuingBank    string                       `json:"issuing_bank"`
+	IssuingCountry string                       `json:"issuing_country"`
+	Category       string                       `json:"category"`
+	ProviderStats  map[string]*BINProviderStats `json:"provider_stats" gorm:"-"`
+	CreatedAt      time.Time                    `json:"created_at"`
+	UpdatedAt      time.Time                    `json:"updated_at"`
 }
 
 type BINProviderStats struct {
@@ -58,58 +58,58 @@ type RoutingRule struct {
 }
 
 type RoutingConditions struct {
-	Currencies      []string `json:"currencies,omitempty"`
-	Countries       []string `json:"countries,omitempty"`
-	CardBrands      []string `json:"card_brands,omitempty"`
-	BINPrefixes     []string `json:"bin_prefixes,omitempty"`
-	MinAmount       *float64 `json:"min_amount,omitempty"`
-	MaxAmount       *float64 `json:"max_amount,omitempty"`
-	PaymentMethods  []string `json:"payment_methods,omitempty"`
-	CustomerSegments []string `json:"customer_segments,omitempty"`
-	TimeRanges      []TimeRange `json:"time_ranges,omitempty"`
+	Currencies       []string    `json:"currencies,omitempty"`
+	Countries        []string    `json:"countries,omitempty"`
+	CardBrands       []string    `json:"card_brands,omitempty"`
+	BINPrefixes      []string    `json:"bin_prefixes,omitempty"`
+	MinAmount        *float64    `json:"min_amount,omitempty"`
+	MaxAmount        *float64    `json:"max_amount,omitempty"`
+	PaymentMethods   []string    `json:"payment_methods,omitempty"`
+	CustomerSegments []string    `json:"customer_segments,omitempty"`
+	TimeRanges       []TimeRange `json:"time_ranges,omitempty"`
 }
 
 type TimeRange struct {
-	StartHour int      `json:"start_hour"`
-	EndHour   int      `json:"end_hour"`
-	DaysOfWeek []int   `json:"days_of_week,omitempty"`
+	StartHour  int   `json:"start_hour"`
+	EndHour    int   `json:"end_hour"`
+	DaysOfWeek []int `json:"days_of_week,omitempty"`
 }
 
 type ProviderScore struct {
-	ProviderName    string  `json:"provider_name"`
-	Score           float64 `json:"score"`
-	SuccessRate     float64 `json:"success_rate"`
-	CostScore       float64 `json:"cost_score"`
-	LatencyScore    float64 `json:"latency_score"`
-	BINScore        float64 `json:"bin_score"`
-	HealthScore     float64 `json:"health_score"`
-	VolumeScore     float64 `json:"volume_score"`
-	Eligible        bool    `json:"eligible"`
-	Reason          string  `json:"reason,omitempty"`
+	ProviderName string  `json:"provider_name"`
+	Score        float64 `json:"score"`
+	SuccessRate  float64 `json:"success_rate"`
+	CostScore    float64 `json:"cost_score"`
+	LatencyScore float64 `json:"latency_score"`
+	BINScore     float64 `json:"bin_score"`
+	HealthScore  float64 `json:"health_score"`
+	VolumeScore  float64 `json:"volume_score"`
+	Eligible     bool    `json:"eligible"`
+	Reason       string  `json:"reason,omitempty"`
 }
 
 type RoutingDecision struct {
-	ID                  string           `json:"id"`
-	TransactionID       string           `json:"transaction_id"`
-	MerchantID          string           `json:"merchant_id"`
-	SelectedProvider    string           `json:"selected_provider"`
-	FallbackProviders   []string         `json:"fallback_providers"`
-	Scores              []ProviderScore  `json:"scores"`
-	RulesApplied        []string         `json:"rules_applied"`
-	DecisionTimeMs      int64            `json:"decision_time_ms"`
-	Reason              string           `json:"reason"`
-	Attempt             int              `json:"attempt"`
-	PreviousAttempts    []AttemptResult  `json:"previous_attempts,omitempty"`
-	CreatedAt           time.Time        `json:"created_at"`
+	ID                string          `json:"id"`
+	TransactionID     string          `json:"transaction_id"`
+	MerchantID        string          `json:"merchant_id"`
+	SelectedProvider  string          `json:"selected_provider"`
+	FallbackProviders []string        `json:"fallback_providers"`
+	Scores            []ProviderScore `json:"scores"`
+	RulesApplied      []string        `json:"rules_applied"`
+	DecisionTimeMs    int64           `json:"decision_time_ms"`
+	Reason            string          `json:"reason"`
+	Attempt           int             `json:"attempt"`
+	PreviousAttempts  []AttemptResult `json:"previous_attempts,omitempty"`
+	CreatedAt         time.Time       `json:"created_at"`
 }
 
 type AttemptResult struct {
-	Provider      string    `json:"provider"`
-	Success       bool      `json:"success"`
-	ErrorCode     string    `json:"error_code,omitempty"`
-	ErrorMessage  string    `json:"error_message,omitempty"`
-	ResponseTimeMs int64    `json:"response_time_ms"`
-	Timestamp     time.Time `json:"timestamp"`
+	Provider       string    `json:"provider"`
+	Success        bool      `json:"success"`
+	ErrorCode      string    `json:"error_code,omitempty"`
+	ErrorMessage   string    `json:"error_message,omitempty"`
+	ResponseTimeMs int64     `json:"response_time_ms"`
+	Timestamp      time.Time `json:"timestamp"`
 }
 
 type RoutingContext struct {

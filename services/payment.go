@@ -14,12 +14,12 @@ import (
 )
 
 var (
-	ErrNoAvailableProvider = errors.New("no available provider")
-	ErrPaymentNotFound     = errors.New("payment not found")
-	ErrInvalidCaptureAmount = errors.New("capture amount exceeds authorized amount")
-	ErrPaymentNotCapturable = errors.New("payment is not in capturable state")
+	ErrNoAvailableProvider    = errors.New("no available provider")
+	ErrPaymentNotFound        = errors.New("payment not found")
+	ErrInvalidCaptureAmount   = errors.New("capture amount exceeds authorized amount")
+	ErrPaymentNotCapturable   = errors.New("payment is not in capturable state")
 	ErrPaymentAlreadyCaptured = errors.New("payment already captured")
-	ErrIdempotencyConflict = errors.New("idempotency key conflict")
+	ErrIdempotencyConflict    = errors.New("idempotency key conflict")
 )
 
 type PaymentService struct {

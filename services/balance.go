@@ -39,4 +39,3 @@ func (s *BalanceService) GetAllBalances(ctx context.Context) ([]*models.Balance,
 
 	return balances, nil
 }
-
