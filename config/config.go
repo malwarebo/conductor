@@ -103,8 +103,6 @@ type MonitoringConfig struct {
 	AlertingEnabled bool   `json:"alerting_enabled"`
 	LogLevel        string `json:"log_level"`
 	LogFormat       string `json:"log_format"`
-	EnableTracing   bool   `json:"enable_tracing"`
-	TracingEndpoint string `json:"tracing_endpoint"`
 }
 
 func CreateLoadConfig() (*Config, error) {

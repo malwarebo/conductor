@@ -3,6 +3,7 @@ package routing
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/malwarebo/conductor/models"
@@ -39,8 +40,8 @@ func DefaultRetryConfig() RetryConfig {
 		InitialDelay:      100 * time.Millisecond,
 		MaxDelay:          2 * time.Second,
 		BackoffMultiplier: 2.0,
-		RetryableCodes:    []string{"timeout", "rate_limit", "temporary_failure", "network_error"},
-		NonRetryableCodes: []string{"invalid_card", "insufficient_funds", "expired_card", "fraud", "declined"},
+		RetryableCodes:    []string{"rate_limit", "network_error"},
+		NonRetryableCodes: []string{"invalid_card", "insufficient_funds", "expired_card", "fraud", "declined", "timeout", "temporary_failure", "unknown_error"},
 	}
 }
 
@@ -163,19 +164,13 @@ func (rm *RetryManager) calculateDelay(attempt int) time.Duration {
 }
 
 func (rm *RetryManager) isRetryable(errorCode string) bool {
-	for _, code := range rm.config.NonRetryableCodes {
-		if code == errorCode {
-			return false
-		}
-	}
-
 	for _, code := range rm.config.RetryableCodes {
 		if code == errorCode {
 			return true
 		}
 	}
 
-	return true
+	return false
 }
 
 func (rm *RetryManager) isSoftDecline(errorCode string) bool {
@@ -191,12 +186,12 @@ func (rm *RetryManager) isSoftDecline(errorCode string) bool {
 
 func (rm *RetryManager) isHardDecline(errorCode string) bool {
 	hardDeclines := map[string]bool{
-		"invalid_card":   true,
-		"expired_card":   true,
-		"fraud":          true,
-		"stolen_card":    true,
-		"lost_card":      true,
-		"do_not_honor":   true,
+		"invalid_card": true,
+		"expired_card": true,
+		"fraud":        true,
+		"stolen_card":  true,
+		"lost_card":    true,
+		"do_not_honor": true,
 	}
 	return hardDeclines[errorCode]
 }
@@ -209,31 +204,31 @@ func NewErrorClassifier() *ErrorClassifier {
 	return &ErrorClassifier{
 		providerMappings: map[string]map[string]string{
 			"stripe": {
-				"card_declined":          "declined",
-				"expired_card":           "expired_card",
-				"incorrect_cvc":          "invalid_card",
-				"processing_error":       "temporary_failure",
-				"insufficient_funds":     "insufficient_funds",
-				"fraudulent":             "fraud",
-				"rate_limit":             "rate_limit",
+				"card_declined":      "declined",
+				"expired_card":       "expired_card",
+				"incorrect_cvc":      "invalid_card",
+				"processing_error":   "temporary_failure",
+				"insufficient_funds": "insufficient_funds",
+				"fraudulent":         "fraud",
+				"rate_limit":         "rate_limit",
 			},
 			"razorpay": {
-				"BAD_REQUEST_ERROR":      "invalid_card",
-				"GATEWAY_ERROR":          "temporary_failure",
-				"SERVER_ERROR":           "temporary_failure",
-				"insufficient_balance":   "insufficient_funds",
+				"BAD_REQUEST_ERROR":    "invalid_card",
+				"GATEWAY_ERROR":        "temporary_failure",
+				"SERVER_ERROR":         "temporary_failure",
+				"insufficient_balance": "insufficient_funds",
 			},
 			"xendit": {
-				"INVALID_ACCOUNT":        "invalid_card",
-				"INSUFFICIENT_BALANCE":   "insufficient_funds",
-				"API_VALIDATION_ERROR":   "invalid_card",
-				"SERVER_ERROR":           "temporary_failure",
+				"INVALID_ACCOUNT":      "invalid_card",
+				"INSUFFICIENT_BALANCE": "insufficient_funds",
+				"API_VALIDATION_ERROR": "invalid_card",
+				"SERVER_ERROR":         "temporary_failure",
 			},
 			"airwallex": {
-				"invalid_request":        "invalid_card",
-				"insufficient_funds":     "insufficient_funds",
-				"authentication_failed":  "fraud",
-				"processing_error":       "temporary_failure",
+				"invalid_request":       "invalid_card",
+				"insufficient_funds":    "insufficient_funds",
+				"authentication_failed": "fraud",
+				"processing_error":      "temporary_failure",
 			},
 		},
 	}
@@ -245,6 +240,26 @@ func (ec *ErrorClassifier) Classify(provider, providerErrorCode string) string {
 			return normalized
 		}
 	}
+	return "unknown_error"
+}
+
+func (ec *ErrorClassifier) ClassifyMessage(provider, message string) string {
+	msg := strings.ToLower(message)
+
+	for _, kw := range []string{"connection refused", "no such host", "connection reset", "dial tcp"} {
+		if strings.Contains(msg, kw) {
+			return "network_error"
+		}
+	}
+
+	if mapping, ok := ec.providerMappings[provider]; ok {
+		for code, normalized := range mapping {
+			if strings.Contains(msg, strings.ToLower(code)) {
+				return normalized
+			}
+		}
+	}
+
 	return "unknown_error"
 }
 
