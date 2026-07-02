@@ -20,6 +20,14 @@ type Config struct {
 	OpenAI      OpenAIConfig     `json:"openai"`
 	Security    SecurityConfig   `json:"security"`
 	Monitoring  MonitoringConfig `json:"monitoring"`
+	Worker      WorkerConfig     `json:"worker"`
+}
+
+type WorkerConfig struct {
+	WebhookWorkers      int `json:"webhook_workers"`
+	WebhookBatchSize    int `json:"webhook_batch_size"`
+	WebhookPollMs       int `json:"webhook_poll_ms"`
+	WebhookStaleSeconds int `json:"webhook_stale_seconds"`
 }
 
 type DatabaseConfig struct {
