@@ -326,10 +326,10 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("database name is required")
 	}
 	if c.Stripe.Secret == "" {
-		return fmt.Errorf("Stripe secret key is required")
+		return fmt.Errorf("stripe secret key is required")
 	}
 	if c.Xendit.Secret == "" {
-		return fmt.Errorf("Xendit secret key is required")
+		return fmt.Errorf("xendit secret key is required")
 	}
 	if c.Server.Port == "" {
 		return fmt.Errorf("server port is required")

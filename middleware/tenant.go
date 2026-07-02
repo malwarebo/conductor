@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/malwarebo/conductor/internal/ctxkeys"
 	"github.com/malwarebo/conductor/services"
 )
 
@@ -41,9 +42,9 @@ func (tm *TenantMiddleware) TenantContextMiddleware(next http.Handler) http.Hand
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "tenant_id", tenant.ID)
-		ctx = context.WithValue(ctx, "tenant", tenant)
-		ctx = context.WithValue(ctx, "api_key", apiKey)
+		ctx := context.WithValue(r.Context(), ctxkeys.TenantID, tenant.ID)
+		ctx = context.WithValue(ctx, ctxkeys.Tenant, tenant)
+		ctx = context.WithValue(ctx, ctxkeys.APIKey, apiKey)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -62,28 +63,30 @@ func (tm *TenantMiddleware) AuditMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(rw, r)
 
 		tenantID := ""
-		if tid := r.Context().Value("tenant_id"); tid != nil {
+		if tid := r.Context().Value(ctxkeys.TenantID); tid != nil {
 			tenantID = tid.(string)
 		}
 
 		userID := ""
-		if uid := r.Context().Value("user_id"); uid != nil {
+		if uid := r.Context().Value(ctxkeys.UserID); uid != nil {
 			userID = uid.(string)
 		}
 
-		go tm.auditService.LogAPIRequest(
-			context.Background(),
-			tenantID,
-			userID,
-			r.Method,
-			r.URL.Path,
-			getClientIP(r),
-			r.UserAgent(),
-			nil,
-			rw.statusCode,
-			rw.statusCode < 400,
-			"",
-		)
+		go func() {
+			_ = tm.auditService.LogAPIRequest(
+				context.Background(),
+				tenantID,
+				userID,
+				r.Method,
+				r.URL.Path,
+				getClientIP(r),
+				r.UserAgent(),
+				nil,
+				rw.statusCode,
+				rw.statusCode < 400,
+				"",
+			)
+		}()
 
 		_ = start
 	})
@@ -98,7 +101,7 @@ func (tm *TenantMiddleware) IdempotencyMiddleware(next http.Handler) http.Handle
 
 		idempotencyKey := r.Header.Get("Idempotency-Key")
 		if idempotencyKey != "" {
-			ctx := context.WithValue(r.Context(), "idempotency_key", idempotencyKey)
+			ctx := context.WithValue(r.Context(), ctxkeys.IdempotencyKey, idempotencyKey)
 			r = r.WithContext(ctx)
 		}
 
@@ -122,7 +125,7 @@ func (tm *TenantMiddleware) extractAPIKey(r *http.Request) string {
 func (tm *TenantMiddleware) writeErrorResponse(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"error":     message,
 		"status":    statusCode,
 		"timestamp": time.Now().Format(time.RFC3339),

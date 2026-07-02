@@ -11,6 +11,10 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+type contextKey string
+
+const txContextKey contextKey = "tx"
+
 type PoolConfig struct {
 	MaxOpenConns    int
 	MaxIdleConns    int
@@ -100,7 +104,7 @@ func (p *ConnectionPool) GetReplica() (*gorm.DB, error) {
 
 func (p *ConnectionPool) WithTransaction(ctx context.Context, fn func(context.Context, *gorm.DB) error) error {
 	return p.primary.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		txCtx := context.WithValue(ctx, "tx", tx)
+		txCtx := context.WithValue(ctx, txContextKey, tx)
 		return fn(txCtx, tx)
 	})
 }

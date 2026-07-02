@@ -65,7 +65,7 @@ func (h *AuthHandler) HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(tokenResponse{
+	_ = json.NewEncoder(w).Encode(tokenResponse{
 		AccessToken: token,
 		TokenType:   "Bearer",
 		ExpiresIn:   int64(h.tokenDuration.Seconds()),
@@ -75,7 +75,7 @@ func (h *AuthHandler) HandleToken(w http.ResponseWriter, r *http.Request) {
 func writeAuthError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"error":     message,
 		"status":    statusCode,
 		"timestamp": time.Now().Format(time.RFC3339),

@@ -138,11 +138,6 @@ func (trl *TieredRateLimiter) Wait(ctx context.Context, key, tier string) error 
 }
 
 func (trl *TieredRateLimiter) GetStats(key, tier string) (int, time.Duration, bool) {
-	_, exists := trl.tiers[tier]
-	if !exists {
-		tier = "default"
-	}
-
 	return trl.rl.GetStats(key)
 }
 

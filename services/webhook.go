@@ -48,7 +48,7 @@ func (s *WebhookService) ProcessInboundWebhook(ctx context.Context, provider, ev
 	}
 
 	var payloadJSON models.JSON
-	json.Unmarshal(payload, &payloadJSON)
+	_ = json.Unmarshal(payload, &payloadJSON)
 
 	event := &models.WebhookEvent{
 		Provider:  provider,
@@ -82,7 +82,7 @@ func (s *WebhookService) processEvent(ctx context.Context, event *models.Webhook
 
 	if err != nil {
 		shouldRetry := event.Attempts < event.MaxAttempts
-		s.webhookStore.MarkFailed(ctx, event.ID, err.Error(), shouldRetry)
+		_ = s.webhookStore.MarkFailed(ctx, event.ID, err.Error(), shouldRetry)
 		return err
 	}
 
@@ -517,7 +517,7 @@ func (s *WebhookService) SendOutboundWebhook(ctx context.Context, tenantID, even
 	if err != nil {
 		return fmt.Errorf("failed to send webhook: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("webhook delivery failed with status: %d", resp.StatusCode)
@@ -533,7 +533,7 @@ func (s *WebhookService) ProcessPendingWebhooks(ctx context.Context, batchSize i
 	}
 
 	for _, event := range events {
-		s.processEvent(ctx, event)
+		_ = s.processEvent(ctx, event)
 	}
 
 	return nil

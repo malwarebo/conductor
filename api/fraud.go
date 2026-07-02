@@ -60,7 +60,7 @@ func (h *FraudHandler) AnalyzeTransaction(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (h *FraudHandler) GetStats(w http.ResponseWriter, r *http.Request) {
@@ -97,5 +97,5 @@ func (h *FraudHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	_ = json.NewEncoder(w).Encode(stats)
 }

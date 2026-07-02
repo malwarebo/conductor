@@ -298,7 +298,7 @@ func (m *MultiProviderSelector) chargeWithRetry(ctx context.Context, req *models
 				m.mu.Lock()
 				m.paymentProviderMap[resp.ID] = provider
 				m.mu.Unlock()
-				m.saveProviderMapping(ctx, resp.ID, "payment", providerName, resp.ProviderChargeID)
+				_ = m.saveProviderMapping(ctx, resp.ID, "payment", providerName, resp.ProviderChargeID)
 			}
 
 			m.recordRoutingResult(providerName, result.Success, latency, float64(req.Amount)/100)
@@ -351,7 +351,7 @@ func (m *MultiProviderSelector) executeCharge(ctx context.Context, provider Paym
 		m.mu.Lock()
 		m.paymentProviderMap[resp.ID] = provider
 		m.mu.Unlock()
-		m.saveProviderMapping(ctx, resp.ID, "payment", providerName, resp.ProviderChargeID)
+		_ = m.saveProviderMapping(ctx, resp.ID, "payment", providerName, resp.ProviderChargeID)
 	}
 
 	return resp, err
@@ -412,7 +412,7 @@ func (m *MultiProviderSelector) CreateSubscription(ctx context.Context, req *mod
 		m.mu.Unlock()
 
 		providerName := m.getProviderName(provider)
-		m.saveProviderMapping(ctx, sub.ID, "subscription", providerName, sub.ID)
+		_ = m.saveProviderMapping(ctx, sub.ID, "subscription", providerName, sub.ID)
 	}
 	return sub, err
 }
@@ -537,7 +537,7 @@ func (m *MultiProviderSelector) CreateDispute(ctx context.Context, req *models.C
 		m.mu.Unlock()
 
 		providerName := m.getProviderName(provider)
-		m.saveProviderMapping(ctx, dispute.ID, "dispute", providerName, dispute.ID)
+		_ = m.saveProviderMapping(ctx, dispute.ID, "dispute", providerName, dispute.ID)
 	}
 	return dispute, err
 }
@@ -812,7 +812,7 @@ func (m *MultiProviderSelector) CreateInvoice(ctx context.Context, req *models.C
 		inv, err := invProvider.CreateInvoice(ctx, req)
 		if err == nil && inv != nil {
 			providerName := m.getProviderName(provider)
-			m.saveProviderMapping(ctx, inv.ProviderID, "invoice", providerName, inv.ProviderID)
+			_ = m.saveProviderMapping(ctx, inv.ProviderID, "invoice", providerName, inv.ProviderID)
 		}
 		return inv, err
 	}
@@ -888,7 +888,7 @@ func (m *MultiProviderSelector) CreatePayout(ctx context.Context, req *models.Cr
 		payout, err := payoutProvider.CreatePayout(ctx, req)
 		if err == nil && payout != nil {
 			providerName := m.getProviderName(provider)
-			m.saveProviderMapping(ctx, payout.ProviderID, "payout", providerName, payout.ProviderID)
+			_ = m.saveProviderMapping(ctx, payout.ProviderID, "payout", providerName, payout.ProviderID)
 		}
 		return payout, err
 	}
@@ -988,7 +988,7 @@ func (m *MultiProviderSelector) CreatePaymentSession(ctx context.Context, req *m
 		session, err := sessionProvider.CreatePaymentSession(ctx, req)
 		if err == nil && session != nil {
 			providerName := m.getProviderName(provider)
-			m.saveProviderMapping(ctx, session.ProviderID, "payment_session", providerName, session.ProviderID)
+			_ = m.saveProviderMapping(ctx, session.ProviderID, "payment_session", providerName, session.ProviderID)
 		}
 		return session, err
 	}

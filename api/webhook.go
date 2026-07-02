@@ -62,7 +62,7 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (h *WebhookHandler) HandleXenditWebhook(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +104,7 @@ func (h *WebhookHandler) HandleXenditWebhook(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (h *WebhookHandler) processStripeEvent(eventType string, event map[string]interface{}) {

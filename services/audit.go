@@ -44,7 +44,7 @@ func (s *AuditService) LogAPIRequest(ctx context.Context, tenantID, userID, meth
 			reqBodyJSON = models.JSON(m)
 		} else {
 			bytes, _ := json.Marshal(requestBody)
-			json.Unmarshal(bytes, &reqBodyJSON)
+			_ = json.Unmarshal(bytes, &reqBodyJSON)
 		}
 	}
 

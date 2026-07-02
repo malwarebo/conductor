@@ -2,13 +2,12 @@ package services
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/malwarebo/conductor/internal/ctxkeys"
 	"github.com/malwarebo/conductor/models"
 	"github.com/malwarebo/conductor/providers"
 	"github.com/malwarebo/conductor/stores"
@@ -69,7 +68,7 @@ func (s *PaymentService) CreateCharge(ctx context.Context, req *models.ChargeReq
 		}
 		if !result.IsNew && result.ResponseCode != 0 {
 			var resp models.ChargeResponse
-			json.Unmarshal(result.ResponseBody, &resp)
+			_ = json.Unmarshal(result.ResponseBody, &resp)
 			return &resp, nil
 		}
 	}
@@ -108,7 +107,7 @@ func (s *PaymentService) CreateCharge(ctx context.Context, req *models.ChargeReq
 		return nil, fmt.Errorf("failed to create charge with provider: %w", err)
 	}
 
-	tenantID := ctx.Value("tenant_id")
+	tenantID := ctx.Value(ctxkeys.TenantID)
 	var tenantIDPtr *string
 	if tid, ok := tenantID.(string); ok && tid != "" {
 		tenantIDPtr = &tid
@@ -307,7 +306,7 @@ func (s *PaymentService) CreateRefund(ctx context.Context, req *models.RefundReq
 	} else {
 		payment.Status = models.PaymentStatusPartiallyRefunded
 	}
-	s.paymentRepo.Update(ctx, payment)
+	_ = s.paymentRepo.Update(ctx, payment)
 
 	return refundResp, nil
 }
@@ -384,7 +383,7 @@ func (s *PaymentService) checkIdempotency(ctx context.Context, key, path string,
 
 	reqBody, _ := json.Marshal(req)
 	tenantID := ""
-	if tid := ctx.Value("tenant_id"); tid != nil {
+	if tid := ctx.Value(ctxkeys.TenantID); tid != nil {
 		tenantID = tid.(string)
 	}
 
@@ -395,7 +394,7 @@ func (s *PaymentService) completeIdempotency(ctx context.Context, key string, co
 	if s.idempotencyStore == nil || key == "" {
 		return
 	}
-	s.idempotencyStore.Complete(ctx, key, code, response)
+	_ = s.idempotencyStore.Complete(ctx, key, code, response)
 }
 
 func (s *PaymentService) validateChargeRequest(req *models.ChargeRequest) error {
@@ -440,12 +439,6 @@ func (s *PaymentService) voidWithProvider(ctx context.Context, providerChargeID 
 		return voider.VoidPayment(ctx, providerChargeID)
 	}
 	return errors.New("provider does not support void")
-}
-
-func (s *PaymentService) generateIdempotencyKey() string {
-	bytes := make([]byte, 16)
-	rand.Read(bytes)
-	return hex.EncodeToString(bytes)
 }
 
 func (s *PaymentService) buildChargeResponse(payment *models.Payment) *models.ChargeResponse {

@@ -141,7 +141,7 @@ func CreateBasicAuthMiddleware(next http.Handler) http.Handler {
 		if apiKey == "" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{
+			_ = json.NewEncoder(w).Encode(map[string]string{
 				"error": "API key required. Provide X-API-Key header or Authorization: Bearer <key>",
 			})
 			return
@@ -150,7 +150,7 @@ func CreateBasicAuthMiddleware(next http.Handler) http.Handler {
 		if len(apiKey) < 10 {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{
+			_ = json.NewEncoder(w).Encode(map[string]string{
 				"error": "Invalid API key format",
 			})
 			return
