@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"net/http"
 	"os"
@@ -131,10 +132,21 @@ func main() {
 	}
 
 	printStep("5/10", "Initializing security components...")
-	encryptionKey, err := security.CreateGenerateEncryptionKey()
-	if err != nil {
-		printError(fmt.Sprintf("Failed to generate encryption key: %v", err))
-		os.Exit(1)
+	var encryptionKey []byte
+	if cfg.Security.EncryptionKey != "" {
+		digest := sha256.Sum256([]byte(cfg.Security.EncryptionKey))
+		encryptionKey = digest[:]
+	} else {
+		if cfg.IsProduction() {
+			printError("Security.EncryptionKey is required in production")
+			os.Exit(1)
+		}
+		encryptionKey, err = security.CreateGenerateEncryptionKey()
+		if err != nil {
+			printError(fmt.Sprintf("Failed to generate encryption key: %v", err))
+			os.Exit(1)
+		}
+		printWarning("No encryption key configured; generated an ephemeral key (encrypted data will not survive restarts)")
 	}
 
 	encryption, err := security.CreateEncryptionManager(encryptionKey)
@@ -165,6 +177,19 @@ func main() {
 	webhookStore := stores.CreateWebhookStore(database)
 	customerStore := stores.CreateCustomerStore(database)
 	paymentMethodStore := stores.CreatePaymentMethodStore(database)
+
+	binStore := stores.NewBINStore(database)
+	merchantConfigStore := stores.NewMerchantConfigStore(database)
+	routingRuleStore := stores.NewRoutingRuleStore(database)
+	for name, migrate := range map[string]func() error{
+		"bin":             binStore.Migrate,
+		"merchant_config": merchantConfigStore.Migrate,
+		"routing_rule":    routingRuleStore.Migrate,
+	} {
+		if err := migrate(); err != nil {
+			printWarning(fmt.Sprintf("Failed to migrate %s routing table: %v", name, err))
+		}
+	}
 	printSuccess("Stores initialized")
 
 	printStep("7/8", "Initializing payment providers...")
@@ -185,7 +210,11 @@ func main() {
 		availableProviders = append(availableProviders, airwallexProvider)
 	}
 
-	providerSelector := providers.CreateMultiProviderSelector(availableProviders, providerMappingStore)
+	routingConfig := providers.DefaultMultiProviderConfig()
+	routingConfig.BINStore = binStore
+	routingConfig.MerchantStore = merchantConfigStore
+	routingConfig.RuleStore = routingRuleStore
+	providerSelector := providers.CreateMultiProviderSelectorWithConfig(availableProviders, providerMappingStore, routingConfig)
 	printSuccess("Payment providers initialized")
 	printInfo("  • Stripe: Ready for USD, EUR, GBP")
 	printInfo("  • Xendit: Ready for IDR, SGD, MYR, PHP, THB, VND")
@@ -197,7 +226,7 @@ func main() {
 	}
 
 	printStep("8/8", "Initializing services...")
-	fraudService := services.CreateFraudService(fraudRepo, cfg.OpenAI.APIKey)
+	fraudService := services.CreateFraudServiceWithCache(fraudRepo, cfg.OpenAI.APIKey, redisCache)
 	paymentService := services.CreatePaymentServiceFull(paymentRepo, idempotencyStore, auditStore, providerSelector, fraudService)
 	subscriptionService := services.CreateSubscriptionService(planRepo, subscriptionRepo, providerSelector)
 	disputeService := services.CreateDisputeService(disputeRepo, providerSelector)
@@ -234,6 +263,7 @@ func main() {
 	customerHandler := api.CreateCustomerHandler(customerService)
 	paymentMethodHandler := api.CreatePaymentMethodHandler(paymentMethodService)
 	balanceHandler := api.CreateBalanceHandler(balanceService)
+	authHandler := api.CreateAuthHandler(jwtManager, tenantService, cfg.Security.JWTExpiration)
 
 	router := mux.NewRouter()
 
@@ -245,6 +275,10 @@ func main() {
 	allowedOrigins := []string{"http://localhost:3000", "http://localhost:8080"}
 	router.Use(middleware.CreateCORSMiddleware(allowedOrigins))
 	router.Use(middleware.CreateRecoveryMiddleware)
+
+	authRouter := router.PathPrefix("/v1/auth").Subrouter()
+	authRouter.Use(authMiddleware.RateLimitMiddleware)
+	authRouter.HandleFunc("/token", authHandler.HandleToken).Methods("POST")
 
 	apiRouter := router.PathPrefix("/v1").Subrouter()
 	apiRouter.Use(authMiddleware.RateLimitMiddleware)
@@ -342,6 +376,23 @@ func main() {
 
 	printSuccess("HTTP server configured")
 
+	var metricsServer *http.Server
+	if cfg.Monitoring.Enabled && cfg.Monitoring.MetricsPort != "" {
+		metricsMux := http.NewServeMux()
+		metricsHandler := api.CreateMetricsHandler(providerSelector.GetProviderStats)
+		metricsMux.HandleFunc("/metrics", metricsHandler.HandleMetrics)
+		metricsServer = &http.Server{
+			Addr:    ":" + cfg.Monitoring.MetricsPort,
+			Handler: metricsMux,
+		}
+		go func() {
+			printInfo(fmt.Sprintf("Starting metrics server on port %s...", cfg.Monitoring.MetricsPort))
+			if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				printWarning(fmt.Sprintf("Metrics server stopped: %v", err))
+			}
+		}()
+	}
+
 	fmt.Println()
 	fmt.Printf("%s%s Conductor is ready!%s\n", colorGreen, colorBold, colorReset)
 	fmt.Println()
@@ -384,6 +435,12 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		printError(fmt.Sprintf("Server forced to shutdown: %v", err))
 		os.Exit(1)
+	}
+
+	if metricsServer != nil {
+		if err := metricsServer.Shutdown(ctx); err != nil {
+			printWarning(fmt.Sprintf("Metrics server forced to shutdown: %v", err))
+		}
 	}
 
 	rateLimiter.Close()

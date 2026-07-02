@@ -23,9 +23,10 @@ type MultiProviderSelector struct {
 	providerByName      map[string]PaymentProvider
 	mappingStore        *stores.ProviderMappingStore
 
-	routingEngine  *routing.Engine
-	retryManager   *routing.RetryManager
-	smartRouting   bool
+	routingEngine   *routing.Engine
+	retryManager    *routing.RetryManager
+	errorClassifier *routing.ErrorClassifier
+	smartRouting    bool
 }
 
 type MultiProviderConfig struct {
@@ -82,6 +83,7 @@ func CreateMultiProviderSelectorWithConfig(providers []PaymentProvider, mappingS
 		mappingStore:            mappingStore,
 		routingEngine:           engine,
 		retryManager:            retryMgr,
+		errorClassifier:         routing.NewErrorClassifier(),
 		smartRouting:            config.EnableSmartRouting,
 	}
 }
@@ -283,7 +285,7 @@ func (m *MultiProviderSelector) chargeWithRetry(ctx context.Context, req *models
 		if err != nil {
 			result.Success = false
 			result.ErrorMessage = err.Error()
-			result.ErrorCode = "charge_error"
+			result.ErrorCode = m.errorClassifier.ClassifyMessage(providerName, err.Error())
 			m.recordRoutingResult(providerName, false, latency, float64(req.Amount)/100)
 			return result, nil
 		}
@@ -385,7 +387,7 @@ func (m *MultiProviderSelector) Refund(ctx context.Context, req *models.RefundRe
 	m.mu.RLock()
 	provider, ok := m.paymentProviderMap[req.PaymentID]
 	m.mu.RUnlock()
-	
+
 	if !ok {
 		var err error
 		provider, err = m.getProviderFromDB(ctx, req.PaymentID, "payment")
@@ -393,7 +395,7 @@ func (m *MultiProviderSelector) Refund(ctx context.Context, req *models.RefundRe
 			return nil, err
 		}
 	}
-	
+
 	return provider.Refund(ctx, req)
 }
 
@@ -408,7 +410,7 @@ func (m *MultiProviderSelector) CreateSubscription(ctx context.Context, req *mod
 		m.mu.Lock()
 		m.subscriptionProviderMap[sub.ID] = provider
 		m.mu.Unlock()
-		
+
 		providerName := m.getProviderName(provider)
 		m.saveProviderMapping(ctx, sub.ID, "subscription", providerName, sub.ID)
 	}
@@ -419,7 +421,7 @@ func (m *MultiProviderSelector) UpdateSubscription(ctx context.Context, subscrip
 	m.mu.RLock()
 	provider, ok := m.subscriptionProviderMap[subscriptionID]
 	m.mu.RUnlock()
-	
+
 	if !ok {
 		var err error
 		provider, err = m.getProviderFromDB(ctx, subscriptionID, "subscription")
@@ -427,7 +429,7 @@ func (m *MultiProviderSelector) UpdateSubscription(ctx context.Context, subscrip
 			return nil, err
 		}
 	}
-	
+
 	return provider.UpdateSubscription(ctx, subscriptionID, req)
 }
 
@@ -435,7 +437,7 @@ func (m *MultiProviderSelector) CancelSubscription(ctx context.Context, subscrip
 	m.mu.RLock()
 	provider, ok := m.subscriptionProviderMap[subscriptionID]
 	m.mu.RUnlock()
-	
+
 	if !ok {
 		var err error
 		provider, err = m.getProviderFromDB(ctx, subscriptionID, "subscription")
@@ -443,7 +445,7 @@ func (m *MultiProviderSelector) CancelSubscription(ctx context.Context, subscrip
 			return nil, err
 		}
 	}
-	
+
 	return provider.CancelSubscription(ctx, subscriptionID, req)
 }
 
@@ -451,7 +453,7 @@ func (m *MultiProviderSelector) GetSubscription(ctx context.Context, subscriptio
 	m.mu.RLock()
 	provider, ok := m.subscriptionProviderMap[subscriptionID]
 	m.mu.RUnlock()
-	
+
 	if !ok {
 		var err error
 		provider, err = m.getProviderFromDB(ctx, subscriptionID, "subscription")
@@ -459,7 +461,7 @@ func (m *MultiProviderSelector) GetSubscription(ctx context.Context, subscriptio
 			return nil, err
 		}
 	}
-	
+
 	return provider.GetSubscription(ctx, subscriptionID)
 }
 
@@ -533,7 +535,7 @@ func (m *MultiProviderSelector) CreateDispute(ctx context.Context, req *models.C
 		m.mu.Lock()
 		m.disputeProviderMap[dispute.ID] = provider
 		m.mu.Unlock()
-		
+
 		providerName := m.getProviderName(provider)
 		m.saveProviderMapping(ctx, dispute.ID, "dispute", providerName, dispute.ID)
 	}
@@ -544,7 +546,7 @@ func (m *MultiProviderSelector) UpdateDispute(ctx context.Context, disputeID str
 	m.mu.RLock()
 	provider, ok := m.disputeProviderMap[disputeID]
 	m.mu.RUnlock()
-	
+
 	if !ok {
 		var err error
 		provider, err = m.getProviderFromDB(ctx, disputeID, "dispute")
@@ -552,7 +554,7 @@ func (m *MultiProviderSelector) UpdateDispute(ctx context.Context, disputeID str
 			return nil, err
 		}
 	}
-	
+
 	return provider.UpdateDispute(ctx, disputeID, req)
 }
 
@@ -592,7 +594,7 @@ func (m *MultiProviderSelector) SubmitDisputeEvidence(ctx context.Context, dispu
 	m.mu.RLock()
 	provider, ok := m.disputeProviderMap[disputeID]
 	m.mu.RUnlock()
-	
+
 	if !ok {
 		var err error
 		provider, err = m.getProviderFromDB(ctx, disputeID, "dispute")
@@ -600,7 +602,7 @@ func (m *MultiProviderSelector) SubmitDisputeEvidence(ctx context.Context, dispu
 			return nil, err
 		}
 	}
-	
+
 	return provider.SubmitDisputeEvidence(ctx, disputeID, req)
 }
 
@@ -608,7 +610,7 @@ func (m *MultiProviderSelector) GetDispute(ctx context.Context, disputeID string
 	m.mu.RLock()
 	provider, ok := m.disputeProviderMap[disputeID]
 	m.mu.RUnlock()
-	
+
 	if !ok {
 		var err error
 		provider, err = m.getProviderFromDB(ctx, disputeID, "dispute")
@@ -616,7 +618,7 @@ func (m *MultiProviderSelector) GetDispute(ctx context.Context, disputeID string
 			return nil, err
 		}
 	}
-	
+
 	return provider.GetDispute(ctx, disputeID)
 }
 

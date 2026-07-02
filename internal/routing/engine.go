@@ -33,20 +33,20 @@ func DefaultWeights() ScoringWeights {
 }
 
 type ProviderCosts struct {
-	FixedFee    float64
-	PercentFee  float64
-	MinFee      float64
-	MaxFee      float64
+	FixedFee   float64
+	PercentFee float64
+	MinFee     float64
+	MaxFee     float64
 }
 
 type Engine struct {
-	circuitBreakers  *circuitbreaker.Manager
-	metricsCollector *metrics.Collector
-	binStore         *stores.BINStore
-	merchantStore    *stores.MerchantConfigStore
-	ruleStore        *stores.RoutingRuleStore
-	weights          ScoringWeights
-	providerCosts    map[string]ProviderCosts
+	circuitBreakers    *circuitbreaker.Manager
+	metricsCollector   *metrics.Collector
+	binStore           *stores.BINStore
+	merchantStore      *stores.MerchantConfigStore
+	ruleStore          *stores.RoutingRuleStore
+	weights            ScoringWeights
+	providerCosts      map[string]ProviderCosts
 	availableProviders []string
 }
 
@@ -87,7 +87,7 @@ func NewEngine(binStore *stores.BINStore, merchantStore *stores.MerchantConfigSt
 func (e *Engine) Route(ctx context.Context, rc *models.RoutingContext) (*models.RoutingDecision, error) {
 	start := time.Now()
 
-	merchantConfig := e.merchantStore.GetOrDefault(ctx, rc.MerchantID)
+	merchantConfig := e.merchantConfig(ctx, rc.MerchantID)
 	eligibleProviders := e.getEligibleProviders(ctx, rc, merchantConfig)
 
 	if len(eligibleProviders) == 0 {
@@ -123,6 +123,19 @@ func (e *Engine) Route(ctx context.Context, rc *models.RoutingContext) (*models.
 	}
 
 	return decision, nil
+}
+
+func (e *Engine) merchantConfig(ctx context.Context, merchantID string) *models.MerchantRoutingConfig {
+	if e.merchantStore == nil {
+		return &models.MerchantRoutingConfig{
+			MerchantID:         merchantID,
+			EnableSmartRouting: true,
+			EnableRetry:        true,
+			MaxRetryAttempts:   2,
+			MinSuccessRate:     0.9,
+		}
+	}
+	return e.merchantStore.GetOrDefault(ctx, merchantID)
 }
 
 func (e *Engine) getEligibleProviders(ctx context.Context, rc *models.RoutingContext, config *models.MerchantRoutingConfig) []string {

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/malwarebo/conductor/cache"
 	"github.com/malwarebo/conductor/models"
 	"github.com/malwarebo/conductor/stores"
 	"github.com/malwarebo/conductor/utils"
@@ -36,7 +37,10 @@ type fraudService struct {
 	openAIKey  string
 	httpClient *http.Client
 	cache      map[string]*models.FraudAnalysisResult
+	redis      *cache.RedisCache
 }
+
+const fraudCachePrefix = "fraud:"
 
 type OpenAIRequest struct {
 	Model    string    `json:"model"`
@@ -57,6 +61,10 @@ type Choice struct {
 }
 
 func CreateFraudService(repo stores.FraudRepository, openAIKey string) FraudService {
+	return CreateFraudServiceWithCache(repo, openAIKey, nil)
+}
+
+func CreateFraudServiceWithCache(repo stores.FraudRepository, openAIKey string, redisCache *cache.RedisCache) FraudService {
 	return &fraudService{
 		repo:      repo,
 		openAIKey: openAIKey,
@@ -64,13 +72,14 @@ func CreateFraudService(repo stores.FraudRepository, openAIKey string) FraudServ
 			Timeout: 30 * time.Second,
 		},
 		cache: make(map[string]*models.FraudAnalysisResult),
+		redis: redisCache,
 	}
 }
 
 func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.FraudAnalysisRequest) (*models.FraudAnalysisResponse, error) {
 	cacheKey := fmt.Sprintf("%s_%s_%s_%s", request.TransactionID, request.UserID, request.IPAddress, request.BillingCountry)
 
-	if cached, exists := s.cache[cacheKey]; exists {
+	if cached, ok := s.getCachedResult(ctx, cacheKey); ok {
 		utils.CreateLogger("conductor").Info(ctx, "Using cached fraud analysis result", map[string]interface{}{
 			"transaction_id": request.TransactionID,
 			"cache_key":      cacheKey,
@@ -125,7 +134,7 @@ func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.F
 		})
 	}
 
-	s.cache[cacheKey] = result
+	s.setCachedResult(ctx, cacheKey, result)
 
 	response := &models.FraudAnalysisResponse{
 		Allow:  allow,
@@ -133,6 +142,37 @@ func (s *fraudService) AnalyzeTransaction(ctx context.Context, request *models.F
 	}
 
 	return response, nil
+}
+
+func (s *fraudService) getCachedResult(ctx context.Context, cacheKey string) (*models.FraudAnalysisResult, bool) {
+	if s.redis != nil {
+		raw, err := s.redis.Get(ctx, fraudCachePrefix+cacheKey)
+		if err == nil {
+			var result models.FraudAnalysisResult
+			if json.Unmarshal([]byte(raw), &result) == nil {
+				return &result, true
+			}
+		}
+		return nil, false
+	}
+
+	cached, exists := s.cache[cacheKey]
+	return cached, exists
+}
+
+func (s *fraudService) setCachedResult(ctx context.Context, cacheKey string, result *models.FraudAnalysisResult) {
+	if s.redis != nil {
+		if data, err := json.Marshal(result); err == nil {
+			if err := s.redis.Set(ctx, fraudCachePrefix+cacheKey, data); err != nil {
+				utils.CreateLogger("conductor").Error(ctx, "Failed to cache fraud result in Redis", map[string]interface{}{
+					"error": err.Error(),
+				})
+			}
+		}
+		return
+	}
+
+	s.cache[cacheKey] = result
 }
 
 func (s *fraudService) callOpenAI(ctx context.Context, transactionData string) (*models.OpenAIFraudAssessment, error) {
