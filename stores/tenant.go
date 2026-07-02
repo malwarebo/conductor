@@ -110,4 +110,3 @@ func (s *TenantStore) generateAPISecret() string {
 	rand.Read(bytes)
 	return "sk_" + hex.EncodeToString(bytes)
 }
-

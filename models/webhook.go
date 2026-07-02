@@ -47,4 +47,3 @@ type OutboundWebhook struct {
 	Timestamp time.Time              `json:"timestamp"`
 	Signature string                 `json:"signature"`
 }
-

@@ -102,4 +102,3 @@ func (h *AuditHandler) HandleGetResourceHistory(w http.ResponseWriter, r *http.R
 		"resource_id":   resourceID,
 	})
 }
-

@@ -19,11 +19,11 @@ type Tenant struct {
 }
 
 type TenantSettings struct {
-	DefaultProvider     string   `json:"default_provider"`
-	EnabledProviders    []string `json:"enabled_providers"`
-	Enable3DS           bool     `json:"enable_3ds"`
-	DefaultCaptureMethod string  `json:"default_capture_method"`
-	WebhookRetryCount   int      `json:"webhook_retry_count"`
+	DefaultProvider      string   `json:"default_provider"`
+	EnabledProviders     []string `json:"enabled_providers"`
+	Enable3DS            bool     `json:"enable_3ds"`
+	DefaultCaptureMethod string   `json:"default_capture_method"`
+	WebhookRetryCount    int      `json:"webhook_retry_count"`
 }
 
 type CreateTenantRequest struct {
@@ -45,4 +45,3 @@ type UpdateTenantRequest struct {
 type TenantResponse struct {
 	Tenant *Tenant `json:"tenant"`
 }
-

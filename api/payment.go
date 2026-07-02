@@ -526,4 +526,3 @@ func (h *PaymentHandler) HandleAirwallexWebhook(w http.ResponseWriter, r *http.R
 		"event_type": eventType,
 	})
 }
-

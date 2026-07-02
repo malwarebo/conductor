@@ -40,4 +40,3 @@ func (h *BalanceHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, models.BalanceResponse{Balances: balances})
 }
-

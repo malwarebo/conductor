@@ -92,4 +92,3 @@ func (h *InvoiceHandler) HandleCancel(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, models.InvoiceResponse{Invoice: invoice})
 }
-

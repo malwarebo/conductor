@@ -13,18 +13,18 @@ var (
 )
 
 var (
-	MetadataToStringMap     = convert.MetadataToStringMap
-	InterfaceToStringMap    = convert.InterfaceToStringMap
-	StringMapToMetadata     = convert.StringMapToMetadata
-	CentsToFloat            = convert.CentsToFloat
-	FloatToCents            = convert.FloatToCents
-	ParseTime               = convert.ParseTime
-	ParseTimePtr            = convert.ParseTimePtr
-	UnixToTime              = convert.UnixToTime
-	UnixToTimePtr           = convert.UnixToTimePtr
-	StringFromMap           = convert.StringFromMap
-	Int64FromMap            = convert.Int64FromMap
-	Float64FromMap          = convert.Float64FromMap
+	MetadataToStringMap  = convert.MetadataToStringMap
+	InterfaceToStringMap = convert.InterfaceToStringMap
+	StringMapToMetadata  = convert.StringMapToMetadata
+	CentsToFloat         = convert.CentsToFloat
+	FloatToCents         = convert.FloatToCents
+	ParseTime            = convert.ParseTime
+	ParseTimePtr         = convert.ParseTimePtr
+	UnixToTime           = convert.UnixToTime
+	UnixToTimePtr        = convert.UnixToTimePtr
+	StringFromMap        = convert.StringFromMap
+	Int64FromMap         = convert.Int64FromMap
+	Float64FromMap       = convert.Float64FromMap
 )
 
 type ProviderCapabilities struct {

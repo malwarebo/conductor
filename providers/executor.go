@@ -115,4 +115,3 @@ func (pe *ProviderExecutor) ResetFuse(provider string) {
 func (pe *ProviderExecutor) IsProviderHealthy(provider string) bool {
 	return pe.GetFuseState(provider) != FuseOpen
 }
-

@@ -64,4 +64,3 @@ type AuditLogFilter struct {
 	Limit        int
 	Offset       int
 }
-

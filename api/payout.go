@@ -106,4 +106,3 @@ func (h *PayoutHandler) HandleGetChannels(w http.ResponseWriter, r *http.Request
 		"channels": channels,
 	})
 }
-

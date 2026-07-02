@@ -148,27 +148,27 @@ type NextAction struct {
 }
 
 type PaymentSession struct {
-	ID               string                 `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	TenantID         *string                `json:"tenant_id" gorm:"index"`
-	ExternalID       string                 `json:"external_id" gorm:"index"`
-	ProviderID       string                 `json:"provider_id" gorm:"index"`
-	ProviderName     string                 `json:"provider_name" gorm:"not null"`
-	Amount           int64                  `json:"amount" gorm:"not null"`
-	Currency         string                 `json:"currency" gorm:"not null"`
-	Status           PaymentStatus          `json:"status" gorm:"not null;default:'pending'"`
-	CaptureMethod    CaptureMethod          `json:"capture_method" gorm:"default:'automatic'"`
-	CustomerID       string                 `json:"customer_id" gorm:"index"`
-	PaymentMethodID  string                 `json:"payment_method_id"`
-	Description      string                 `json:"description"`
-	ClientSecret     string                 `json:"client_secret"`
-	RequiresAction   bool                   `json:"requires_action" gorm:"default:false"`
-	NextAction       *NextAction            `json:"next_action,omitempty" gorm:"-"`
-	NextActionType   string                 `json:"next_action_type"`
-	NextActionURL    string                 `json:"next_action_url"`
-	CapturedAmount   int64                  `json:"captured_amount" gorm:"default:0"`
-	Metadata         JSON                   `json:"metadata" gorm:"type:jsonb"`
-	CreatedAt        time.Time              `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt        time.Time              `json:"updated_at" gorm:"autoUpdateTime"`
+	ID              string        `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	TenantID        *string       `json:"tenant_id" gorm:"index"`
+	ExternalID      string        `json:"external_id" gorm:"index"`
+	ProviderID      string        `json:"provider_id" gorm:"index"`
+	ProviderName    string        `json:"provider_name" gorm:"not null"`
+	Amount          int64         `json:"amount" gorm:"not null"`
+	Currency        string        `json:"currency" gorm:"not null"`
+	Status          PaymentStatus `json:"status" gorm:"not null;default:'pending'"`
+	CaptureMethod   CaptureMethod `json:"capture_method" gorm:"default:'automatic'"`
+	CustomerID      string        `json:"customer_id" gorm:"index"`
+	PaymentMethodID string        `json:"payment_method_id"`
+	Description     string        `json:"description"`
+	ClientSecret    string        `json:"client_secret"`
+	RequiresAction  bool          `json:"requires_action" gorm:"default:false"`
+	NextAction      *NextAction   `json:"next_action,omitempty" gorm:"-"`
+	NextActionType  string        `json:"next_action_type"`
+	NextActionURL   string        `json:"next_action_url"`
+	CapturedAmount  int64         `json:"captured_amount" gorm:"default:0"`
+	Metadata        JSON          `json:"metadata" gorm:"type:jsonb"`
+	CreatedAt       time.Time     `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt       time.Time     `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 type CreatePaymentSessionRequest struct {

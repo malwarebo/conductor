@@ -62,9 +62,9 @@ func (s *WebhookStore) MarkProcessing(ctx context.Context, id string) error {
 	return s.GetDB(ctx).Model(&models.WebhookEvent{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
-			"status":         models.WebhookEventStatusProcessing,
+			"status":          models.WebhookEventStatusProcessing,
 			"last_attempt_at": now,
-			"attempts":       gorm.Expr("attempts + 1"),
+			"attempts":        gorm.Expr("attempts + 1"),
 		}).Error
 }
 
@@ -141,4 +141,3 @@ func (s *WebhookStore) CleanupOld(ctx context.Context, olderThan time.Duration) 
 		Delete(&models.WebhookEvent{})
 	return result.RowsAffected, result.Error
 }
-

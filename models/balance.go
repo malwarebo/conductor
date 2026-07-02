@@ -10,4 +10,3 @@ type Balance struct {
 type BalanceResponse struct {
 	Balances []*Balance `json:"balances"`
 }
-

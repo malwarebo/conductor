@@ -1,35 +1,25 @@
 version: 2
 updates:
-  - package-ecosystem: "gomod"
+  - package-ecosystem: gomod
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: weekly
     open-pull-requests-limit: 10
-    reviewers:
-      - "malwarebo"
-    assignees:
-      - "malwarebo"
-    commit-message:
-      prefix: "security"
-      include: "scope"
-    labels:
-      - "security"
-      - "dependencies"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-  - package-ecosystem: "docker"
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "malwarebo"
-    assignees:
-      - "malwarebo"
-    commit-message:
-      prefix: "docker"
-      include: "scope"
-    labels:
-      - "docker"
-      - "security"
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"

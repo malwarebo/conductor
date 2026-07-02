@@ -2,15 +2,19 @@ name: Security Scan
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   schedule:
     - cron: '0 2 * * 1'
 
 permissions:
   contents: read
   security-events: write
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   dependency-scan:

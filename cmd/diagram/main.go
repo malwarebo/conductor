@@ -63,4 +63,3 @@ func openBrowser(url string) {
 	}
 	_ = cmd.Start()
 }
-

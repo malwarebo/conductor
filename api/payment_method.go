@@ -124,4 +124,3 @@ func (h *PaymentMethodHandler) HandleExpire(w http.ResponseWriter, r *http.Reque
 
 	writeJSON(w, http.StatusOK, models.PaymentMethodResponse{PaymentMethod: pm})
 }
-

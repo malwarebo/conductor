@@ -51,4 +51,3 @@ func (s *PayoutService) GetPayoutChannels(ctx context.Context, currency string) 
 	}
 	return nil, providers.ErrNotSupported
 }
-

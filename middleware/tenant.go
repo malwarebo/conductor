@@ -156,5 +156,3 @@ func getClientIP(r *http.Request) string {
 	}
 	return strings.Split(r.RemoteAddr, ":")[0]
 }
-
-

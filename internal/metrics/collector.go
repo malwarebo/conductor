@@ -34,30 +34,30 @@ type ProviderMetrics struct {
 }
 
 type requestData struct {
-	timestamp   time.Time
-	success     bool
-	latencyMs   int64
-	amount      float64
-	cost        float64
+	timestamp time.Time
+	success   bool
+	latencyMs int64
+	amount    float64
+	cost      float64
 }
 
 type Collector struct {
-	mu        sync.RWMutex
-	providers map[string]*ProviderMetrics
-	decisions []decisionRecord
+	mu           sync.RWMutex
+	providers    map[string]*ProviderMetrics
+	decisions    []decisionRecord
 	maxDecisions int
 }
 
 type decisionRecord struct {
-	timestamp       time.Time
-	provider        string
-	success         bool
-	latencyMs       int64
-	amount          float64
-	currency        string
-	merchantID      string
-	rulesApplied    []string
-	decisionTimeMs  int64
+	timestamp      time.Time
+	provider       string
+	success        bool
+	latencyMs      int64
+	amount         float64
+	currency       string
+	merchantID     string
+	rulesApplied   []string
+	decisionTimeMs int64
 }
 
 func NewCollector() *Collector {
@@ -292,9 +292,9 @@ func (c *Collector) GetDecisionStats(duration time.Duration) map[string]interfac
 	}
 
 	return map[string]interface{}{
-		"total_decisions":      total,
-		"success_rate":         successRate,
-		"avg_decision_time_ms": avgDecisionTime,
+		"total_decisions":       total,
+		"success_rate":          successRate,
+		"avg_decision_time_ms":  avgDecisionTime,
 		"provider_distribution": providerCounts,
 	}
 }
