@@ -167,7 +167,7 @@ func (p *XenditProvider) doRequest(ctx context.Context, method, path string, bod
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -239,9 +239,9 @@ func (p *XenditProvider) Charge(ctx context.Context, req *models.ChargeRequest) 
 		paymentReq.SetMetadata(req.Metadata)
 	}
 
-	pr, _, err := p.client.PaymentRequestApi.CreatePaymentRequest(ctx).PaymentRequestParameters(*paymentReq).Execute()
-	if err != nil {
-		return nil, fmt.Errorf("xendit payment request creation failed: %w", err)
+	pr, _, sdkErr := p.client.PaymentRequestApi.CreatePaymentRequest(ctx).PaymentRequestParameters(*paymentReq).Execute()
+	if sdkErr != nil {
+		return nil, fmt.Errorf("xendit payment request creation failed: %w", sdkErr)
 	}
 
 	status := p.mapPaymentStatus(string(pr.GetStatus()))
@@ -338,9 +338,9 @@ func (p *XenditProvider) CreatePaymentSession(ctx context.Context, req *models.C
 		paymentReq.SetMetadata(req.Metadata)
 	}
 
-	pr, _, err := p.client.PaymentRequestApi.CreatePaymentRequest(ctx).PaymentRequestParameters(*paymentReq).Execute()
-	if err != nil {
-		return nil, fmt.Errorf("xendit create payment session failed: %w", err)
+	pr, _, sdkErr := p.client.PaymentRequestApi.CreatePaymentRequest(ctx).PaymentRequestParameters(*paymentReq).Execute()
+	if sdkErr != nil {
+		return nil, fmt.Errorf("xendit create payment session failed: %w", sdkErr)
 	}
 
 	return p.mapPaymentSession(pr), nil

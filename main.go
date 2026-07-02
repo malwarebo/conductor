@@ -99,7 +99,7 @@ func main() {
 		printError(fmt.Sprintf("Failed to create connection pool: %v", err))
 		os.Exit(1)
 	}
-	defer connectionPool.Close()
+	defer func() { _ = connectionPool.Close() }()
 
 	database := connectionPool.GetPrimary()
 	printSuccess(fmt.Sprintf("Connected to PostgreSQL at %s:%d", cfg.Database.Host, cfg.Database.Port))
@@ -127,7 +127,7 @@ func main() {
 	if err != nil {
 		printWarning(fmt.Sprintf("Failed to connect to Redis: %v (continuing without cache)", err))
 	} else {
-		defer redisCache.Close()
+		defer func() { _ = redisCache.Close() }()
 		printSuccess(fmt.Sprintf("Connected to Redis at %s:%d", cfg.Redis.Host, cfg.Redis.Port))
 	}
 
@@ -267,7 +267,7 @@ func main() {
 
 	router := mux.NewRouter()
 
-	authMiddleware := middleware.CreateAuthMiddleware(jwtManager, rateLimiter, encryption, cfg.Security.WebhookSecret)
+	authMiddleware := middleware.CreateAuthMiddleware(jwtManager, rateLimiter, encryption)
 	tenantMiddleware := middleware.CreateTenantMiddleware(tenantService, auditService)
 
 	router.Use(middleware.CreateLoggingMiddleware)

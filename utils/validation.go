@@ -161,13 +161,13 @@ func CreateWriteValidationError(w http.ResponseWriter, err error) {
 
 	if validationErr, ok := err.(ValidationErrors); ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(validationErr.ToJSON())
+		_ = json.NewEncoder(w).Encode(validationErr.ToJSON())
 	} else if apiErr, ok := err.(*APIError); ok {
 		w.WriteHeader(apiErr.Code)
-		json.NewEncoder(w).Encode(apiErr)
+		_ = json.NewEncoder(w).Encode(apiErr)
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": err.Error(),
 		})
 	}

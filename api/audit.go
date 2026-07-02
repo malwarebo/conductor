@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/malwarebo/conductor/internal/ctxkeys"
 	"github.com/malwarebo/conductor/models"
 	"github.com/malwarebo/conductor/services"
 )
@@ -26,7 +27,7 @@ func (h *AuditHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 		Offset: 0,
 	}
 
-	if tenantID := r.Context().Value("tenant_id"); tenantID != nil {
+	if tenantID := r.Context().Value(ctxkeys.TenantID); tenantID != nil {
 		filter.TenantID = tenantID.(string)
 	}
 

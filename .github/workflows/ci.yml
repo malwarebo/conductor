@@ -15,23 +15,20 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
-        go-version: '1.26.1'
+        go-version: '1.26.4'
 
     - name: Setup CI environment
       run: ./scripts/ci-setup.sh
 
-    - name: Install golangci-lint
-      uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6.5.0
-      with:
-        version: v1.62.2
-
     - name: Run golangci-lint
-      run: golangci-lint run --timeout=5m
+      uses: golangci/golangci-lint-action@d583c34f0599d37dbac4a198b9c83201be380893 # v9.3.0
+      with:
+        version: v2.12.2
 
   test:
     runs-on: ubuntu-latest

@@ -1,17 +1,17 @@
 module github.com/malwarebo/conductor
 
-go 1.26.1
+go 1.26.4
 
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/razorpay/razorpay-go v1.4.1
-	github.com/redis/go-redis/v9 v9.20.0
-	github.com/stripe/stripe-go/v84 v84.4.1
+	github.com/redis/go-redis/v9 v9.21.0
+	github.com/stripe/stripe-go/v86 v86.1.0
 	github.com/xendit/xendit-go/v7 v7.0.0
 	golang.org/x/crypto v0.53.0
 	golang.org/x/time v0.15.0
 	gorm.io/driver/postgres v1.6.0
-	gorm.io/gorm v1.31.1
+	gorm.io/gorm v1.31.2
 )
 
 require (

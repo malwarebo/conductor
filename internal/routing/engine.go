@@ -507,7 +507,7 @@ func (e *Engine) RecordResult(provider string, success bool, latencyMs int64, am
 
 func (e *Engine) RecordBINResult(ctx context.Context, bin, provider string, success bool, latencyMs int64) {
 	if e.binStore != nil && len(bin) >= 6 {
-		e.binStore.UpdateProviderStats(ctx, bin[:6], provider, success, latencyMs)
+		_ = e.binStore.UpdateProviderStats(ctx, bin[:6], provider, success, latencyMs)
 	}
 }
 

@@ -128,21 +128,6 @@ func (p *RazorpayProvider) mapOrderStatus(status string) models.PaymentStatus {
 	return models.PaymentStatusPending
 }
 
-var razorpayPaymentStatusMap = map[string]models.PaymentStatus{
-	"captured":   models.PaymentStatusSuccess,
-	"authorized": models.PaymentStatusRequiresCapture,
-	"refunded":   models.PaymentStatusRefunded,
-	"failed":     models.PaymentStatusFailed,
-	"created":    models.PaymentStatusPending,
-}
-
-func (p *RazorpayProvider) mapPaymentStatus(status string) models.PaymentStatus {
-	if s, ok := razorpayPaymentStatusMap[status]; ok {
-		return s
-	}
-	return models.PaymentStatusPending
-}
-
 func (p *RazorpayProvider) CapturePayment(ctx context.Context, paymentID string, amount int64) error {
 	captureData := map[string]interface{}{
 		"amount":   amount,

@@ -3,9 +3,6 @@ package middleware
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,22 +10,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/malwarebo/conductor/internal/ctxkeys"
 	"github.com/malwarebo/conductor/security"
 )
 
 type AuthMiddleware struct {
-	jwtManager    *security.JWTManager
-	rateLimiter   *security.TieredRateLimiter
-	encryption    *security.EncryptionManager
-	webhookSecret string
+	jwtManager  *security.JWTManager
+	rateLimiter *security.TieredRateLimiter
+	encryption  *security.EncryptionManager
 }
 
-func CreateAuthMiddleware(jwtManager *security.JWTManager, rateLimiter *security.TieredRateLimiter, encryption *security.EncryptionManager, webhookSecret string) *AuthMiddleware {
+func CreateAuthMiddleware(jwtManager *security.JWTManager, rateLimiter *security.TieredRateLimiter, encryption *security.EncryptionManager) *AuthMiddleware {
 	return &AuthMiddleware{
-		jwtManager:    jwtManager,
-		rateLimiter:   rateLimiter,
-		encryption:    encryption,
-		webhookSecret: webhookSecret,
+		jwtManager:  jwtManager,
+		rateLimiter: rateLimiter,
+		encryption:  encryption,
 	}
 }
 
@@ -57,10 +53,10 @@ func (am *AuthMiddleware) JWTMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
-		ctx = context.WithValue(ctx, "user_email", claims.Email)
-		ctx = context.WithValue(ctx, "user_roles", claims.Roles)
-		ctx = context.WithValue(ctx, "api_key", claims.APIKey)
+		ctx := context.WithValue(r.Context(), ctxkeys.UserID, claims.UserID)
+		ctx = context.WithValue(ctx, ctxkeys.UserEmail, claims.Email)
+		ctx = context.WithValue(ctx, ctxkeys.UserRoles, claims.Roles)
+		ctx = context.WithValue(ctx, ctxkeys.APIKey, claims.APIKey)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -68,7 +64,7 @@ func (am *AuthMiddleware) JWTMiddleware(next http.Handler) http.Handler {
 
 func (am *AuthMiddleware) RateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID := r.Context().Value("user_id")
+		userID := r.Context().Value(ctxkeys.UserID)
 		if userID == nil {
 			userID = r.RemoteAddr
 		}
@@ -106,7 +102,7 @@ func (am *AuthMiddleware) EncryptionMiddleware(next http.Handler) http.Handler {
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), "encrypted_data", encrypted)
+			ctx := context.WithValue(r.Context(), ctxkeys.EncryptedData, encrypted)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
@@ -133,7 +129,7 @@ func (am *AuthMiddleware) HeadersMiddleware(next http.Handler) http.Handler {
 }
 
 func (am *AuthMiddleware) getUserTier(ctx context.Context) string {
-	roles := ctx.Value("user_roles")
+	roles := ctx.Value(ctxkeys.UserRoles)
 	if roles == nil {
 		return "default"
 	}
@@ -171,17 +167,6 @@ func (am *AuthMiddleware) readRequestBody(r *http.Request) ([]byte, error) {
 	return body, nil
 }
 
-func (am *AuthMiddleware) verifyWebhookSignature(body []byte, signature string) bool {
-	expectedSignature := am.calculateSignature(body)
-	return hmac.Equal([]byte(signature), []byte(expectedSignature))
-}
-
-func (am *AuthMiddleware) calculateSignature(body []byte) string {
-	h := hmac.New(sha256.New, []byte(am.webhookSecret))
-	h.Write(body)
-	return hex.EncodeToString(h.Sum(nil))
-}
-
 func (am *AuthMiddleware) writeErrorResponse(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
@@ -192,5 +177,5 @@ func (am *AuthMiddleware) writeErrorResponse(w http.ResponseWriter, statusCode i
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
 
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }

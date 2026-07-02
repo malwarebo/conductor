@@ -6,7 +6,13 @@ import (
 	"log"
 	"os"
 	"time"
+
+	"github.com/malwarebo/conductor/internal/ctxkeys"
 )
+
+type contextKey string
+
+const correlationIDContextKey contextKey = "correlation_id"
 
 type LogLevel int
 
@@ -109,25 +115,21 @@ func (l *Logger) levelString(level LogLevel) string {
 }
 
 func CreateGetCorrelationID(ctx context.Context) string {
-	if id, ok := ctx.Value("correlation_id").(string); ok {
+	if id, ok := ctx.Value(correlationIDContextKey).(string); ok {
 		return id
 	}
 	return ""
 }
 
 func CreateGetUserID(ctx context.Context) string {
-	if id, ok := ctx.Value("user_id").(string); ok {
+	if id, ok := ctx.Value(ctxkeys.UserID).(string); ok {
 		return id
 	}
 	return ""
 }
 
 func CreateWithCorrelationID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, "correlation_id", id)
-}
-
-func CreateWithUserID(ctx context.Context, userID string) context.Context {
-	return context.WithValue(ctx, "user_id", userID)
+	return context.WithValue(ctx, correlationIDContextKey, id)
 }
 
 func CreateDebug(ctx context.Context, message string, fields ...map[string]interface{}) {
