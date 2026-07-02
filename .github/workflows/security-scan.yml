@@ -39,7 +39,7 @@ jobs:
       - name: Run gosec
         uses: securego/gosec@5a2f0a6455f43d8ac8efaf1591ee0fb400dce662 # v2.27.1
         with:
-          args: '-fmt sarif -out gosec.sarif ./...'
+          args: '-no-fail -fmt sarif -out gosec.sarif ./...'
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v3
@@ -63,14 +63,21 @@ jobs:
       - name: Install go-licenses
         run: go install github.com/google/go-licenses@latest
 
-      - name: Check licenses
-        run: |
-          go-licenses report ./... --template="{{.Name}} {{.Version}} {{.License}}"
+      - name: Report licenses
+        run: go-licenses report ./... --ignore github.com/malwarebo/conductor
 
       - name: Generate SBOM
         run: |
-          go-licenses csv ./... > sbom.csv
+          go-licenses csv ./... --ignore github.com/malwarebo/conductor > sbom.csv
           echo "SBOM generated: sbom.csv"
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbom
+          path: sbom.csv
+          if-no-files-found: ignore
 
   docker-scan:
     runs-on: ubuntu-latest

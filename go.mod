@@ -1,6 +1,6 @@
 module github.com/malwarebo/conductor
 
-go 1.26.4
+go 1.26
 
 require (
 	github.com/gorilla/mux v1.8.1
