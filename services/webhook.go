@@ -16,6 +16,8 @@ import (
 	"github.com/malwarebo/conductor/stores"
 )
 
+const defaultWebhookMaxAttempts = 5
+
 type WebhookService struct {
 	webhookStore *stores.WebhookStore
 	paymentStore *stores.PaymentRepository
@@ -42,51 +44,50 @@ func CreateWebhookService(
 }
 
 func (s *WebhookService) ProcessInboundWebhook(ctx context.Context, provider, eventID, eventType string, payload []byte) error {
-	existing, _ := s.webhookStore.GetByEventID(ctx, provider, eventID)
-	if existing != nil && existing.Status == models.WebhookEventStatusCompleted {
-		return nil
+	if eventID != "" {
+		existing, _ := s.webhookStore.GetByEventID(ctx, provider, eventID)
+		if existing != nil {
+			return nil
+		}
 	}
 
 	var payloadJSON models.JSON
 	_ = json.Unmarshal(payload, &payloadJSON)
 
 	event := &models.WebhookEvent{
-		Provider:  provider,
-		EventType: eventType,
-		EventID:   eventID,
-		Payload:   payloadJSON,
-		Status:    models.WebhookEventStatusPending,
+		Provider:    provider,
+		EventType:   eventType,
+		EventID:     eventID,
+		Payload:     payloadJSON,
+		Status:      models.WebhookEventStatusPending,
+		MaxAttempts: defaultWebhookMaxAttempts,
 	}
 
 	if err := s.webhookStore.Create(ctx, event); err != nil {
 		return fmt.Errorf("failed to create webhook event: %w", err)
 	}
 
-	return s.processEvent(ctx, event)
+	return nil
 }
 
-func (s *WebhookService) processEvent(ctx context.Context, event *models.WebhookEvent) error {
-	if err := s.webhookStore.MarkProcessing(ctx, event.ID); err != nil {
-		return err
-	}
-
-	var err error
-	switch event.Provider {
-	case "stripe":
-		err = s.processStripeEvent(ctx, event)
-	case "xendit":
-		err = s.processXenditEvent(ctx, event)
-	default:
-		err = fmt.Errorf("unknown provider: %s", event.Provider)
-	}
-
-	if err != nil {
+func (s *WebhookService) ProcessClaimedEvent(ctx context.Context, event *models.WebhookEvent) error {
+	if err := s.dispatchEvent(ctx, event); err != nil {
 		shouldRetry := event.Attempts < event.MaxAttempts
 		_ = s.webhookStore.MarkFailed(ctx, event.ID, err.Error(), shouldRetry)
 		return err
 	}
-
 	return s.webhookStore.MarkCompleted(ctx, event.ID)
+}
+
+func (s *WebhookService) dispatchEvent(ctx context.Context, event *models.WebhookEvent) error {
+	switch event.Provider {
+	case "stripe":
+		return s.processStripeEvent(ctx, event)
+	case "xendit":
+		return s.processXenditEvent(ctx, event)
+	default:
+		return fmt.Errorf("unknown provider: %s", event.Provider)
+	}
 }
 
 func (s *WebhookService) processStripeEvent(ctx context.Context, event *models.WebhookEvent) error {
@@ -521,19 +522,6 @@ func (s *WebhookService) SendOutboundWebhook(ctx context.Context, tenantID, even
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("webhook delivery failed with status: %d", resp.StatusCode)
-	}
-
-	return nil
-}
-
-func (s *WebhookService) ProcessPendingWebhooks(ctx context.Context, batchSize int) error {
-	events, err := s.webhookStore.GetPendingEvents(ctx, batchSize)
-	if err != nil {
-		return err
-	}
-
-	for _, event := range events {
-		_ = s.processEvent(ctx, event)
 	}
 
 	return nil

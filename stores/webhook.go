@@ -6,6 +6,7 @@ import (
 
 	"github.com/malwarebo/conductor/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type WebhookStore struct {
@@ -55,6 +56,59 @@ func (s *WebhookStore) GetPendingEvents(ctx context.Context, limit int) ([]*mode
 		return nil, err
 	}
 	return events, nil
+}
+
+func (s *WebhookStore) ClaimPendingEvents(ctx context.Context, limit int, staleAfter time.Duration) ([]*models.WebhookEvent, error) {
+	var claimed []*models.WebhookEvent
+
+	err := s.GetDB(ctx).Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+		staleCutoff := now.Add(-staleAfter)
+
+		var events []*models.WebhookEvent
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+			Where(
+				tx.Where("status IN ? AND (next_attempt_at IS NULL OR next_attempt_at <= ?)",
+					[]string{string(models.WebhookEventStatusPending), string(models.WebhookEventStatusRetrying)}, now).
+					Or("status = ? AND last_attempt_at <= ?", models.WebhookEventStatusProcessing, staleCutoff),
+			).
+			Where("attempts < max_attempts").
+			Order("created_at ASC").
+			Limit(limit).
+			Find(&events).Error
+		if err != nil {
+			return err
+		}
+
+		if len(events) == 0 {
+			return nil
+		}
+
+		ids := make([]string, len(events))
+		for i, e := range events {
+			ids[i] = e.ID
+		}
+
+		if err := tx.Model(&models.WebhookEvent{}).
+			Where("id IN ?", ids).
+			Updates(map[string]interface{}{
+				"status":          models.WebhookEventStatusProcessing,
+				"last_attempt_at": now,
+				"attempts":        gorm.Expr("attempts + 1"),
+			}).Error; err != nil {
+			return err
+		}
+
+		for _, e := range events {
+			e.Status = models.WebhookEventStatusProcessing
+			e.LastAttemptAt = &now
+			e.Attempts++
+		}
+		claimed = events
+		return nil
+	})
+
+	return claimed, err
 }
 
 func (s *WebhookStore) MarkProcessing(ctx context.Context, id string) error {

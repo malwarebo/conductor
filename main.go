@@ -15,6 +15,7 @@ import (
 	"github.com/malwarebo/conductor/cache"
 	"github.com/malwarebo/conductor/config"
 	"github.com/malwarebo/conductor/db"
+	"github.com/malwarebo/conductor/internal/worker"
 	"github.com/malwarebo/conductor/middleware"
 	"github.com/malwarebo/conductor/providers"
 	"github.com/malwarebo/conductor/security"
@@ -241,6 +242,18 @@ func main() {
 
 	printSuccess("Services initialized")
 
+	webhookPool := worker.NewWebhookPool(webhookStore, webhookService, worker.Config{
+		Workers:      cfg.Worker.WebhookWorkers,
+		BatchSize:    cfg.Worker.WebhookBatchSize,
+		PollInterval: time.Duration(cfg.Worker.WebhookPollMs) * time.Millisecond,
+		StaleAfter:   time.Duration(cfg.Worker.WebhookStaleSeconds) * time.Second,
+	})
+	webhookPool.OnError = func(err error) {
+		printWarning(fmt.Sprintf("webhook worker: %v", err))
+	}
+	webhookPool.Start(context.Background())
+	printSuccess("Webhook worker pool started")
+
 	printStep("8/8", "Setting up HTTP server...")
 	webhookValidators := map[string]api.WebhookValidator{
 		"stripe": stripeProvider,
@@ -442,6 +455,8 @@ func main() {
 			printWarning(fmt.Sprintf("Metrics server forced to shutdown: %v", err))
 		}
 	}
+
+	webhookPool.Stop()
 
 	rateLimiter.Close()
 
